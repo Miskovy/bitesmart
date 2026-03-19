@@ -5,3 +5,6 @@ torchvision
 timm
 Pillow
 python-multipart
+starlette
+pydantic
+pydantic-settings

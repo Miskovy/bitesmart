@@ -5,7 +5,7 @@ from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from PIL import Image , UnidentifiedImageError
 from io import BytesIO
 from fastapi import UploadFile , HTTPException
-from app.config import settings
+from app.config.config import settings
 import logging
 
 

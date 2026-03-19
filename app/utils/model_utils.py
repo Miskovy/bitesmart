@@ -2,7 +2,7 @@ import torch
 import timm
 from pathlib import Path
 from typing import List
-from app.config import settings
+from app.config.config import settings
 
 def load_class_names(class_list_path: Path) -> List[str]:
     if not class_list_path.exists():
