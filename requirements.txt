@@ -8,3 +8,11 @@ python-multipart
 starlette
 pydantic
 pydantic-settings
+ultralytics
+onnxruntime
+numpy
+sqlalchemy
+pymysql
+cryptography
+sqlalchemy_utils
+python-dotenv
