@@ -21,7 +21,15 @@ class Settings(BaseSettings):
     MODEL_PATH: Path = PROJECT_ROOT / "storage" / "models" / "v3" / "food_V3_convnext.pth"
     CLASS_LIST_PATH: Path = PROJECT_ROOT / "storage" / "data" / "food_119_classes.txt"
 
+    MYSQL_USER: str = "root"
+    MYSQL_PASSWORD: str
+    MYSQL_HOST: str = "localhost"
+    MYSQL_PORT: str = "3306"
+    MYSQL_DB: str = "bitesmartDB"
+
+
     class Config:
         env_file = ".env"
+        extra = 'ignore'
 
 settings = Settings()

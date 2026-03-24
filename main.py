@@ -6,10 +6,10 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import RequestValidationError
 
 from app.config.config import settings
-from app.schemas import prediction
 from app.utils.model_utils import load_model , load_class_names
-from app.routers.prediction.prediction import router as prediction_router
+from app.routers.prediction.v3.prediction import router as prediction_router
 from app.middlewares.auth import InternalAuthMiddleware
+from app.routers.prediction.v4.prediction import router as prediction_v4_router
 
 # Loading Class names on start up
 @asynccontextmanager
@@ -92,6 +92,11 @@ app.include_router(
     tags=["Prediction"]
 )
 
+app.include_router(
+    prediction_v4_router,
+    prefix="/api/v4",
+    tags=["Prediction V4 (ONNX + Volume)"]
+)
 
 #Root
 @app.get("/")
