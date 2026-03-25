@@ -3,6 +3,7 @@ import timm
 from pathlib import Path
 from typing import List
 from app.config.config import settings
+import onnxruntime as ort
 
 def load_class_names(class_list_path: Path) -> List[str]:
     if not class_list_path.exists():
@@ -14,6 +15,26 @@ def load_class_names(class_list_path: Path) -> List[str]:
     print(f"Loaded {len(class_names)} class names.")
 
     return class_names
+
+
+def load_onnx_model(model_path: Path) -> ort.InferenceSession:
+    """
+    Loads an ONNX model into memory using the CPU Execution Provider.
+    """
+    if not model_path.exists():
+        raise FileNotFoundError(f"ONNX Model file not found: {model_path}")
+
+    print(f"Loading ONNX model from {model_path}")
+
+    # We explicitly declare the CPUExecutionProvider to avoid any warnings
+    # about missing CUDA/GPU drivers on your production server.
+    session = ort.InferenceSession(
+        str(model_path),
+        providers=['CPUExecutionProvider']
+    )
+
+    print(f"ONNX Model loaded successfully.")
+    return session
 
 def load_model(model_path: Path,num_classes: int):
     if not model_path.exists():
