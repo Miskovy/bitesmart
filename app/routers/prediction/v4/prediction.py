@@ -1,105 +1,125 @@
-import numpy as np
-import time
-from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException, status
-
+from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException, Request
 from sqlalchemy.orm import Session
-from typing import List
-
 from app.db.database import get_db
 from app.models.food_model import FoodItem
-from app.schemas.prediction_v4 import PredictionV4Response, FoodAnalysisItem, MacroInfo
-from app.utils.image_utils_v4 import transform_image_onnx, validate_and_prepare_image
-from app.dependencies.onnx_dependencies import get_convnext_session, get_yolo_session, get_class_names
-from app.utils.math_helpers import calculate_softmax , get_top_k
-from app.utils.yolo_utils import process_yolo_onnx
+from app.utils.yolo_utils import extract_food_mask , get_plate_diameter_cv2
+from app.utils.model_utils import process_image
+
 router = APIRouter()
 
 
-@router.post("/predict", response_model=PredictionV4Response)
-async def predict_v4(
+@router.post("/predict", tags=["Prediction Fallback"])
+async def predict_food_volume_fallback(
+        request: Request,
         file: UploadFile = File(..., description="The food image to analyze."),
         plate_diameter_cm: float = Form(..., description="Real-world diameter of the plate in cm."),
-        convnext_session=Depends(get_convnext_session),
-        yolo_session = Depends(get_yolo_session),
-        class_names: List[str] = Depends(get_class_names),
-        db: Session = Depends(get_db)  # Inject the MySQL session
+        db: Session = Depends(get_db)
 ):
-    # 1. Image Preparation
-    image_bytes, was_converted = await validate_and_prepare_image(file)
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File provided is not an image.")
 
-    try:
-        start_time = time.time()
-        img_array = transform_image_onnx(image_bytes)
+    image_bytes = await file.read()
 
-        # 2. ConvNeXt Inference
-        input_name = convnext_session.get_inputs()[0].name
-        outputs = convnext_session.run(None, {input_name: img_array})
-        logits = outputs[0][0]
+    convnext_session = request.app.state.convnext_session
+    class_names = request.app.state.class_names
+    yolo_model = request.app.state.yolo_ar_model
 
-        # 3. Process Probabilities
-        probabilities = calculate_softmax(logits)
-        top5_prob, top5_idx = get_top_k(probabilities, 5)
+    predicted_class = process_image(image_bytes, convnext_session, class_names)
+    food_pixel_area, _ = extract_food_mask(image_bytes, yolo_model)
+    plate_pixel_diameter = get_plate_diameter_cv2(image_bytes)
 
-        predicted_class = class_names[top5_idx[0]]
-        confidence = float(top5_prob[0])
+    # Grab both measurements from the updated OpenCV function
+    plate_major_px, plate_minor_px = get_plate_diameter_cv2(image_bytes)
 
-        # 4. Database Lookup
-        # Fetch the real density, height, and macros from bitesmartDB
-        food_db_item = db.query(FoodItem).filter(FoodItem.class_name == predicted_class).first()
+    if food_pixel_area == 0:
+        raise HTTPException(status_code=422, detail="Could not detect any food in the image.")
+    if plate_pixel_diameter == 0:
+        raise HTTPException(status_code=422, detail="Could not detect a circular plate. Please ensure the plate is fully visible.")
 
-        if not food_db_item:
-            # Fallback if the class isn't in the DB for some reason
-            height = 2.0
-            density = 1.0
-            macros_base = {"pro": 0, "carbs": 0, "fat": 0, "cals": 0}
-        else:
-            height = food_db_item.avg_height_cm
-            density = food_db_item.density_g_cm3
-            macros_base = {
-                "pro": food_db_item.protein_per_100g,
-                "carbs": food_db_item.carbs_per_100g,
-                "fat": food_db_item.fats_per_100g,
-                "cals": food_db_item.cals_per_100g
-            }
+    food_record = db.query(FoodItem).filter(FoodItem.class_name == predicted_class).first()
+    if not food_record:
+        raise HTTPException(status_code=500, detail=f"Class {predicted_class} missing from database.")
 
-        raw_bytes = image_bytes.getvalue()
-        # Pass the injected yolo_session directly into our new utility
-        food_pixel_area, plate_pixel_diameter = process_yolo_onnx(raw_bytes, yolo_session)
+    # Calculate how badly the camera is tilted (e.g., 2.5x squished)
+    perspective_factor = plate_major_px / plate_minor_px
 
-        # Calculate Real-world Area (cm^2)
-        ratio = plate_diameter_cm / plate_pixel_diameter
-        area_cm2 = food_pixel_area * (ratio ** 2)
+    # "Un-squish" the YOLO pixel count
+    corrected_pixel_area = food_pixel_area * perspective_factor
 
-        # Calculate Final Weight in Grams
-        weight_grams = area_cm2 * height * density
+    # Calculate the cm-per-pixel ratio using the unsquished horizontal width
+    ratio = plate_diameter_cm / plate_major_px
 
-        # 6. Calculate Real Macros based on Weight
-        multiplier = weight_grams / 100.0
-        final_macros = MacroInfo(
-            protein_g=round(macros_base["pro"] * multiplier, 1),
-            carbs_g=round(macros_base["carbs"] * multiplier, 1),
-            fats_g=round(macros_base["fat"] * multiplier, 1),
-            calories=round(macros_base["cals"] * multiplier, 1)
-        )
+    # Calculate real area using the corrected pixel count
+    area_cm2 = corrected_pixel_area * (ratio ** 2)
 
-        print(f"Full V4 Pipeline took: {time.time() - start_time:.3f}s")
+    volume_cm3 = area_cm2 * food_record.avg_height_cm
+    weight_g = volume_cm3 * food_record.density_g_cm3
+    multiplier = weight_g / 100.0
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Inference or DB lookup failed: {str(e)}"
-        )
+    return {
+        "success": True,
+        "food_detected": predicted_class,
+        "measurements": {
+            "plate_diameter_cm": plate_diameter_cm,
+            "estimated_weight_g": round(weight_g, 2),
+            "estimated_volume_cm3": round(volume_cm3, 2)
+        },
+        "macros": {
+            "calories": round(food_record.cals_per_100g * multiplier, 2),
+            "protein_g": round(food_record.protein_per_100g * multiplier, 2),
+            "carbs_g": round(food_record.carbs_per_100g * multiplier, 2),
+            "fats_g": round(food_record.fats_per_100g * multiplier, 2)
+        }
+    }
 
-    # 7. Final Response
-    analysis_result = FoodAnalysisItem(
-        class_name=predicted_class,
-        confidence=confidence,
-        estimated_weight_g=round(weight_grams, 1),
-        macros=final_macros
-    )
+@router.post("/predictAR", tags=["Prediction with AR"])
+async def predict_food_volume_ar(
+        request: Request,
+        file: UploadFile = File(...),
+        food_width_cm: float = Form(..., description="Real-world width of the food from Mobile AR"),
+        db: Session = Depends(get_db)
+):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File provided is not an image.")
 
-    return PredictionV4Response(
-        success=True,
-        plate_diameter_cm=plate_diameter_cm,
-        analysis=[analysis_result]
-    )
+    image_bytes = await file.read()
+
+    # 1. Extract the specific AR model
+    convnext_session = request.app.state.convnext_session
+    class_names = request.app.state.class_names
+    yolo_model = request.app.state.yolo_ar_model
+
+    # 2. Use the 1-class utility
+    predicted_class = process_image(image_bytes, convnext_session, class_names)
+    pixel_area, pixel_width = extract_food_mask(image_bytes, yolo_model)
+
+    if pixel_area == 0:
+        raise HTTPException(status_code=422, detail="Could not detect any food. Please try another angle.")
+
+    # 3. Database & Math
+    food_record = db.query(FoodItem).filter(FoodItem.class_name == predicted_class).first()
+    if not food_record:
+        raise HTTPException(status_code=500, detail=f"Class {predicted_class} missing from database.")
+
+    ratio = food_width_cm / pixel_width
+    real_area_cm2 = pixel_area * (ratio ** 2)
+
+    volume_cm3 = real_area_cm2 * food_record.avg_height_cm
+    weight_g = volume_cm3 * food_record.density_g_cm3
+    multiplier = weight_g / 100.0
+
+    return {
+        "success": True,
+        "food_detected": predicted_class,
+        "measurements": {
+            "ar_width_cm": food_width_cm,
+            "estimated_weight_g": round(weight_g, 2),
+            "estimated_volume_cm3": round(volume_cm3, 2)
+        },
+        "macros": {
+            "calories": round(food_record.cals_per_100g * multiplier, 2),
+            "protein_g": round(food_record.protein_per_100g * multiplier, 2),
+            "carbs_g": round(food_record.carbs_per_100g * multiplier, 2),
+            "fats_g": round(food_record.fats_per_100g * multiplier, 2)
+        }
+    }
