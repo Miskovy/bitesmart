@@ -11,14 +11,16 @@ from app.routers.prediction.v3.prediction import router as prediction_router
 from app.middlewares.auth import InternalAuthMiddleware
 from app.routers.prediction.v4.prediction import router as prediction_v4_router
 from app.routers.food.food import router as food_router
-# Loading Class names on start up
+from ultralytics import YOLO
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Server starting up..")
 
     app.state.class_names = load_class_names(settings.CLASS_LIST_PATH)
     app.state.convnext_session = load_onnx_model(settings.MODEL_PATH)
-    app.state.yolo_session = load_onnx_model(settings.YOLO_MODEL_PATH)
+    app.state.yolo_ar_model = YOLO(settings.YOLO_AR_MODEL_PATH, task="segment")
+
     print("Server started..")
     yield
     print("Server shutting down..")
