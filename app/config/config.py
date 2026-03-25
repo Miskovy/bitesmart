@@ -18,8 +18,9 @@ class Settings(BaseSettings):
     NUM_CLASSES: int = 119
     IMG_SIZE: int = 224
 
-    MODEL_PATH: Path = PROJECT_ROOT / "storage" / "models" / "v3" / "food_V3_convnext.pth"
+    MODEL_PATH: Path = PROJECT_ROOT / "storage" / "models" / "v4" / "convnext" /"convnext_base_119.onnx"
     CLASS_LIST_PATH: Path = PROJECT_ROOT / "storage" / "data" / "food_119_classes.txt"
+    YOLO_MODEL_PATH: Path = PROJECT_ROOT / "storage" / "models" / "v4" / "segmentor" /"yolov8n-seg.onnx"
 
     MYSQL_USER: str = "root"
     MYSQL_PASSWORD: str

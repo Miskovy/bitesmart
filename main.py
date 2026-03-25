@@ -6,21 +6,19 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import RequestValidationError
 
 from app.config.config import settings
-from app.utils.model_utils import load_model , load_class_names
+from app.utils.model_utils import load_model, load_class_names, load_onnx_model
 from app.routers.prediction.v3.prediction import router as prediction_router
 from app.middlewares.auth import InternalAuthMiddleware
 from app.routers.prediction.v4.prediction import router as prediction_v4_router
-
+from app.routers.food.food import router as food_router
 # Loading Class names on start up
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Server starting up..")
 
     app.state.class_names = load_class_names(settings.CLASS_LIST_PATH)
-
-    model, device = load_model(settings.MODEL_PATH, settings.NUM_CLASSES)
-    app.state.model = model
-    app.state.device = device
+    app.state.convnext_session = load_onnx_model(settings.MODEL_PATH)
+    app.state.yolo_session = load_onnx_model(settings.YOLO_MODEL_PATH)
     print("Server started..")
     yield
     print("Server shutting down..")
@@ -96,6 +94,12 @@ app.include_router(
     prediction_v4_router,
     prefix="/api/v4",
     tags=["Prediction V4 (ONNX + Volume)"]
+)
+
+app.include_router(
+    food_router,
+    prefix="/api/food",
+    tags=["Food"]
 )
 
 #Root

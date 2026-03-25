@@ -7,11 +7,12 @@ from starlette.responses import JSONResponse
 from app.config.config import settings
 
 UNPROTECTED_PATHS = {"/", "/health", "/docs", "/openapi.json", "/redoc"}
+UNPROTECTED_PREFIXES = ("/api/food",)
 
 class InternalAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
 
-        if request.url.path in UNPROTECTED_PATHS:
+        if request.url.path in UNPROTECTED_PATHS or request.url.path.startswith(UNPROTECTED_PREFIXES):
             return await call_next(request)
 
         api_key   = request.headers.get("X-Api-Key")
