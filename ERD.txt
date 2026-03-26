@@ -1,0 +1,297 @@
+// --- ENUMS ---
+enum genders {
+  Male
+  Female
+}
+
+enum goals {
+  WeightLoss
+  Maintenance
+  MuscleGain
+}
+
+enum activity_level {
+  Sedentary
+  LightlyActive
+  ModeratelyActive
+  VeryActive
+}
+
+enum meal_type {
+  Breakfast
+  Lunch
+  Dinner
+  Snack
+}
+
+enum user_role {
+  User
+  Admin
+  ContentManager
+}
+
+enum food_source {
+  USDA        // Cached from API
+  OpenFood    // Barcode Scan
+  Local       // Your Proprietary MENA DB
+  UserCreated // Custom user entry
+}
+
+// --- USERS & AUTH ---
+Table Users {
+  id UUID [pk]
+  name varchar [not null]
+  password hashedVarchar [not null]
+  email varchar [not null, unique]
+  googleId varchar
+  avatar varchar
+  role user_role [not null, default: 'User'] // Added for Admin Dashboard access [cite: 496]
+
+  // Physical Stats
+  height double
+  weight double
+  BMI double
+  gender genders
+  age int [not null]
+  activityLevel activity_level // Added: Necessary to calculate TDEE/Calories
+
+  // Gamification
+  xp int [not null, default: 0]
+  userGoal goals
+  created_at timestamp [default: `now()`]
+}
+
+Table userLogins {
+  id UUID [pk]
+  userId UUID [ref: > Users.id]
+  lastLogin timestamp [not null]
+  streak int [not null, default: 0]
+}
+
+// --- HEALTH PROFILE ---
+Table userMedicalConditions {
+  id UUID [pk]
+  userId UUID [ref: > Users.id]
+
+  // General
+  isDiabetesType1 boolean
+  isDiabetesType2 boolean
+  isHypertension boolean // Important for Sodium tracking [cite: 367]
+  isPCOS boolean
+  isAnemia boolean       // Added: Important for Iron tracking [cite: 367]
+
+  // Digestive
+  isCeliacDisease boolean
+  isIBS boolean
+}
+
+Table userDietaryPreferences {
+  id UUID [pk]
+  userId UUID [ref: > Users.id]
+
+  isVegetarian boolean
+  isVegan boolean
+  isKeto boolean
+  isPaleo boolean
+  isGlutenFree boolean
+  isHalal boolean
+  isPescatarian boolean
+
+  // GLP-1 Mode Toggle
+  isGlp1User boolean [note: "Activates Protein prioritization & Symptom logging [cite: 345]"]
+}
+
+// --- NUTRITION TARGETS ---
+Table userTarget {
+  id UUID [pk]
+  userId UUID [ref: > Users.id]
+
+  // Macros
+  calTotal int [not null]
+  proteins int [not null]
+  carbs int [not null]
+  fats int [not null]
+
+  // Micros (Added based on requirements )
+  iron_mg double
+  sodium_mg double
+  vitamin_d_iu double
+  water_ml int [default: 2000] // Hydration target [cite: 352]
+}
+
+// --- THE FOOD DATABASE (Hybrid Strategy) ---
+Table FoodItems {
+  id UUID [pk]
+  name varchar [not null]
+
+  // Nutrition Data (Per 100g or per serving)
+  calories int [not null]
+  protein_g double [not null]
+  carbs_g double [not null]
+  fats_g double [not null]
+
+  // Micronutrients (Critical for MENA/Anemia)
+  iron_mg double
+  sodium_mg double
+
+  // Meta
+  servingUnit varchar // e.g., "Gram", "Piece", "Cup"
+  barcode varchar [unique] // For OpenFoodFacts scanning [cite: 521]
+  source food_source [not null] // USDA, Local, etc.
+  isVerified boolean [default: false] // Admin verification flag
+}
+
+// --- LOGGING (The Core "Snap-and-Log") ---
+Table DailyLogs {
+  id UUID [pk]
+  userId UUID [ref: > Users.id]
+  foodItemId UUID [ref: > FoodItems.id]
+
+  mealType meal_type [not null]
+  loggedAt timestamp [default: `now()`]
+
+  quantity double [not null] // Amount consumed
+  unit varchar // Grams, pieces, etc.
+
+  // The Photo (Essential for History)
+  imageUrl varchar [note: "URL of the meal photo"]
+}
+
+Table WaterLogs {
+  id UUID [pk]
+  userId UUID [ref: > Users.id]
+  amount_ml int
+  loggedAt timestamp [default: `now()`]
+}
+
+// --- GLP-1 SPECIAL FEATURES ---
+Table SymptomLogs {
+  id UUID [pk]
+  userId UUID [ref: > Users.id]
+  symptom varchar [not null] // Nausea, Fatigue, etc.
+  severity int // 1-10 scale
+  notes text
+  loggedAt timestamp [default: `now()`]
+  note: "Tracks side effects for GLP-1 users "
+}
+
+// --- AI TRAINING LOOP (RLHF) ---
+Table AiTrainingData {
+  id UUID [pk]
+  logId UUID [ref: > DailyLogs.id]
+  originalPrediction varchar // What the AI thought it was (e.g., "Spinach")
+  userCorrection varchar // What the user said it was (e.g., "Molokhia")
+  imageSnapshot varchar
+  isReviewedByAdmin boolean [default: false] // Admin dashboard review queue
+  note: "Stores user corrections to retrain the model "
+}
+
+// --- SUBSCRIPTIONS ---
+Table Plan {
+  id UUID [pk]
+  name varchar [not null]
+  monthlyPrice int [not null]
+  yearlyPrice int [not null]
+  features json // List of features enabled
+}
+
+Table UserSubscriptions {
+  id UUID [pk]
+  userId UUID [ref: > Users.id]
+  planId UUID [ref: > Plan.id]
+  status varchar // Active, Cancelled, Expired
+  startDate timestamp
+  endDate timestamp
+}
+
+// --- MEAL PLANNING ---
+Table MealPlans {
+  id UUID [pk]
+  userId UUID [ref: > Users.id]
+  name varchar // e.g., "High Protein Week 1"
+  startDate date
+  endDate date
+  status varchar // Active, Completed, Archived
+  generatedByAI boolean [default: false] // Was this plan made by the chatbot?
+}
+
+Table MealPlanItems {
+  id UUID [pk]
+  planId UUID [ref: > MealPlans.id]
+  foodItemId UUID [ref: > FoodItems.id]
+  recipeId UUID [ref: > Recipes.id] // Link to a full recipe if applicable
+
+  scheduledDate date [not null]
+  mealType meal_type [not null] // Breakfast, Lunch, etc.
+  isConsumed boolean [default: false] // Ticking this converts it to a DailyLog
+}
+
+// --- SHOPPING LIST ---
+Table ShoppingList {
+  id UUID [pk]
+  userId UUID [ref: > Users.id]
+  foodItemId UUID [ref: > FoodItems.id]
+
+  quantity double
+  unit varchar
+  isPurchased boolean [default: false]
+
+  // Future Integration
+  talabatLink varchar [note: "Deep link to buy this item on delivery apps"]
+}
+
+Table Recipes {
+  id UUID [pk]
+  authorId UUID [ref: > Users.id] // Who created this? (Admin or User)
+  name varchar [not null]
+  description text
+  instructions text // Step-by-step guide
+
+  // Meta
+  prepTimeMinutes int
+  cookTimeMinutes int
+  isPublic boolean [default: false] // If true, other users can see it
+
+  // Derived Nutrition (Sum of all ingredients)
+  totalCalories int
+  totalProtein double
+}
+
+Table RecipeIngredients {
+  id UUID [pk]
+  recipeId UUID [ref: > Recipes.id]
+  foodItemId UUID [ref: > FoodItems.id]
+  quantity double [not null]
+  unit varchar [not null]
+}
+
+Table Badges {
+  id UUID [pk]
+  name varchar [not null] // e.g., "Protein Powerhouse", "7-Day Streak"
+  description varchar
+  iconUrl varchar
+  requiredXp int
+}
+
+Table UserBadges {
+  id UUID [pk]
+  userId UUID [ref: > Users.id]
+  badgeId UUID [ref: > Badges.id]
+  earnedAt timestamp [default: `now()`]
+}
+
+Table CommunityChallenges {
+  id UUID [pk]
+  title varchar // e.g., "Ramadan Fasting Challenge"
+  description text
+  startDate timestamp
+  endDate timestamp
+  participantsCount int [default: 0]
+}
+
+Table UserChallenges {
+  userId UUID [pk, ref: > Users.id]
+  challengeId UUID [pk, ref: > CommunityChallenges.id]
+  progress double // Percentage completed
+  status varchar // Joined, Completed
+}

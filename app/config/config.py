@@ -29,9 +29,10 @@ class Settings(BaseSettings):
     MYSQL_PORT: str = "3306"
     MYSQL_DB: str = "bitesmartDB"
 
+    GEMINI_API_KEY: str
 
     class Config:
-        env_file = ".env"
+        env_file = str(PROJECT_ROOT / ".env")
         extra = 'ignore'
 
 settings = Settings()
