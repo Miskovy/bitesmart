@@ -12,6 +12,7 @@ from app.middlewares.auth import InternalAuthMiddleware
 from app.routers.prediction.v4.prediction import router as prediction_v4_router
 from app.routers.food.food import router as food_router
 from ultralytics import YOLO
+from app.routers.coach.coach import router as coachrouter
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -104,6 +105,12 @@ app.include_router(
     tags=["Food"]
 )
 
+app.include_router(
+
+    coachrouter,
+    prefix="/api/coach",
+    tags=["Coach"]
+)
 #Root
 @app.get("/")
 async def root():
