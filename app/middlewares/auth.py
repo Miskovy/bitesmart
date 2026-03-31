@@ -3,8 +3,8 @@ import hmac
 import time
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
 from app.config.config import settings
+from app.handlers.error_handler import error_response
 
 UNPROTECTED_PATHS = {"/", "/health", "/docs", "/openapi.json", "/redoc"}
 UNPROTECTED_PREFIXES = ("/api/food",)
@@ -20,29 +20,17 @@ class InternalAuthMiddleware(BaseHTTPMiddleware):
         timestamp = request.headers.get("X-Timestamp")
 
         if not all([api_key, signature, timestamp]):
-            return JSONResponse(
-                status_code=401,
-                content={"success": False, "error": {"code": 401, "message": "Missing auth headers"}}
-            )
+            return error_response(401, "UNAUTHORIZED", "Missing auth headers", request.url.path)
 
         if not hmac.compare_digest(api_key, settings.INTERNAL_API_KEY):
-            return JSONResponse(
-                status_code=401,
-                content={"success": False, "error": {"code": 401, "message": "Invalid API key"}}
-            )
+            return error_response(401, "UNAUTHORIZED", "Invalid API key", request.url.path)
 
         try:
             request_time = int(timestamp) / 1000
             if abs(time.time() - request_time) > settings.ALLOWED_TIMESTAMP_DRIFT_SECONDS:
-                return JSONResponse(
-                    status_code=401,
-                    content={"success": False, "error": {"code": 401, "message": "Request timestamp expired"}}
-                )
+                return error_response(401, "UNAUTHORIZED", "Request timestamp expired", request.url.path)
         except ValueError:
-            return JSONResponse(
-                status_code=401,
-                content={"success": False, "error": {"code": 401, "message": "Invalid timestamp format"}}
-            )
+            return error_response(401, "UNAUTHORIZED", "Invalid timestamp format", request.url.path)
 
         content_type = request.headers.get("content-type", "")
 
@@ -68,9 +56,6 @@ class InternalAuthMiddleware(BaseHTTPMiddleware):
         ).hexdigest()
 
         if not hmac.compare_digest(signature, expected_sig):
-            return JSONResponse(
-                status_code=401,
-                content={"success": False, "error": {"code": 401, "message": "Invalid signature"}}
-            )
+            return error_response(401, "UNAUTHORIZED", "Invalid signature", request.url.path)
 
         return await call_next(request)

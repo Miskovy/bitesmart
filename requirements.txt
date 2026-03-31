@@ -18,3 +18,4 @@ sqlalchemy_utils
 python-dotenv
 google-genai
 protobuf
+alembic
