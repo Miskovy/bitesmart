@@ -295,3 +295,22 @@ Table UserChallenges {
   progress double // Percentage completed
   status varchar // Joined, Completed
 }
+
+// --- AI COACH CONVERSATION MEMORY ---
+Table ChatSessions {
+  id UUID [pk]
+  userId UUID [ref: > Users.id]
+  title varchar [note: "Auto-generated from first user message"]
+  createdAt timestamp [default: `now()`]
+  updatedAt timestamp [default: `now()`]
+  note: "Groups messages into distinct conversations so users can have multiple chats"
+}
+
+Table ChatMessages {
+  id UUID [pk]
+  sessionId UUID [ref: > ChatSessions.id]
+  role varchar [not null, note: "'user' or 'assistant'"]
+  content text [not null]
+  createdAt timestamp [default: `now()`]
+  note: "Stores individual messages in a conversation for AI memory"
+}
