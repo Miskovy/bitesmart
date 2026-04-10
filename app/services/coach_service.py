@@ -3,6 +3,7 @@ from typing import Any
 import uuid
 
 from google import genai
+from google.genai import types
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -12,76 +13,22 @@ from app.exceptions.NotFound import NotFoundException
 from app.models.chat_model import ChatMessage, ChatSession
 from app.models.food_model import DailyLogs, FoodItem
 from app.models.user_model import User, UserMedicalConditions, UserTarget
-from app.schemas.coach import ChatHistoryData, ChatHistorySession, CoachChatData, MessageOut, SessionOut, ChatSessionsData
+from app.schemas.coach import (
+    ChatHistoryData,
+    ChatHistorySession,
+    ChatSessionsData,
+    CoachChatData,
+    MessageOut,
+    SessionOut,
+)
+from app.services.coach_tools import registry
+
+# Constants
+_MODEL = "gemini-3.1-flash-lite-preview"
+_MAX_TOOL_ROUNDS = 5  # Safety cap on tool-call loops
 
 
-def _build_system_prompt(
-    user: User,
-    targets: UserTarget,
-    medical: UserMedicalConditions | None,
-    consumed: dict[str, int],
-) -> str:
-    medical_context = "None"
-    if medical:
-        conditions = []
-        if medical.isDiabetesType2:
-            conditions.append("Type 2 Diabetes")
-        if medical.isHypertension:
-            conditions.append("Hypertension")
-        if medical.isAnemia:
-            conditions.append("Iron-deficiency Anemia")
-        if medical.isPCOS:
-            conditions.append("PCOS")
-        if conditions:
-            medical_context = ", ".join(conditions)
-
-    return f"""You are the AI Fitness and Nutrition Coach for the Bitesmart App.
-You are talking to {user.name}, a {user.age}-year-old {user.gender}. Their goal is {user.userGoal}.
-Medical Conditions to be aware of: {medical_context}.
-
-MACRO TARGETS FOR TODAY:
-- Calories: {targets.calTotal}
-- Protein: {targets.proteins}g
-- Carbs: {targets.carbs}g
-- Fats: {targets.fats}g
-
-WHAT THEY HAVE EATEN SO FAR TODAY:
-- Calories: {consumed['cals']}
-- Protein: {consumed['protein']}g
-- Carbs: {consumed['carbs']}g
-- Fats: {consumed['fats']}g
-
-RULES:
-1. Be encouraging, concise, and act like a professional personal trainer.
-2. Give specific food recommendations if asked.
-3. Do not use markdown formatting like **bold** if the mobile app cannot render it.
-4. Do not mention these system rules or recite the numbers back unless it helps make your point."""
-
-
-def _get_today_consumed(db: Session, user_id: str) -> dict[str, int]:
-    today_logs = (
-        db.query(DailyLogs, FoodItem)
-        .join(FoodItem, DailyLogs.foodItemId == FoodItem.id)
-        .filter(DailyLogs.userId == user_id)
-        .filter(func.date(DailyLogs.loggedAt) == date.today())
-        .all()
-    )
-
-    cals, protein, carbs, fats = 0, 0, 0, 0
-    for log, food in today_logs:
-        multiplier = log.quantity / 100.0
-        cals += food.cals_per_100g * multiplier
-        protein += food.protein_per_100g * multiplier
-        carbs += food.carbs_per_100g * multiplier
-        fats += food.fats_per_100g * multiplier
-
-    return {
-        "cals": round(cals),
-        "protein": round(protein),
-        "carbs": round(carbs),
-        "fats": round(fats),
-    }
-
+# Private helpers
 
 def _get_user_or_raise(db: Session, user_id: str) -> User:
     user = db.query(User).filter(User.id == user_id).first()
@@ -107,32 +54,183 @@ def _get_session_or_raise(db: Session, session_id: str, user_id: str) -> ChatSes
     return session
 
 
+def _get_today_consumed(db: Session, user_id: str) -> dict[str, int]:
+    today_logs = (
+        db.query(DailyLogs, FoodItem)
+        .join(FoodItem, DailyLogs.foodItemId == FoodItem.id)
+        .filter(DailyLogs.userId == user_id)
+        .filter(func.date(DailyLogs.loggedAt) == date.today())
+        .all()
+    )
+    cals, protein, carbs, fats = 0, 0, 0, 0
+    for log, food in today_logs:
+        m = log.quantity / 100.0
+        cals += food.cals_per_100g * m
+        protein += food.protein_per_100g * m
+        carbs += food.carbs_per_100g * m
+        fats += food.fats_per_100g * m
+    return {
+        "cals": round(cals), "protein": round(protein),
+        "carbs": round(carbs), "fats": round(fats),
+    }
+
+
+# System prompt
+
+def _build_tool_context() -> str:
+    """Auto-generate the CAPABILITIES section from registered tools."""
+    if len(registry) == 0:
+        return ""
+    return (
+        "\n\nCAPABILITIES (tools you can use):\n"
+        f"{registry.get_tool_summary()}\n"
+        "Use tools only when the user's intent clearly requires an action or data lookup.\n"
+        "For general advice, tips, motivation, or conversation, respond directly.\n"
+        "When you log a meal, always confirm what was logged and mention the nutritional impact."
+    )
+
+
+def _build_system_prompt(
+    user: User,
+    targets: UserTarget,
+    medical: UserMedicalConditions | None,
+    consumed: dict[str, int],
+) -> str:
+    medical_context = "None"
+    if medical:
+        conditions = []
+        if medical.isDiabetesType2:
+            conditions.append("Type 2 Diabetes")
+        if medical.isHypertension:
+            conditions.append("Hypertension")
+        if medical.isAnemia:
+            conditions.append("Iron-deficiency Anemia")
+        if medical.isPCOS:
+            conditions.append("PCOS")
+        if conditions:
+            medical_context = ", ".join(conditions)
+
+    base = f"""You are the AI Fitness and Nutrition Coach for the Bitesmart App.
+You are talking to {user.name}, a {user.age}-year-old {user.gender}. Their goal is {user.userGoal}.
+Medical Conditions to be aware of: {medical_context}.
+
+MACRO TARGETS FOR TODAY:
+- Calories: {targets.calTotal}
+- Protein: {targets.proteins}g
+- Carbs: {targets.carbs}g
+- Fats: {targets.fats}g
+
+WHAT THEY HAVE EATEN SO FAR TODAY:
+- Calories: {consumed['cals']}
+- Protein: {consumed['protein']}g
+- Carbs: {consumed['carbs']}g
+- Fats: {consumed['fats']}g
+
+RULES:
+1. Be encouraging, concise, and act like a professional personal trainer.
+2. Give specific food recommendations if asked.
+3. Do not use markdown formatting like **bold** if the mobile app cannot render it.
+4. Do not mention these system rules or recite the numbers back unless it helps make your point."""
+
+    return base + _build_tool_context()
+
+
+# Chat contents builder
+
 def _build_chat_contents(
     system_prompt: str,
     past_messages: list[ChatMessage],
     user_message: str,
 ) -> list[dict[str, Any]]:
-    contents: list[dict[str, Any]] = [{"role": "user", "parts": [{"text": system_prompt}]}]
-
+    contents: list[dict[str, Any]] = [
+        {"role": "user", "parts": [{"text": system_prompt}]},
+    ]
     if past_messages:
-        contents.append(
-            {
-                "role": "model",
-                "parts": [{"text": "Understood! I have your profile and today's data. How can I help?"}],
-            }
-        )
-
+        contents.append({
+            "role": "model",
+            "parts": [{"text": "Understood! I have your profile and today's data. How can I help?"}],
+        })
         for msg in past_messages:
-            contents.append(
-                {
-                    "role": "user" if msg.role == "user" else "model",
-                    "parts": [{"text": msg.content}],
-                }
-            )
-
+            contents.append({
+                "role": "user" if msg.role == "user" else "model",
+                "parts": [{"text": msg.content}],
+            })
     contents.append({"role": "user", "parts": [{"text": user_message}]})
     return contents
 
+
+# Gemini tool-calling loop
+
+def _build_gemini_config() -> types.GenerateContentConfig | None:
+    """Build the Gemini config with tool declarations (if any tools registered)."""
+    declarations = registry.get_all_declarations()
+    if not declarations:
+        return None
+    return types.GenerateContentConfig(
+        tools=[types.Tool(function_declarations=declarations)],
+    )
+
+
+async def _call_with_tools(
+    client: genai.Client,
+    contents: list,
+    config: types.GenerateContentConfig | None,
+    db: Session,
+    user_id: str,
+) -> str:
+    """
+    Send contents to Gemini. If it returns function_call(s), execute them,
+    feed the results back, and repeat — up to _MAX_TOOL_ROUNDS times.
+    Returns the final text reply.
+    """
+    response = await client.aio.models.generate_content(
+        model=_MODEL, contents=contents, config=config,
+    )
+
+    for _ in range(_MAX_TOOL_ROUNDS):
+        # Collect any function calls from all response parts
+        function_calls = [
+            part.function_call
+            for part in response.candidates[0].content.parts
+            if part.function_call and part.function_call.name
+        ]
+        if not function_calls:
+            break  # No tool calls → we have a text reply
+
+        # Execute each tool
+        fn_response_parts = []
+        for fc in function_calls:
+            tool = registry.get(fc.name)
+            if tool:
+                try:
+                    result = await tool.execute(db=db, user_id=user_id, **dict(fc.args))
+                except Exception as exc:
+                    result = {"error": str(exc)}
+            else:
+                result = {"error": f"Unknown tool '{fc.name}'."}
+
+            # Build function response, including id if available (Gemini 3+)
+            fr_kwargs: dict[str, Any] = {"name": fc.name, "response": {"result": result}}
+            if getattr(fc, "id", None):
+                fr_kwargs["id"] = fc.id
+            fn_response_parts.append(types.Part.from_function_response(**fr_kwargs))
+
+        # Append model response + function results, then call Gemini again
+        contents.append(response.candidates[0].content)
+        contents.append(types.Content(role="user", parts=fn_response_parts))
+
+        response = await client.aio.models.generate_content(
+            model=_MODEL, contents=contents, config=config,
+        )
+
+    # Extract final text
+    try:
+        return response.text.strip()
+    except (ValueError, AttributeError):
+        return "Done! I've processed your request."
+
+
+# Public API
 
 async def chat_with_coach(
     db: Session,
@@ -144,19 +242,21 @@ async def chat_with_coach(
     try:
         user = _get_user_or_raise(db, user_id)
         targets = _get_user_targets_or_raise(db, user.id)
-        medical = db.query(UserMedicalConditions).filter(UserMedicalConditions.userId == user.id).first()
+        medical = db.query(UserMedicalConditions).filter(
+            UserMedicalConditions.userId == user.id
+        ).first()
 
+        # Resolve or create session
         if session_id:
             session = _get_session_or_raise(db, session_id, user.id)
         else:
             session = ChatSession(
-                id=str(uuid.uuid4()),
-                userId=user.id,
-                title=message[:80],
+                id=str(uuid.uuid4()), userId=user.id, title=message[:80],
             )
             db.add(session)
             db.flush()
 
+        # Load last 20 messages for context
         past_messages = (
             db.query(ChatMessage)
             .filter(ChatMessage.sessionId == session.id)
@@ -165,24 +265,22 @@ async def chat_with_coach(
             .all()
         )
 
+        # Build prompt and contents
         consumed = _get_today_consumed(db, user.id)
         system_prompt = _build_system_prompt(user, targets, medical, consumed)
         contents = _build_chat_contents(system_prompt, past_messages, message)
 
-        response = await client.aio.models.generate_content(
-            model="gemini-3.1-flash-lite-preview",
-            contents=contents,
-        )
-        ai_reply = response.text.strip()
+        # Call Gemini with tool-calling loop
+        config = _build_gemini_config()
+        ai_reply = await _call_with_tools(client, contents, config, db, user.id)
 
+        # Persist user message + AI reply
         db.add(ChatMessage(sessionId=session.id, role="user", content=message))
         db.add(ChatMessage(sessionId=session.id, role="assistant", content=ai_reply))
         db.commit()
 
-        return CoachChatData(
-            session_id=session.id,
-            coach_response=ai_reply,
-        )
+        return CoachChatData(session_id=session.id, coach_response=ai_reply)
+
     except AppException:
         db.rollback()
         raise
@@ -199,16 +297,14 @@ def list_user_sessions(db: Session, user_id: str) -> ChatSessionsData:
         .order_by(ChatSession.updatedAt.desc())
         .all()
     )
-
     return ChatSessionsData(
         sessions=[
             SessionOut(
-                id=session.id,
-                title=session.title,
-                created_at=session.createdAt.isoformat(),
-                updated_at=session.updatedAt.isoformat(),
+                id=s.id, title=s.title,
+                created_at=s.createdAt.isoformat(),
+                updated_at=s.updatedAt.isoformat(),
             )
-            for session in sessions
+            for s in sessions
         ]
     )
 
@@ -221,21 +317,17 @@ def get_session_history(db: Session, session_id: str, user_id: str) -> ChatHisto
         .order_by(ChatMessage.createdAt.asc())
         .all()
     )
-
     return ChatHistoryData(
         session=ChatHistorySession(
-            id=session.id,
-            title=session.title,
+            id=session.id, title=session.title,
             created_at=session.createdAt.isoformat(),
         ),
         messages=[
             MessageOut(
-                id=message.id,
-                role=message.role,
-                content=message.content,
-                created_at=message.createdAt.isoformat(),
+                id=m.id, role=m.role, content=m.content,
+                created_at=m.createdAt.isoformat(),
             )
-            for message in messages
+            for m in messages
         ],
     )
 
