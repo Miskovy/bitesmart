@@ -8,6 +8,8 @@ on:
 jobs:
   check-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout AI/ML branch
         uses: actions/checkout@v4
