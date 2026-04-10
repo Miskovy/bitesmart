@@ -1,8 +1,8 @@
+import bcrypt
 from sqlalchemy.orm import Session
-from app.db.database import SessionLocal
+from app.db.database import SessionLocal, engine, Base
 from app.models.user_model import User, UserTarget, UserMedicalConditions, Genders, Goals
 from app.models.food_model import DailyLogs, FoodItem
-from app.db.database import SessionLocal, engine, Base
 
 def seed_test_user():
     print("Generating MySQL database tables...")
@@ -18,8 +18,11 @@ def seed_test_user():
 
         print("Creating new test user...")
 
+        hashed_pw = bcrypt.hashpw(b"password123", bcrypt.gensalt()).decode("utf-8")
+
         new_user = User(
             name="Miskovy",
+            password=hashed_pw,
             email=test_email,
             gender=Genders.Male,
             age=23,

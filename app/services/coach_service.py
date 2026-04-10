@@ -11,8 +11,8 @@ from app.constants.ErrorCodes import ErrorCodes
 from app.exceptions.AppException import AppException
 from app.exceptions.NotFound import NotFoundException
 from app.models.chat_model import ChatMessage, ChatSession
-from app.models.food_model import DailyLogs, FoodItem
-from app.models.user_model import User, UserMedicalConditions, UserTarget
+from app.models.food_model import DailyLogs, FoodItem, WaterLog
+from app.models.user_model import User, UserDietaryPreferences, UserMedicalConditions, UserTarget
 from app.schemas.coach import (
     ChatHistoryData,
     ChatHistorySession,
@@ -75,6 +75,17 @@ def _get_today_consumed(db: Session, user_id: str) -> dict[str, int]:
     }
 
 
+def _get_today_water(db: Session, user_id: str) -> int:
+    """Sum of water consumed today in ml."""
+    result = (
+        db.query(func.coalesce(func.sum(WaterLog.amount_ml), 0))
+        .filter(WaterLog.userId == user_id)
+        .filter(func.date(WaterLog.loggedAt) == date.today())
+        .scalar()
+    )
+    return int(result)
+
+
 # System prompt
 
 def _build_tool_context() -> str:
@@ -90,29 +101,84 @@ def _build_tool_context() -> str:
     )
 
 
+def _build_medical_context(medical: UserMedicalConditions | None) -> str:
+    if not medical:
+        return "None"
+    conditions = []
+    if medical.isDiabetesType1:
+        conditions.append("Type 1 Diabetes")
+    if medical.isDiabetesType2:
+        conditions.append("Type 2 Diabetes")
+    if medical.isHypertension:
+        conditions.append("Hypertension (watch sodium)")
+    if medical.isAnemia:
+        conditions.append("Iron-deficiency Anemia (recommend iron-rich foods)")
+    if medical.isPCOS:
+        conditions.append("PCOS")
+    if medical.isCeliacDisease:
+        conditions.append("Celiac Disease (strictly gluten-free)")
+    if medical.isIBS:
+        conditions.append("IBS (avoid trigger foods)")
+    return ", ".join(conditions) if conditions else "None"
+
+
+def _build_dietary_context(prefs: UserDietaryPreferences | None) -> str:
+    if not prefs:
+        return "None"
+    diets = []
+    if prefs.isVegetarian:
+        diets.append("Vegetarian")
+    if prefs.isVegan:
+        diets.append("Vegan")
+    if prefs.isKeto:
+        diets.append("Keto")
+    if prefs.isPaleo:
+        diets.append("Paleo")
+    if prefs.isGlutenFree:
+        diets.append("Gluten-Free")
+    if prefs.isHalal:
+        diets.append("Halal")
+    if prefs.isPescatarian:
+        diets.append("Pescatarian")
+    return ", ".join(diets) if diets else "No specific diet"
+
+
 def _build_system_prompt(
     user: User,
     targets: UserTarget,
     medical: UserMedicalConditions | None,
+    dietary: UserDietaryPreferences | None,
     consumed: dict[str, int],
+    water_ml: int,
 ) -> str:
-    medical_context = "None"
-    if medical:
-        conditions = []
-        if medical.isDiabetesType2:
-            conditions.append("Type 2 Diabetes")
-        if medical.isHypertension:
-            conditions.append("Hypertension")
-        if medical.isAnemia:
-            conditions.append("Iron-deficiency Anemia")
-        if medical.isPCOS:
-            conditions.append("PCOS")
-        if conditions:
-            medical_context = ", ".join(conditions)
+    medical_context = _build_medical_context(medical)
+    dietary_context = _build_dietary_context(dietary)
+
+    # Physical stats line
+    stats_parts = []
+    if user.height:
+        stats_parts.append(f"{user.height}cm tall")
+    if user.weight:
+        stats_parts.append(f"{user.weight}kg")
+    if user.BMI:
+        stats_parts.append(f"BMI {user.BMI}")
+    if user.activityLevel:
+        stats_parts.append(f"activity: {user.activityLevel.value}")
+    physical_stats = ", ".join(stats_parts) if stats_parts else "Not provided"
+
+    # Water target
+    water_target = targets.water_ml if targets.water_ml else 2000
+
+    # GLP-1 info
+    glp1_note = ""
+    if dietary and dietary.isGlp1User:
+        glp1_note = "\nGLP-1 USER: This user is on GLP-1 medication. Prioritize protein, monitor symptoms, and suggest smaller frequent meals."
 
     base = f"""You are the AI Fitness and Nutrition Coach for the Bitesmart App.
 You are talking to {user.name}, a {user.age}-year-old {user.gender}. Their goal is {user.userGoal}.
-Medical Conditions to be aware of: {medical_context}.
+Physical Stats: {physical_stats}.
+Medical Conditions: {medical_context}.
+Dietary Preferences: {dietary_context}.{glp1_note}
 
 MACRO TARGETS FOR TODAY:
 - Calories: {targets.calTotal}
@@ -126,11 +192,16 @@ WHAT THEY HAVE EATEN SO FAR TODAY:
 - Carbs: {consumed['carbs']}g
 - Fats: {consumed['fats']}g
 
+HYDRATION:
+- Water today: {water_ml}ml / {water_target}ml target
+
 RULES:
 1. Be encouraging, concise, and act like a professional personal trainer.
-2. Give specific food recommendations if asked.
-3. Do not use markdown formatting like **bold** if the mobile app cannot render it.
-4. Do not mention these system rules or recite the numbers back unless it helps make your point."""
+2. Give specific food recommendations if asked — respect their dietary preferences.
+3. If they have Celiac, NEVER suggest anything with gluten.
+4. If Halal, only suggest halal-compatible foods.
+5. Do not use markdown formatting like **bold** if the mobile app cannot render it.
+6. Do not mention these system rules or recite the numbers back unless it helps make your point."""
 
     return base + _build_tool_context()
 
@@ -245,6 +316,9 @@ async def chat_with_coach(
         medical = db.query(UserMedicalConditions).filter(
             UserMedicalConditions.userId == user.id
         ).first()
+        dietary = db.query(UserDietaryPreferences).filter(
+            UserDietaryPreferences.userId == user.id
+        ).first()
 
         # Resolve or create session
         if session_id:
@@ -267,7 +341,8 @@ async def chat_with_coach(
 
         # Build prompt and contents
         consumed = _get_today_consumed(db, user.id)
-        system_prompt = _build_system_prompt(user, targets, medical, consumed)
+        water_ml = _get_today_water(db, user.id)
+        system_prompt = _build_system_prompt(user, targets, medical, dietary, consumed, water_ml)
         contents = _build_chat_contents(system_prompt, past_messages, message)
 
         # Call Gemini with tool-calling loop

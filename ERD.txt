@@ -38,14 +38,14 @@ enum food_source {
 }
 
 // --- USERS & AUTH ---
-Table Users {
+Table users {
   id UUID [pk]
   name varchar [not null]
-  password hashedVarchar [not null]
+  password varchar [not null]
   email varchar [not null, unique]
   googleId varchar
   avatar varchar
-  role user_role [not null, default: 'User'] // Added for Admin Dashboard access [cite: 496]
+  role user_role [not null, default: 'User']
 
   // Physical Stats
   height double
@@ -53,7 +53,7 @@ Table Users {
   BMI double
   gender genders
   age int [not null]
-  activityLevel activity_level // Added: Necessary to calculate TDEE/Calories
+  activityLevel activity_level
 
   // Gamification
   xp int [not null, default: 0]
@@ -61,33 +61,33 @@ Table Users {
   created_at timestamp [default: `now()`]
 }
 
-Table userLogins {
+Table user_logins {
   id UUID [pk]
-  userId UUID [ref: > Users.id]
+  userId UUID [ref: > users.id]
   lastLogin timestamp [not null]
   streak int [not null, default: 0]
 }
 
 // --- HEALTH PROFILE ---
-Table userMedicalConditions {
+Table usermedicalconditions {
   id UUID [pk]
-  userId UUID [ref: > Users.id]
+  userId UUID [ref: > users.id]
 
   // General
   isDiabetesType1 boolean
   isDiabetesType2 boolean
-  isHypertension boolean // Important for Sodium tracking [cite: 367]
+  isHypertension boolean
   isPCOS boolean
-  isAnemia boolean       // Added: Important for Iron tracking [cite: 367]
+  isAnemia boolean
 
   // Digestive
   isCeliacDisease boolean
   isIBS boolean
 }
 
-Table userDietaryPreferences {
+Table user_dietary_preferences {
   id UUID [pk]
-  userId UUID [ref: > Users.id]
+  userId UUID [ref: > users.id]
 
   isVegetarian boolean
   isVegan boolean
@@ -98,13 +98,13 @@ Table userDietaryPreferences {
   isPescatarian boolean
 
   // GLP-1 Mode Toggle
-  isGlp1User boolean [note: "Activates Protein prioritization & Symptom logging [cite: 345]"]
+  isGlp1User boolean [note: "Activates Protein prioritization & Symptom logging"]
 }
 
 // --- NUTRITION TARGETS ---
-Table userTarget {
+Table usertarget {
   id UUID [pk]
-  userId UUID [ref: > Users.id]
+  userId UUID [ref: > users.id]
 
   // Macros
   calTotal int [not null]
@@ -112,205 +112,206 @@ Table userTarget {
   carbs int [not null]
   fats int [not null]
 
-  // Micros (Added based on requirements )
+  // Micros
   iron_mg double
   sodium_mg double
   vitamin_d_iu double
-  water_ml int [default: 2000] // Hydration target [cite: 352]
+  water_ml int [default: 2000]
 }
 
-// --- THE FOOD DATABASE (Hybrid Strategy) ---
-Table FoodItems {
-  id UUID [pk]
-  name varchar [not null]
+// --- THE FOOD DATABASE ---
+Table food_items {
+  id int [pk, increment]
+  class_name varchar [not null, unique]
 
-  // Nutrition Data (Per 100g or per serving)
-  calories int [not null]
-  protein_g double [not null]
-  carbs_g double [not null]
-  fats_g double [not null]
+  // Volume Calculation
+  avg_height_cm double [not null, default: 2.0]
+  density_g_cm3 double [not null, default: 1.0]
 
-  // Micronutrients (Critical for MENA/Anemia)
+  // Nutrition Data (Per 100g)
+  protein_per_100g double [not null, default: 0.0]
+  carbs_per_100g double [not null, default: 0.0]
+  fats_per_100g double [not null, default: 0.0]
+  cals_per_100g double [not null, default: 0.0]
+
+  // Micronutrients
   iron_mg double
   sodium_mg double
 
   // Meta
-  servingUnit varchar // e.g., "Gram", "Piece", "Cup"
-  barcode varchar [unique] // For OpenFoodFacts scanning [cite: 521]
-  source food_source [not null] // USDA, Local, etc.
-  isVerified boolean [default: false] // Admin verification flag
+  servingUnit varchar
+  barcode varchar [unique]
+  source food_source
+  isVerified boolean [default: false]
 }
 
-// --- LOGGING (The Core "Snap-and-Log") ---
-Table DailyLogs {
+// --- LOGGING ---
+Table dailylogs {
   id UUID [pk]
-  userId UUID [ref: > Users.id]
-  foodItemId UUID [ref: > FoodItems.id]
+  userId UUID [ref: > users.id]
+  foodItemId int [ref: > food_items.id]
 
   mealType meal_type [not null]
-  loggedAt timestamp [default: `now()`]
-
-  quantity double [not null] // Amount consumed
-  unit varchar // Grams, pieces, etc.
-
-  // The Photo (Essential for History)
+  quantity double [not null]
+  unit varchar [default: 'g']
   imageUrl varchar [note: "URL of the meal photo"]
+  loggedAt timestamp [default: `now()`]
 }
 
-Table WaterLogs {
+Table water_logs {
   id UUID [pk]
-  userId UUID [ref: > Users.id]
-  amount_ml int
+  userId UUID [ref: > users.id]
+  amount_ml int [not null]
   loggedAt timestamp [default: `now()`]
 }
 
 // --- GLP-1 SPECIAL FEATURES ---
-Table SymptomLogs {
+Table symptom_logs {
   id UUID [pk]
-  userId UUID [ref: > Users.id]
-  symptom varchar [not null] // Nausea, Fatigue, etc.
+  userId UUID [ref: > users.id]
+  symptom varchar [not null]
   severity int // 1-10 scale
   notes text
   loggedAt timestamp [default: `now()`]
-  note: "Tracks side effects for GLP-1 users "
+  note: "Tracks side effects for GLP-1 users"
 }
 
 // --- AI TRAINING LOOP (RLHF) ---
-Table AiTrainingData {
+Table ai_training_data {
   id UUID [pk]
-  logId UUID [ref: > DailyLogs.id]
-  originalPrediction varchar // What the AI thought it was (e.g., "Spinach")
-  userCorrection varchar // What the user said it was (e.g., "Molokhia")
+  logId UUID [ref: > dailylogs.id]
+  originalPrediction varchar
+  userCorrection varchar
   imageSnapshot varchar
-  isReviewedByAdmin boolean [default: false] // Admin dashboard review queue
-  note: "Stores user corrections to retrain the model "
+  isReviewedByAdmin boolean [default: false]
+  note: "Stores user corrections to retrain the model"
 }
 
 // --- SUBSCRIPTIONS ---
-Table Plan {
+Table plans {
   id UUID [pk]
   name varchar [not null]
   monthlyPrice int [not null]
   yearlyPrice int [not null]
-  features json // List of features enabled
+  features text // JSON string of enabled features
 }
 
-Table UserSubscriptions {
+Table user_subscriptions {
   id UUID [pk]
-  userId UUID [ref: > Users.id]
-  planId UUID [ref: > Plan.id]
+  userId UUID [ref: > users.id]
+  planId UUID [ref: > plans.id]
   status varchar // Active, Cancelled, Expired
   startDate timestamp
   endDate timestamp
 }
 
-// --- MEAL PLANNING ---
-Table MealPlans {
+// --- RECIPES ---
+Table recipes {
   id UUID [pk]
-  userId UUID [ref: > Users.id]
-  name varchar // e.g., "High Protein Week 1"
-  startDate date
-  endDate date
-  status varchar // Active, Completed, Archived
-  generatedByAI boolean [default: false] // Was this plan made by the chatbot?
-}
-
-Table MealPlanItems {
-  id UUID [pk]
-  planId UUID [ref: > MealPlans.id]
-  foodItemId UUID [ref: > FoodItems.id]
-  recipeId UUID [ref: > Recipes.id] // Link to a full recipe if applicable
-
-  scheduledDate date [not null]
-  mealType meal_type [not null] // Breakfast, Lunch, etc.
-  isConsumed boolean [default: false] // Ticking this converts it to a DailyLog
-}
-
-// --- SHOPPING LIST ---
-Table ShoppingList {
-  id UUID [pk]
-  userId UUID [ref: > Users.id]
-  foodItemId UUID [ref: > FoodItems.id]
-
-  quantity double
-  unit varchar
-  isPurchased boolean [default: false]
-
-  // Future Integration
-  talabatLink varchar [note: "Deep link to buy this item on delivery apps"]
-}
-
-Table Recipes {
-  id UUID [pk]
-  authorId UUID [ref: > Users.id] // Who created this? (Admin or User)
+  authorId UUID [ref: > users.id]
   name varchar [not null]
   description text
-  instructions text // Step-by-step guide
+  instructions text
 
   // Meta
   prepTimeMinutes int
   cookTimeMinutes int
-  isPublic boolean [default: false] // If true, other users can see it
+  isPublic boolean [default: false]
 
-  // Derived Nutrition (Sum of all ingredients)
+  // Derived Nutrition
   totalCalories int
   totalProtein double
 }
 
-Table RecipeIngredients {
+Table recipe_ingredients {
   id UUID [pk]
-  recipeId UUID [ref: > Recipes.id]
-  foodItemId UUID [ref: > FoodItems.id]
+  recipeId UUID [ref: > recipes.id]
+  foodItemId int [ref: > food_items.id]
   quantity double [not null]
   unit varchar [not null]
 }
 
-Table Badges {
+// --- MEAL PLANNING ---
+Table meal_plans {
   id UUID [pk]
-  name varchar [not null] // e.g., "Protein Powerhouse", "7-Day Streak"
+  userId UUID [ref: > users.id]
+  name varchar
+  startDate date
+  endDate date
+  status varchar // Active, Completed, Archived
+  generatedByAI boolean [default: false]
+}
+
+Table meal_plan_items {
+  id UUID [pk]
+  planId UUID [ref: > meal_plans.id]
+  foodItemId int [ref: > food_items.id]
+  recipeId UUID [ref: > recipes.id]
+
+  scheduledDate date [not null]
+  mealType meal_type [not null]
+  isConsumed boolean [default: false]
+}
+
+// --- SHOPPING LIST ---
+Table shopping_list {
+  id UUID [pk]
+  userId UUID [ref: > users.id]
+  foodItemId int [ref: > food_items.id]
+
+  quantity double
+  unit varchar
+  isPurchased boolean [default: false]
+  talabatLink varchar [note: "Deep link to buy this item on delivery apps"]
+}
+
+// --- GAMIFICATION ---
+Table badges {
+  id UUID [pk]
+  name varchar [not null]
   description varchar
   iconUrl varchar
   requiredXp int
 }
 
-Table UserBadges {
+Table user_badges {
   id UUID [pk]
-  userId UUID [ref: > Users.id]
-  badgeId UUID [ref: > Badges.id]
+  userId UUID [ref: > users.id]
+  badgeId UUID [ref: > badges.id]
   earnedAt timestamp [default: `now()`]
 }
 
-Table CommunityChallenges {
+Table community_challenges {
   id UUID [pk]
-  title varchar // e.g., "Ramadan Fasting Challenge"
+  title varchar
   description text
   startDate timestamp
   endDate timestamp
   participantsCount int [default: 0]
 }
 
-Table UserChallenges {
-  userId UUID [pk, ref: > Users.id]
-  challengeId UUID [pk, ref: > CommunityChallenges.id]
-  progress double // Percentage completed
+Table user_challenges {
+  userId UUID [pk, ref: > users.id]
+  challengeId UUID [pk, ref: > community_challenges.id]
+  progress double
   status varchar // Joined, Completed
 }
 
 // --- AI COACH CONVERSATION MEMORY ---
-Table ChatSessions {
+Table chat_sessions {
   id UUID [pk]
-  userId UUID [ref: > Users.id]
+  userId UUID [ref: > users.id]
   title varchar [note: "Auto-generated from first user message"]
   createdAt timestamp [default: `now()`]
   updatedAt timestamp [default: `now()`]
-  note: "Groups messages into distinct conversations so users can have multiple chats"
+  note: "Groups messages into distinct conversations"
 }
 
-Table ChatMessages {
+Table chat_messages {
   id UUID [pk]
-  sessionId UUID [ref: > ChatSessions.id]
+  sessionId UUID [ref: > chat_sessions.id]
   role varchar [not null, note: "'user' or 'assistant'"]
   content text [not null]
   createdAt timestamp [default: `now()`]
-  note: "Stores individual messages in a conversation for AI memory"
+  note: "Stores individual messages for AI memory"
 }

@@ -10,9 +10,12 @@ from app.config.config import settings
 from app.db.database import Base
 
 # Import ALL models so Alembic can see their tables for autogenerate
-from app.models.user_model import User, UserTarget, UserMedicalConditions
-from app.models.food_model import FoodItem, DailyLogs
-from app.models.chat_model import ChatSession, ChatMessage
+from app.models.user_model import *  # noqa: F401,F403
+from app.models.food_model import *  # noqa: F401,F403
+from app.models.chat_model import *  # noqa: F401,F403
+from app.models.subscription_model import *  # noqa: F401,F403
+from app.models.meal_plan_model import *  # noqa: F401,F403
+from app.models.gamification_model import *  # noqa: F401,F403
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
