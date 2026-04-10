@@ -1,0 +1,317 @@
+// --- ENUMS ---
+enum genders {
+  Male
+  Female
+}
+
+enum goals {
+  WeightLoss
+  Maintenance
+  MuscleGain
+}
+
+enum activity_level {
+  Sedentary
+  LightlyActive
+  ModeratelyActive
+  VeryActive
+}
+
+enum meal_type {
+  Breakfast
+  Lunch
+  Dinner
+  Snack
+}
+
+enum user_role {
+  User
+  Admin
+  ContentManager
+}
+
+enum food_source {
+  USDA        // Cached from API
+  OpenFood    // Barcode Scan
+  Local       // Your Proprietary MENA DB
+  UserCreated // Custom user entry
+}
+
+// --- USERS & AUTH ---
+Table users {
+  id UUID [pk]
+  name varchar [not null]
+  password varchar [not null]
+  email varchar [not null, unique]
+  googleId varchar
+  avatar varchar
+  role user_role [not null, default: 'User']
+
+  // Physical Stats
+  height double
+  weight double
+  BMI double
+  gender genders
+  age int [not null]
+  activityLevel activity_level
+
+  // Gamification
+  xp int [not null, default: 0]
+  userGoal goals
+  created_at timestamp [default: `now()`]
+}
+
+Table user_logins {
+  id UUID [pk]
+  userId UUID [ref: > users.id]
+  lastLogin timestamp [not null]
+  streak int [not null, default: 0]
+}
+
+// --- HEALTH PROFILE ---
+Table usermedicalconditions {
+  id UUID [pk]
+  userId UUID [ref: > users.id]
+
+  // General
+  isDiabetesType1 boolean
+  isDiabetesType2 boolean
+  isHypertension boolean
+  isPCOS boolean
+  isAnemia boolean
+
+  // Digestive
+  isCeliacDisease boolean
+  isIBS boolean
+}
+
+Table user_dietary_preferences {
+  id UUID [pk]
+  userId UUID [ref: > users.id]
+
+  isVegetarian boolean
+  isVegan boolean
+  isKeto boolean
+  isPaleo boolean
+  isGlutenFree boolean
+  isHalal boolean
+  isPescatarian boolean
+
+  // GLP-1 Mode Toggle
+  isGlp1User boolean [note: "Activates Protein prioritization & Symptom logging"]
+}
+
+// --- NUTRITION TARGETS ---
+Table usertarget {
+  id UUID [pk]
+  userId UUID [ref: > users.id]
+
+  // Macros
+  calTotal int [not null]
+  proteins int [not null]
+  carbs int [not null]
+  fats int [not null]
+
+  // Micros
+  iron_mg double
+  sodium_mg double
+  vitamin_d_iu double
+  water_ml int [default: 2000]
+}
+
+// --- THE FOOD DATABASE ---
+Table food_items {
+  id int [pk, increment]
+  class_name varchar [not null, unique]
+
+  // Volume Calculation
+  avg_height_cm double [not null, default: 2.0]
+  density_g_cm3 double [not null, default: 1.0]
+
+  // Nutrition Data (Per 100g)
+  protein_per_100g double [not null, default: 0.0]
+  carbs_per_100g double [not null, default: 0.0]
+  fats_per_100g double [not null, default: 0.0]
+  cals_per_100g double [not null, default: 0.0]
+
+  // Micronutrients
+  iron_mg double
+  sodium_mg double
+
+  // Meta
+  servingUnit varchar
+  barcode varchar [unique]
+  source food_source
+  isVerified boolean [default: false]
+}
+
+// --- LOGGING ---
+Table dailylogs {
+  id UUID [pk]
+  userId UUID [ref: > users.id]
+  foodItemId int [ref: > food_items.id]
+
+  mealType meal_type [not null]
+  quantity double [not null]
+  unit varchar [default: 'g']
+  imageUrl varchar [note: "URL of the meal photo"]
+  loggedAt timestamp [default: `now()`]
+}
+
+Table water_logs {
+  id UUID [pk]
+  userId UUID [ref: > users.id]
+  amount_ml int [not null]
+  loggedAt timestamp [default: `now()`]
+}
+
+// --- GLP-1 SPECIAL FEATURES ---
+Table symptom_logs {
+  id UUID [pk]
+  userId UUID [ref: > users.id]
+  symptom varchar [not null]
+  severity int // 1-10 scale
+  notes text
+  loggedAt timestamp [default: `now()`]
+  note: "Tracks side effects for GLP-1 users"
+}
+
+// --- AI TRAINING LOOP (RLHF) ---
+Table ai_training_data {
+  id UUID [pk]
+  logId UUID [ref: > dailylogs.id]
+  originalPrediction varchar
+  userCorrection varchar
+  imageSnapshot varchar
+  isReviewedByAdmin boolean [default: false]
+  note: "Stores user corrections to retrain the model"
+}
+
+// --- SUBSCRIPTIONS ---
+Table plans {
+  id UUID [pk]
+  name varchar [not null]
+  monthlyPrice int [not null]
+  yearlyPrice int [not null]
+  features text // JSON string of enabled features
+}
+
+Table user_subscriptions {
+  id UUID [pk]
+  userId UUID [ref: > users.id]
+  planId UUID [ref: > plans.id]
+  status varchar // Active, Cancelled, Expired
+  startDate timestamp
+  endDate timestamp
+}
+
+// --- RECIPES ---
+Table recipes {
+  id UUID [pk]
+  authorId UUID [ref: > users.id]
+  name varchar [not null]
+  description text
+  instructions text
+
+  // Meta
+  prepTimeMinutes int
+  cookTimeMinutes int
+  isPublic boolean [default: false]
+
+  // Derived Nutrition
+  totalCalories int
+  totalProtein double
+}
+
+Table recipe_ingredients {
+  id UUID [pk]
+  recipeId UUID [ref: > recipes.id]
+  foodItemId int [ref: > food_items.id]
+  quantity double [not null]
+  unit varchar [not null]
+}
+
+// --- MEAL PLANNING ---
+Table meal_plans {
+  id UUID [pk]
+  userId UUID [ref: > users.id]
+  name varchar
+  startDate date
+  endDate date
+  status varchar // Active, Completed, Archived
+  generatedByAI boolean [default: false]
+}
+
+Table meal_plan_items {
+  id UUID [pk]
+  planId UUID [ref: > meal_plans.id]
+  foodItemId int [ref: > food_items.id]
+  recipeId UUID [ref: > recipes.id]
+
+  scheduledDate date [not null]
+  mealType meal_type [not null]
+  isConsumed boolean [default: false]
+}
+
+// --- SHOPPING LIST ---
+Table shopping_list {
+  id UUID [pk]
+  userId UUID [ref: > users.id]
+  foodItemId int [ref: > food_items.id]
+
+  quantity double
+  unit varchar
+  isPurchased boolean [default: false]
+  talabatLink varchar [note: "Deep link to buy this item on delivery apps"]
+}
+
+// --- GAMIFICATION ---
+Table badges {
+  id UUID [pk]
+  name varchar [not null]
+  description varchar
+  iconUrl varchar
+  requiredXp int
+}
+
+Table user_badges {
+  id UUID [pk]
+  userId UUID [ref: > users.id]
+  badgeId UUID [ref: > badges.id]
+  earnedAt timestamp [default: `now()`]
+}
+
+Table community_challenges {
+  id UUID [pk]
+  title varchar
+  description text
+  startDate timestamp
+  endDate timestamp
+  participantsCount int [default: 0]
+}
+
+Table user_challenges {
+  userId UUID [pk, ref: > users.id]
+  challengeId UUID [pk, ref: > community_challenges.id]
+  progress double
+  status varchar // Joined, Completed
+}
+
+// --- AI COACH CONVERSATION MEMORY ---
+Table chat_sessions {
+  id UUID [pk]
+  userId UUID [ref: > users.id]
+  title varchar [note: "Auto-generated from first user message"]
+  createdAt timestamp [default: `now()`]
+  updatedAt timestamp [default: `now()`]
+  note: "Groups messages into distinct conversations"
+}
+
+Table chat_messages {
+  id UUID [pk]
+  sessionId UUID [ref: > chat_sessions.id]
+  role varchar [not null, note: "'user' or 'assistant'"]
+  content text [not null]
+  createdAt timestamp [default: `now()`]
+  note: "Stores individual messages for AI memory"
+}
