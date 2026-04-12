@@ -98,17 +98,20 @@ class SymptomLog(Base):
 
     user = relationship("User", back_populates="symptom_logs")
 
-
 # ── AI Training Data (RLHF) ──────────────────────────────────────────────────
 
 class AiTrainingData(Base):
     __tablename__ = "ai_training_data"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    logId = Column(String(36), ForeignKey("dailylogs.id"), nullable=False)
+    userId = Column(String(36), ForeignKey("users.id"), nullable=True)
+    logId = Column(String(36), ForeignKey("dailylogs.id"), nullable=True)
     originalPrediction = Column(String(255), nullable=True)
     userCorrection = Column(String(255), nullable=True)
     imageSnapshot = Column(String(500), nullable=True)
     isReviewedByAdmin = Column(Boolean, default=False)
+    createdAt = Column(DateTime, nullable=False, default=func.now())
 
+    user = relationship("User")
     log = relationship("DailyLogs", back_populates="training_data")
+

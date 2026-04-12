@@ -179,12 +179,14 @@ Table symptom_logs {
 // --- AI TRAINING LOOP (RLHF) ---
 Table ai_training_data {
   id UUID [pk]
-  logId UUID [ref: > dailylogs.id]
-  originalPrediction varchar
-  userCorrection varchar
+  userId UUID [ref: > users.id, note: "Who made the prediction"]
+  logId UUID [ref: > dailylogs.id, note: "Linked when meal is confirmed/logged"]
+  originalPrediction varchar // What the AI thought it was
+  userCorrection varchar // What the user said it was
   imageSnapshot varchar
   isReviewedByAdmin boolean [default: false]
-  note: "Stores user corrections to retrain the model"
+  createdAt timestamp [default: `now()`]
+  note: "Stores AI predictions and user corrections for RLHF retraining"
 }
 
 // --- SUBSCRIPTIONS ---

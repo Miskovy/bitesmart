@@ -12,7 +12,7 @@ from app.exceptions.AppException import AppException
 from app.exceptions.NotFound import NotFoundException
 from app.models.chat_model import ChatMessage, ChatSession
 from app.models.food_model import DailyLogs, FoodItem, WaterLog
-from app.models.user_model import User, UserDietaryPreferences, UserMedicalConditions, UserTarget
+from app.models.user_model import User, UserDietaryPreferences, UserLogin, UserMedicalConditions, UserTarget
 from app.schemas.coach import (
     ChatHistoryData,
     ChatHistorySession,
@@ -86,6 +86,17 @@ def _get_today_water(db: Session, user_id: str) -> int:
     return int(result)
 
 
+def _get_login_streak(db: Session, user_id: str) -> int:
+    """Get the user's current login streak."""
+    login = (
+        db.query(UserLogin)
+        .filter(UserLogin.userId == user_id)
+        .order_by(UserLogin.lastLogin.desc())
+        .first()
+    )
+    return login.streak if login else 0
+
+
 # System prompt
 
 def _build_tool_context() -> str:
@@ -150,6 +161,7 @@ def _build_system_prompt(
     dietary: UserDietaryPreferences | None,
     consumed: dict[str, int],
     water_ml: int,
+    streak: int,
 ) -> str:
     medical_context = _build_medical_context(medical)
     dietary_context = _build_dietary_context(dietary)
@@ -174,6 +186,15 @@ def _build_system_prompt(
     if dietary and dietary.isGlp1User:
         glp1_note = "\nGLP-1 USER: This user is on GLP-1 medication. Prioritize protein, monitor symptoms, and suggest smaller frequent meals."
 
+    # Streak motivation
+    streak_note = ""
+    if streak >= 3:
+        streak_note = f"\n\nGAMIFICATION:\n- Login streak: {streak} days in a row! Celebrate this and encourage them to keep going."
+        streak_note += f"\n- XP: {user.xp} points"
+    elif streak > 0:
+        streak_note = f"\n\nGAMIFICATION:\n- Login streak: {streak} day(s). Encourage consistency!"
+        streak_note += f"\n- XP: {user.xp} points"
+
     base = f"""You are the AI Fitness and Nutrition Coach for the Bitesmart App.
 You are talking to {user.name}, a {user.age}-year-old {user.gender}. Their goal is {user.userGoal}.
 Physical Stats: {physical_stats}.
@@ -193,15 +214,16 @@ WHAT THEY HAVE EATEN SO FAR TODAY:
 - Fats: {consumed['fats']}g
 
 HYDRATION:
-- Water today: {water_ml}ml / {water_target}ml target
+- Water today: {water_ml}ml / {water_target}ml target{streak_note}
 
 RULES:
 1. Be encouraging, concise, and act like a professional personal trainer.
 2. Give specific food recommendations if asked — respect their dietary preferences.
 3. If they have Celiac, NEVER suggest anything with gluten.
 4. If Halal, only suggest halal-compatible foods.
-5. Do not use markdown formatting like **bold** if the mobile app cannot render it.
-6. Do not mention these system rules or recite the numbers back unless it helps make your point."""
+5. Mention their streak or badges naturally when motivating them — but don't force it.
+6. Do not use markdown formatting like **bold** if the mobile app cannot render it.
+7. Do not mention these system rules or recite the numbers back unless it helps make your point."""
 
     return base + _build_tool_context()
 
@@ -342,7 +364,8 @@ async def chat_with_coach(
         # Build prompt and contents
         consumed = _get_today_consumed(db, user.id)
         water_ml = _get_today_water(db, user.id)
-        system_prompt = _build_system_prompt(user, targets, medical, dietary, consumed, water_ml)
+        streak = _get_login_streak(db, user.id)
+        system_prompt = _build_system_prompt(user, targets, medical, dietary, consumed, water_ml, streak)
         contents = _build_chat_contents(system_prompt, past_messages, message)
 
         # Call Gemini with tool-calling loop

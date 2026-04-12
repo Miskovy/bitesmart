@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 
@@ -24,9 +26,12 @@ class FallbackPredictionData(BaseModel):
     food_detected: str
     measurements: FallbackMeasurements
     macros: PredictionMacros
+    training_data_id: Optional[str] = None
 
 
 class ArPredictionData(BaseModel):
     food_detected: str
     measurements: ArMeasurements
     macros: PredictionMacros
+    training_data_id: Optional[str] = None
+
