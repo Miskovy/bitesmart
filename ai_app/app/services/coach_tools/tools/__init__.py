@@ -7,3 +7,7 @@ from app.services.coach_tools.tools.get_today_logs import GetTodayLogsTool  # no
 from app.services.coach_tools.tools.get_remaining_macros import GetRemainingMacrosTool  # noqa: F401
 from app.services.coach_tools.tools.log_water import LogWaterTool  # noqa: F401
 from app.services.coach_tools.tools.log_symptom import LogSymptomTool  # noqa: F401
+from app.services.coach_tools.tools.recommend_recipe import RecommendRecipeTool  # noqa: F401
+from app.services.coach_tools.tools.create_meal_plan import CreateMealPlanTool  # noqa: F401
+from app.services.coach_tools.tools.get_meal_plan import GetMealPlanTool  # noqa: F401
+from app.services.coach_tools.tools.get_user_badges import GetUserBadgesTool  # noqa: F401

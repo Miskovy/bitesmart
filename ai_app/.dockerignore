@@ -1,0 +1,33 @@
+# Virtual environment
+.venv/
+venv/
+
+# Git
+.git/
+.github/
+
+# IDE
+.idea/
+.vscode/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Dev files
+*.http
+*.cmd
+.env
+ERD.txt
+LICENSE
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
