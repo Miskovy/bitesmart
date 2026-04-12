@@ -1,4 +1,5 @@
-from typing import List
+import uuid
+from typing import List, Optional
 
 import torch
 from sqlalchemy.orm import Session
@@ -6,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.constants.ErrorCodes import ErrorCodes
 from app.exceptions.AppException import AppException
 from app.exceptions.ValidationException import ValidationException
-from app.models.food_model import FoodItem
+from app.models.food_model import AiTrainingData, FoodItem
 from app.schemas.prediction import PredictionItem, PredictionResponse
 from app.schemas.prediction_v4 import (
     ArMeasurements,
@@ -19,6 +20,27 @@ from app.utils.image_utils import transform_image, validate_and_prepare_image
 from app.utils.model_utils import process_image
 from app.utils.yolo_utils import extract_food_mask, get_plate_diameter_cv2
 
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _save_training_data(
+    db: Session,
+    predicted_class: str,
+    user_id: Optional[str] = None,
+) -> str:
+    """Save the AI prediction for the RLHF correction loop. Returns the record ID."""
+    record = AiTrainingData(
+        id=str(uuid.uuid4()),
+        userId=user_id,
+        originalPrediction=predicted_class,
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record.id
+
+
+# ── V3: Top-5 Classification ─────────────────────────────────────────────────
 
 async def predict_top5(
     file,
@@ -52,6 +74,8 @@ async def predict_top5(
     )
 
 
+# ── V4: Fallback (plate diameter) ────────────────────────────────────────────
+
 def predict_food_volume_fallback(
     image_bytes: bytes,
     plate_diameter_cm: float,
@@ -59,6 +83,7 @@ def predict_food_volume_fallback(
     class_names,
     yolo_model,
     db: Session,
+    user_id: Optional[str] = None,
 ) -> FallbackPredictionData:
     predicted_class = process_image(image_bytes, convnext_session, class_names)
     food_pixel_area, _ = extract_food_mask(image_bytes, yolo_model)
@@ -83,6 +108,9 @@ def predict_food_volume_fallback(
     weight_g = volume_cm3 * food_record.density_g_cm3
     multiplier = weight_g / 100.0
 
+    # Save prediction for RLHF
+    training_id = _save_training_data(db, predicted_class, user_id)
+
     return FallbackPredictionData(
         food_detected=predicted_class,
         measurements=FallbackMeasurements(
@@ -96,8 +124,11 @@ def predict_food_volume_fallback(
             carbs_g=round(food_record.carbs_per_100g * multiplier, 2),
             fats_g=round(food_record.fats_per_100g * multiplier, 2),
         ),
+        training_data_id=training_id,
     )
 
+
+# ── V4: AR (real-world width from mobile AR) ─────────────────────────────────
 
 def predict_food_volume_ar(
     image_bytes: bytes,
@@ -106,6 +137,7 @@ def predict_food_volume_ar(
     class_names,
     yolo_model,
     db: Session,
+    user_id: Optional[str] = None,
 ) -> ArPredictionData:
     predicted_class = process_image(image_bytes, convnext_session, class_names)
     pixel_area, pixel_width = extract_food_mask(image_bytes, yolo_model)
@@ -124,6 +156,9 @@ def predict_food_volume_ar(
     weight_g = volume_cm3 * food_record.density_g_cm3
     multiplier = weight_g / 100.0
 
+    # Save prediction for RLHF
+    training_id = _save_training_data(db, predicted_class, user_id)
+
     return ArPredictionData(
         food_detected=predicted_class,
         measurements=ArMeasurements(
@@ -137,4 +172,5 @@ def predict_food_volume_ar(
             carbs_g=round(food_record.carbs_per_100g * multiplier, 2),
             fats_g=round(food_record.fats_per_100g * multiplier, 2),
         ),
+        training_data_id=training_id,
     )
