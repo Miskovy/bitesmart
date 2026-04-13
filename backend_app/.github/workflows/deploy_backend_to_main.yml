@@ -1,0 +1,67 @@
+name: Deploy Backend to Main
+
+on:
+  push:
+    branches:
+      - 'backend'
+
+jobs:
+  check-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout backend branch
+        uses: actions/checkout@v4
+        with:
+          ref: 'backend'
+          path: 'source'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: |
+          cd source
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: Lint and Build (Placeholder)
+        run: |
+          cd source
+          echo "No tests configured yet. Skipping..."
+          # Uncomment the lines below if you have linting or build scripts
+          # npm run lint
+          # npm run build
+          # npx tsc --noEmit
+
+      - name: Checkout Main branch
+        uses: actions/checkout@v4
+        with:
+          ref: 'main'
+          path: 'target'
+
+      - name: Sync backend to main/backend_app
+        run: |
+          # Clear the existing target/backend_app directory if it exists
+          rm -rf target/backend_app
+          mkdir -p target/backend_app
+          
+          # Sync from source to target/backend_app (exclude .git and node_modules)
+          rsync -av --exclude='.git' --exclude='node_modules' source/ target/backend_app/
+
+      - name: Commit and Push to main
+        run: |
+          cd target
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add backend_app/
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Automated deployment: backend branch to backend_app folder"
+            git push origin main
+          fi
