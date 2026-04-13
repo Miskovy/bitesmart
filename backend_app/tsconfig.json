@@ -8,5 +8,8 @@
     "esModuleInterop": true,                           /* Emit additional JavaScript to ease support for importing CommonJS modules. */
     "forceConsistentCasingInFileNames": true,          /* Ensure that casing is correct in imports. */
     "skipLibCheck": true                               /* Skip type checking all .d.ts files. */
-  }
+  },
+  "include": [
+    "src/**/*"
+  ]
 }
