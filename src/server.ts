@@ -7,6 +7,7 @@ import { StatusCodes } from "http-status-codes";
 import { SuccessResponse } from "./utils/Response";
 import { errorHandler } from "./middlewares/ErrorHandler";
 import { AppError } from "./errors/AppError";
+import { connectToDatabase } from "./models/index";
 
 
 dotenv.config();
@@ -45,8 +46,11 @@ app.use((req, res, next) => {
 // Global Error Handler
 app.use(errorHandler);
 
+connectToDatabase();
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
