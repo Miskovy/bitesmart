@@ -8,12 +8,10 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Bitesmart_Ai"
     DEBUG: bool = False
 
-    # Internal service auth
     INTERNAL_API_KEY: str
     INTERNAL_API_SECRET: str
     ALLOWED_TIMESTAMP_DRIFT_SECONDS: int = 30
 
-    # Model config (with defaults so .env doesn't need them)
     MODEL_NAME: str = "convnext_base.fb_in22k"
     NUM_CLASSES: int = 119
     IMG_SIZE: int = 224
