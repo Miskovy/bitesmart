@@ -1,5 +1,8 @@
 name: Prepare AI/ML Promotion PR
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   workflow_dispatch:
     inputs:
@@ -65,7 +68,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           path: target
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PROMOTION_PR_TOKEN }}
           branch: promotion/ai-ml-to-main
           base: main
           commit-message: 'Promote AI/ML into ai_app'
