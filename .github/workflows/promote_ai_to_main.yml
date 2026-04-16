@@ -1,0 +1,77 @@
+name: Prepare AI/ML Promotion PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: 'Source ref to package under main/ai_app'
+        required: true
+        default: 'AI/ML'
+  workflow_run:
+    workflows:
+      - AI/ML CI
+    types:
+      - completed
+
+jobs:
+  prepare-pr:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'AI/ML')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Resolve source ref
+        id: source
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ref=${{ inputs.source_ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout AI/ML source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.ref }}
+          path: source
+
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: target
+
+      - name: Sync AI/ML into ai_app
+        shell: bash
+        run: |
+          rm -rf target/ai_app
+          mkdir -p target/ai_app
+          rsync -av --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.idea' \
+            --exclude='.venv' \
+            --exclude='.pytest_cache' \
+            --exclude='__pycache__' \
+            --exclude='.coverage' \
+            source/ target/ai_app/
+
+      - name: Create promotion pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          path: target
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: promotion/ai-ml-to-main
+          base: main
+          commit-message: 'Promote AI/ML into ai_app'
+          title: 'Promote AI/ML into ai_app'
+          body: |
+            This PR was generated automatically from `${{ steps.source.outputs.ref }}`.
+
+            It packages the AI/ML branch contents under `ai_app/` so `main` only receives AI changes inside that folder.
+          delete-branch: true
