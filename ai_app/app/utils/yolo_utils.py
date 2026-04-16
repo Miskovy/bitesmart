@@ -7,6 +7,8 @@ from PIL import Image
 from ultralytics import YOLO
 import os
 
+from app.config.config import settings
+
 def sigmoid(x: np.ndarray) -> np.ndarray:
     """Applies the sigmoid function to convert raw mask logits into probabilities [0, 1]."""
     return 1 / (1 + np.exp(-x))
@@ -249,14 +251,13 @@ def get_plate_diameter_cv2(image_bytes: bytes) -> tuple[float, float]:
         major_axis = max(axes)
         minor_axis = min(axes)
 
-        # --- VISUAL DEBUGGING ---
-        log_dir = os.path.join("storage", "logs")
-        os.makedirs(log_dir, exist_ok=True)
-        cv2.ellipse(img, ellipse, (0, 255, 0), 4)
-        filepath = os.path.join(log_dir, f"plate_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg")
-        cv2.imwrite(filepath, img)
-        print(f"Debug image saved to: {filepath}")
-        # ------------------------
+        if settings.PLATE_DEBUG_IMAGES:
+            log_dir = os.path.join("storage", "logs")
+            os.makedirs(log_dir, exist_ok=True)
+            cv2.ellipse(img, ellipse, (0, 255, 0), 4)
+            filepath = os.path.join(log_dir, f"plate_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg")
+            cv2.imwrite(filepath, img)
+            print(f"Debug image saved to: {filepath}")
 
         # Return BOTH axes instead of just one
         return float(major_axis), float(minor_axis)

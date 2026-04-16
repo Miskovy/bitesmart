@@ -1,18 +1,24 @@
 import hashlib
 import hmac
 import time
+
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+
 from app.config.config import settings
 from app.handlers.error_handler import error_response
 
 UNPROTECTED_PATHS = {"/", "/health", "/docs", "/openapi.json", "/redoc"}
-UNPROTECTED_PREFIXES = ("/api/food",)
+
+
+def _is_unprotected_food_read(request: Request) -> bool:
+    return request.method.upper() == "GET" and request.url.path.startswith("/api/food")
+
 
 class InternalAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
 
-        if request.url.path in UNPROTECTED_PATHS or request.url.path.startswith(UNPROTECTED_PREFIXES):
+        if request.url.path in UNPROTECTED_PATHS or _is_unprotected_food_read(request):
             return await call_next(request)
 
         api_key   = request.headers.get("X-Api-Key")
