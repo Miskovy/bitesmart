@@ -1,47 +1,40 @@
-name: Deploy AI/ML to Main
+name: Promote AI/ML to Main
 
 on:
-  push:
+  pull_request:
     branches:
-      - 'AI/ML'
+      - 'main'
+    types:
+      - closed
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: 'Source ref to promote into main/ai_app'
+        required: true
+        default: 'AI/ML'
 
 jobs:
-  check-and-deploy:
+  deploy:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'AI/ML')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Checkout AI/ML branch
+      - name: Checkout approved AI/ML source
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@v4
         with:
-          ref: 'AI/ML'
+          ref: ${{ github.event.pull_request.head.sha }}
           path: 'source'
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Checkout source for manual promotion
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v4
         with:
-          python-version: '3.10'
-
-      - name: Install Dependencies
-        run: |
-          cd source
-          python -m pip install --upgrade pip
-          pip install flake8 pytest
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-
-      - name: Lint with flake8
-        run: |
-          cd source
-          # Stop the build if there are Python syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all other errors as warnings.
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-
-      - name: Test with pytest (Placeholder)
-        run: |
-          cd source
-          echo "No tests configured yet. Skipping pytest..."
-          # pytest
+          ref: ${{ inputs.source_ref }}
+          path: 'source'
 
       - name: Checkout Main branch
         uses: actions/checkout@v4
@@ -51,11 +44,8 @@ jobs:
 
       - name: Sync AI/ML to main/ai_app
         run: |
-          # Clear the existing target/ai_app directory if it exists
           rm -rf target/ai_app
           mkdir -p target/ai_app
-          
-          # Sync from source to target/ai_app (exclude git files)
           rsync -av --exclude='.git' source/ target/ai_app/
 
       - name: Commit and Push to main
@@ -63,12 +53,11 @@ jobs:
           cd target
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
           git add ai_app/
-          
+
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Automated deployment: AI/ML branch to ai_app folder"
+            git commit -m "Promote AI/ML to ai_app after approval"
             git push origin main
           fi
