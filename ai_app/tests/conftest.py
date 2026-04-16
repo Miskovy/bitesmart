@@ -144,6 +144,24 @@ def food_api(fake_db):
 
 
 @pytest.fixture
+def food_protected_api(fake_db):
+    from app.routers.food import food as food_router_module
+
+    app = _create_router_client(
+        router=food_router_module.router,
+        dependency=food_router_module.get_db,
+        prefix="/api/food",
+        fake_db=fake_db,
+        include_auth=True,
+    )
+
+    with TestClient(app) as client:
+        yield client, food_router_module, fake_db
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
 def coach_api(fake_db):
     from app.routers.coach import coach as coach_router_module
 

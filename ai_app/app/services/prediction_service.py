@@ -87,12 +87,11 @@ def predict_food_volume_fallback(
 ) -> FallbackPredictionData:
     predicted_class = process_image(image_bytes, convnext_session, class_names)
     food_pixel_area, _ = extract_food_mask(image_bytes, yolo_model)
-    plate_pixel_diameter = get_plate_diameter_cv2(image_bytes)
     plate_major_px, plate_minor_px = get_plate_diameter_cv2(image_bytes)
 
     if food_pixel_area == 0:
         raise ValidationException("Food detection", "Could not detect any food in the image.")
-    if plate_pixel_diameter == 0:
+    if plate_major_px == 0 or plate_minor_px == 0:
         raise ValidationException("Plate detection", "Could not detect a circular plate. Please ensure the plate is fully visible.")
 
     food_record = db.query(FoodItem).filter(FoodItem.class_name == predicted_class).first()

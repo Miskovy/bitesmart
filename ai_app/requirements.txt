@@ -20,3 +20,4 @@ google-genai
 protobuf
 alembic
 bcrypt
+tzdata

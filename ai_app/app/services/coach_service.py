@@ -1,12 +1,15 @@
-from datetime import date
+import logging
+from datetime import datetime, timedelta, timezone
 from typing import Any
 import uuid
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from google import genai
 from google.genai import types
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.config.config import settings
 from app.constants.ErrorCodes import ErrorCodes
 from app.exceptions.AppException import AppException
 from app.exceptions.NotFound import NotFoundException
@@ -26,6 +29,7 @@ from app.services.coach_tools import registry
 # Constants
 _MODEL = "gemini-3.1-flash-lite-preview"
 _MAX_TOOL_ROUNDS = 5  # Safety cap on tool-call loops
+_logger = logging.getLogger(__name__)
 
 
 # Private helpers
@@ -54,12 +58,29 @@ def _get_session_or_raise(db: Session, session_id: str, user_id: str) -> ChatSes
     return session
 
 
+def _today_window_in_app_timezone() -> tuple[datetime, datetime]:
+    try:
+        tz = ZoneInfo(settings.APP_TIMEZONE)
+    except ZoneInfoNotFoundError:
+        _logger.warning(
+            "Invalid or unavailable APP_TIMEZONE '%s'. Falling back to UTC.",
+            settings.APP_TIMEZONE,
+        )
+        tz = timezone.utc
+    local_now = datetime.now(tz)
+    start_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_local = start_local + timedelta(days=1)
+    return start_local.replace(tzinfo=None), end_local.replace(tzinfo=None)
+
+
 def _get_today_consumed(db: Session, user_id: str) -> dict[str, int]:
+    start_of_day, end_of_day = _today_window_in_app_timezone()
     today_logs = (
         db.query(DailyLogs, FoodItem)
         .join(FoodItem, DailyLogs.foodItemId == FoodItem.id)
         .filter(DailyLogs.userId == user_id)
-        .filter(func.date(DailyLogs.loggedAt) == date.today())
+        .filter(DailyLogs.loggedAt >= start_of_day)
+        .filter(DailyLogs.loggedAt < end_of_day)
         .all()
     )
     cals, protein, carbs, fats = 0, 0, 0, 0
@@ -77,10 +98,12 @@ def _get_today_consumed(db: Session, user_id: str) -> dict[str, int]:
 
 def _get_today_water(db: Session, user_id: str) -> int:
     """Sum of water consumed today in ml."""
+    start_of_day, end_of_day = _today_window_in_app_timezone()
     result = (
         db.query(func.coalesce(func.sum(WaterLog.amount_ml), 0))
         .filter(WaterLog.userId == user_id)
-        .filter(func.date(WaterLog.loggedAt) == date.today())
+        .filter(WaterLog.loggedAt >= start_of_day)
+        .filter(WaterLog.loggedAt < end_of_day)
         .scalar()
     )
     return int(result)
@@ -375,6 +398,7 @@ async def chat_with_coach(
         # Persist user message + AI reply
         db.add(ChatMessage(sessionId=session.id, role="user", content=message))
         db.add(ChatMessage(sessionId=session.id, role="assistant", content=ai_reply))
+        session.updatedAt = func.now()
         db.commit()
 
         return CoachChatData(session_id=session.id, coach_response=ai_reply)

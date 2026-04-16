@@ -1,8 +1,10 @@
 from unittest.mock import AsyncMock
+from types import SimpleNamespace
 
 from app.constants.ErrorCodes import ErrorCodes
 from app.constants.SuccessCodes import SuccessCodes
 from app.exceptions.AppException import AppException
+from app.exceptions.ValidationException import ValidationException
 from app.schemas.prediction import PredictionItem, PredictionResponse
 from app.schemas.prediction_v4 import (
     FallbackMeasurements,
@@ -190,3 +192,28 @@ def test_prediction_v4_ar_route_surfaces_service_errors(prediction_v4_api, monke
     assert response.status_code == 500
     assert payload["error_code"] == ErrorCodes.INTERNAL_ERROR.name
     assert payload["message"] == "Class salad missing from database."
+
+
+def test_predict_food_volume_fallback_returns_validation_error_when_plate_detection_fails(monkeypatch):
+    from app.services import prediction_service
+
+    monkeypatch.setattr(prediction_service, "process_image", lambda *args, **kwargs: "salad")
+    monkeypatch.setattr(prediction_service, "extract_food_mask", lambda *args, **kwargs: (1250.0, 100.0))
+    monkeypatch.setattr(prediction_service, "get_plate_diameter_cv2", lambda *args, **kwargs: (0.0, 0.0))
+
+    fake_db = SimpleNamespace(query=lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("db should not be queried")))
+
+    try:
+        prediction_service.predict_food_volume_fallback(
+            image_bytes=b"fake-image",
+            plate_diameter_cm=24.0,
+            convnext_session=object(),
+            class_names=["salad"],
+            yolo_model=object(),
+            db=fake_db,
+            user_id="user-1",
+        )
+        raise AssertionError("Expected ValidationException to be raised")
+    except ValidationException as exc:
+        assert exc.error_code == ErrorCodes.VALIDATION_ERROR.name
+        assert exc.message == "Plate detection not valid: Could not detect a circular plate. Please ensure the plate is fully visible."
