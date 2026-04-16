@@ -1,0 +1,66 @@
+name: AI/ML CI
+
+on:
+  push:
+    branches:
+      - 'AI/ML'
+  pull_request:
+    branches:
+      - 'main'
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Detect project directory
+        id: project
+        shell: bash
+        run: |
+          if [ -f requirements.txt ] && [ -d app ]; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          elif [ -f ai_app/requirements.txt ] && [ -d ai_app/app ]; then
+            echo "dir=ai_app" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unable to locate the AI project directory."
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: ${{ steps.project.outputs.dir }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      - name: Lint
+        working-directory: ${{ steps.project.outputs.dir }}
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run tests with coverage
+        working-directory: ${{ steps.project.outputs.dir }}
+        env:
+          INTERNAL_API_KEY: test-api-key
+          INTERNAL_API_SECRET: test-api-secret
+          MYSQL_PASSWORD: test-password
+          GEMINI_API_KEY: test-gemini-key
+        run: |
+          pytest --cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=35
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ${{ steps.project.outputs.dir }}/coverage.xml
