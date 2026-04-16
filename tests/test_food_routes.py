@@ -153,3 +153,46 @@ def test_delete_food_route_returns_no_content(food_api, monkeypatch):
     assert response.status_code == 204
     assert response.content == b""
     assert captured == {"db": fake_db, "food_id": 3}
+
+
+def test_food_get_routes_remain_public_when_auth_middleware_is_enabled(food_protected_api, monkeypatch):
+    client, food_router_module, fake_db = food_protected_api
+
+    def fake_list_foods(db, page, limit, search):
+        assert db is fake_db
+        return PaginatedFoodResponse(
+            total_items=1,
+            total_pages=1,
+            current_page=1,
+            limit=10,
+            data=[make_food_item()],
+        )
+
+    monkeypatch.setattr(food_router_module.food_service, "list_foods", fake_list_foods)
+
+    response = client.get("/api/food/")
+
+    assert response.status_code == 200
+    assert response.json()["success_code"] == SuccessCodes.OK.name
+
+
+def test_food_mutations_require_internal_auth_when_middleware_is_enabled(food_protected_api):
+    client, _, _ = food_protected_api
+
+    response = client.post(
+        "/api/food/",
+        json={
+            "class_name": "oats",
+            "avg_height_cm": 1.2,
+            "density_g_cm3": 0.5,
+            "protein_per_100g": 16.9,
+            "carbs_per_100g": 66.3,
+            "fats_per_100g": 6.9,
+            "cals_per_100g": 389.0,
+        },
+    )
+    payload = response.json()
+
+    assert response.status_code == 401
+    assert payload["error_code"] == ErrorCodes.UNAUTHORIZED.name
+    assert payload["message"] == "Missing auth headers"

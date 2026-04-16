@@ -1,12 +1,16 @@
-from pydantic_settings import BaseSettings
 from pathlib import Path
 
+from pydantic_settings import BaseSettings
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
 
 class Settings(BaseSettings):
     # App
     PROJECT_NAME: str = "Bitesmart_Ai"
     DEBUG: bool = False
+    APP_TIMEZONE: str = "UTC"
+    PLATE_DEBUG_IMAGES: bool = False
 
     INTERNAL_API_KEY: str
     INTERNAL_API_SECRET: str
