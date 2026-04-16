@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field
 
 T = TypeVar("T")
 
-
 class SuccessResponse(BaseModel, Generic[T]):
     success: bool = True
     status_code: int
