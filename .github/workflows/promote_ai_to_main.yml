@@ -25,6 +25,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      issues: write
 
     steps:
       - name: Resolve source ref
@@ -65,6 +66,7 @@ jobs:
             source/ target/ai_app/
 
       - name: Create promotion pull request
+        id: create_pr
         uses: peter-evans/create-pull-request@v7
         with:
           path: target
@@ -78,3 +80,14 @@ jobs:
 
             It packages the AI/ML branch contents under `ai_app/` so `main` only receives AI changes inside that folder.
           delete-branch: true
+
+      - name: Enable auto-merge for promotion PR
+        if: ${{ steps.create_pr.outputs.pull-request-operation != 'closed' && steps.create_pr.outputs.pull-request-number != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.PROMOTION_PR_TOKEN }}
+        shell: bash
+        run: |
+          gh pr merge "${{ steps.create_pr.outputs.pull-request-number }}" \
+            --repo "${{ github.repository }}" \
+            --squash \
+            --auto
