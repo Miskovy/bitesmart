@@ -1,0 +1,95 @@
+name: Prepare Backend Promotion PR
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: 'Source ref to package under main/backend_app'
+        required: true
+        default: 'backend'
+  workflow_run:
+    workflows:
+      - Backend CI
+    types:
+      - completed
+
+concurrency:
+  group: promote-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare-pr:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'backend')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Resolve source ref
+        id: source
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ref=${{ inputs.source_ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout backend source commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.ref }}
+          path: source
+
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: target
+
+      - name: Sync backend to main/backend_app
+        shell: bash
+        run: |
+          rm -rf target/backend_app
+          mkdir -p target/backend_app
+          rsync -av --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.idea' \
+            --exclude='node_modules' \
+            --exclude='dist' \
+            source/ target/backend_app/
+
+      - name: Create promotion pull request
+        id: create_pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          path: target
+          token: ${{ secrets.PROMOTION_PR_TOKEN }}
+          branch: promotion/backend-to-main
+          base: main
+          commit-message: 'Promote backend into backend_app'
+          title: 'Promote backend into backend_app'
+          body: |
+            This PR was generated automatically from `${{ steps.source.outputs.ref }}`.
+
+            It packages the backend branch contents under `backend_app/` so `main` only receives backend changes inside that folder.
+          delete-branch: true
+
+      - name: Enable auto-merge for promotion PR
+        if: ${{ steps.create_pr.outputs.pull-request-operation != 'closed' && steps.create_pr.outputs.pull-request-number != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.PROMOTION_PR_TOKEN }}
+        shell: bash
+        run: |
+          gh pr merge "${{ steps.create_pr.outputs.pull-request-number }}" \
+            --repo "${{ github.repository }}" \
+            --squash \
+            --auto
