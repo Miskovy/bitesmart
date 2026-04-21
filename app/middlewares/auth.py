@@ -4,21 +4,41 @@ import time
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.routing import Match
 
 from app.config.config import settings
 from app.handlers.error_handler import error_response
 
-UNPROTECTED_PATHS = {"/", "/health", "/docs", "/openapi.json", "/redoc"}
+UNPROTECTED_EXACT_PATHS = {"/", "/api", "/api/", "/openapi.json"}
+UNPROTECTED_PREFIXES = ("/health", "/docs", "/redoc")
 
 
 def _is_unprotected_food_read(request: Request) -> bool:
     return request.method.upper() == "GET" and request.url.path.startswith("/api/food")
 
 
+def _is_unprotected_path(path: str) -> bool:
+    if path in UNPROTECTED_EXACT_PATHS:
+        return True
+
+    return any(path == prefix or path.startswith(f"{prefix}/") for prefix in UNPROTECTED_PREFIXES)
+
+
+def _route_exists(request: Request) -> bool:
+    for route in request.app.router.routes:
+        match, _ = route.matches(request.scope)
+        if match in (Match.FULL, Match.PARTIAL):
+            return True
+
+    return False
+
+
 class InternalAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        if not _route_exists(request):
+            return await call_next(request)
 
-        if request.url.path in UNPROTECTED_PATHS or _is_unprotected_food_read(request):
+        if _is_unprotected_path(request.url.path) or _is_unprotected_food_read(request):
             return await call_next(request)
 
         api_key   = request.headers.get("X-Api-Key")
