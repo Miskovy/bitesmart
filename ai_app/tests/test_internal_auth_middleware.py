@@ -6,6 +6,21 @@ from app.constants.ErrorCodes import ErrorCodes
 def test_unprotected_paths_bypass_auth(middleware_client):
     assert middleware_client.get("/").status_code == 200
     assert middleware_client.get("/health").status_code == 200
+    assert middleware_client.get("/health/data").status_code == 200
+    assert middleware_client.get("/health/status").status_code == 200
+
+
+def test_api_root_redirects_to_health_without_auth(middleware_client):
+    response = middleware_client.get("/api", follow_redirects=False)
+
+    assert response.status_code == 307
+    assert response.headers["location"] == "/health"
+
+
+def test_missing_routes_bypass_auth_and_return_not_found(middleware_client):
+    response = middleware_client.get("/does-not-exist")
+
+    assert response.status_code == 404
 
 
 def test_missing_auth_headers_return_unauthorized(middleware_client):
