@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query, status
 from google import genai
 from sqlalchemy.orm import Session
+from sse_starlette.sse import EventSourceResponse
 
 from app.config.config import settings
 from app.constants.SuccessCodes import SuccessCodes
@@ -17,6 +18,7 @@ router = APIRouter()
 
 @router.post("/chat", response_model=SuccessResponse[CoachChatData])
 async def chat_with_coach(request: CoachChatRequest, db: Session = Depends(get_db)):
+    """Standard (non-streaming) chat endpoint. Returns the full response at once."""
     result = await coach_service.chat_with_coach(
         db=db,
         client=client,
@@ -28,6 +30,31 @@ async def chat_with_coach(request: CoachChatRequest, db: Session = Depends(get_d
         SuccessCodes.OK,
         data=result.model_dump(),
         message="Coach reply generated successfully.",
+    )
+
+
+@router.post("/chat/stream")
+async def chat_with_coach_stream(request: CoachChatRequest, db: Session = Depends(get_db)):
+    """
+    Streaming chat endpoint via Server-Sent Events (SSE).
+
+    Events emitted:
+      1. {"event": "session", "data": {"session_id": "..."}}   — sent first
+      2. {"event": "token",   "data": {"token": "..."}}         — each text chunk
+      3. {"event": "done",    "data": {"full_response": "..."}} — final message
+
+    Mobile/web client usage:
+      const es = new EventSource('/api/coach/chat/stream', { method: 'POST', body: ... });
+      es.onmessage = (e) => { const data = JSON.parse(e.data); ... };
+    """
+    return EventSourceResponse(
+        coach_service.chat_with_coach_stream(
+            db=db,
+            client=client,
+            user_id=request.user_id,
+            message=request.message,
+            session_id=request.session_id,
+        )
     )
 
 
@@ -66,3 +93,4 @@ async def delete_session(
 ):
     coach_service.delete_session(db, session_id, user_id)
     return success_response(SuccessCodes.NO_CONTENT)
+

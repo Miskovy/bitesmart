@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, AsyncGenerator
 import uuid
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -409,6 +409,138 @@ async def chat_with_coach(
     except Exception as e:
         db.rollback()
         raise AppException(ErrorCodes.INTERNAL_ERROR, f"Coach AI Failed: {str(e)}") from e
+
+
+async def _resolve_tools_then_stream(
+    client: genai.Client,
+    contents: list,
+    config: types.GenerateContentConfig | None,
+    db: Session,
+    user_id: str,
+) -> AsyncGenerator[str, None]:
+    """
+    Phase 1: Execute any tool calls non-streamed (fast DB queries).
+    Phase 2: Stream the final text response token-by-token.
+    """
+    # Phase 1 — resolve all tool-calling rounds (non-streamed)
+    response = await client.aio.models.generate_content(
+        model=_MODEL, contents=contents, config=config,
+    )
+
+    for _ in range(_MAX_TOOL_ROUNDS):
+        function_calls = [
+            part.function_call
+            for part in response.candidates[0].content.parts
+            if part.function_call and part.function_call.name
+        ]
+        if not function_calls:
+            break
+
+        fn_response_parts = []
+        for fc in function_calls:
+            tool = registry.get(fc.name)
+            if tool:
+                try:
+                    result = await tool.execute(db=db, user_id=user_id, **dict(fc.args))
+                except Exception as exc:
+                    result = {"error": str(exc)}
+            else:
+                result = {"error": f"Unknown tool '{fc.name}'."}
+
+            fr_kwargs: dict[str, Any] = {"name": fc.name, "response": {"result": result}}
+            if getattr(fc, "id", None):
+                fr_kwargs["id"] = fc.id
+            fn_response_parts.append(types.Part.from_function_response(**fr_kwargs))
+
+        contents.append(response.candidates[0].content)
+        contents.append(types.Content(role="user", parts=fn_response_parts))
+
+        response = await client.aio.models.generate_content(
+            model=_MODEL, contents=contents, config=config,
+        )
+
+    # Phase 2 — stream the final response
+    # We already have a non-streamed response from tool resolution.
+    # Re-request with streaming for the final answer.
+    contents.append(response.candidates[0].content)
+    contents.append({"role": "user", "parts": [{"text": "Now provide your final response to the user."}]})
+
+    # Use streaming config without tools to get pure text stream
+    stream_config = None
+    async for chunk in client.aio.models.generate_content_stream(
+        model=_MODEL, contents=contents, config=stream_config,
+    ):
+        if chunk.text:
+            yield chunk.text
+
+
+async def chat_with_coach_stream(
+    db: Session,
+    client: genai.Client,
+    user_id: str,
+    message: str,
+    session_id: str | None = None,
+) -> AsyncGenerator[str, None]:
+    """
+    Streaming version of chat_with_coach.
+    Yields SSE-formatted events:
+      - {"event": "session", "data": {"session_id": "..."}}
+      - {"event": "token", "data": {"token": "..."}}
+      - {"event": "done", "data": {"full_response": "..."}}
+    """
+    import json
+
+    user = _get_user_or_raise(db, user_id)
+    targets = _get_user_targets_or_raise(db, user.id)
+    medical = db.query(UserMedicalConditions).filter(
+        UserMedicalConditions.userId == user.id
+    ).first()
+    dietary = db.query(UserDietaryPreferences).filter(
+        UserDietaryPreferences.userId == user.id
+    ).first()
+
+    # Resolve or create session
+    if session_id:
+        session = _get_session_or_raise(db, session_id, user.id)
+    else:
+        session = ChatSession(
+            id=str(uuid.uuid4()), userId=user.id, title=message[:80],
+        )
+        db.add(session)
+        db.flush()
+
+    # Emit session info first
+    yield json.dumps({"event": "session", "data": {"session_id": session.id}})
+
+    # Load context
+    past_messages = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.sessionId == session.id)
+        .order_by(ChatMessage.createdAt.asc())
+        .limit(20)
+        .all()
+    )
+
+    consumed = _get_today_consumed(db, user.id)
+    water_ml = _get_today_water(db, user.id)
+    streak = _get_login_streak(db, user.id)
+    system_prompt = _build_system_prompt(user, targets, medical, dietary, consumed, water_ml, streak)
+    contents = _build_chat_contents(system_prompt, past_messages, message)
+    config = _build_gemini_config()
+
+    # Stream tokens
+    full_response = ""
+    async for token in _resolve_tools_then_stream(client, contents, config, db, user.id):
+        full_response += token
+        yield json.dumps({"event": "token", "data": {"token": token}})
+
+    # Persist
+    db.add(ChatMessage(sessionId=session.id, role="user", content=message))
+    db.add(ChatMessage(sessionId=session.id, role="assistant", content=full_response.strip()))
+    session.updatedAt = func.now()
+    db.commit()
+
+    yield json.dumps({"event": "done", "data": {"full_response": full_response.strip()}})
 
 
 def list_user_sessions(db: Session, user_id: str) -> ChatSessionsData:

@@ -21,3 +21,4 @@ protobuf
 alembic
 bcrypt
 tzdata
+sse-starlette
