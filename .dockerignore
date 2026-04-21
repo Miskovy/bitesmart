@@ -31,3 +31,5 @@ LICENSE
 Dockerfile
 docker-compose.yml
 .dockerignore
+
+thesis_diagrams/

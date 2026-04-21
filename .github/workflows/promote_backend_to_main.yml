@@ -1,4 +1,4 @@
-name: Prepare AI/ML Promotion PR
+name: Prepare Backend Promotion PR
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -7,26 +7,26 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: 'Source ref to package under main/ai_app'
+        description: 'Source ref to package under main/backend_app'
         required: true
-        default: 'AI/ML'
+        default: 'backend'
   workflow_run:
     workflows:
       - AI/ML & Backend CI
     types:
       - completed
     branches:
-      - 'AI/ML'
+      - 'backend'
 
 concurrency:
-  group: promote-ai-${{ github.ref }}
+  group: promote-backend-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   prepare-pr:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'AI/ML')
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'backend')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -44,32 +44,30 @@ jobs:
             echo "ref=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Checkout AI/ML source
+      - name: Checkout backend source commit
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.source.outputs.ref }}
           path: source
 
-      - name: Checkout main
+      - name: Checkout main branch
         uses: actions/checkout@v4
         with:
           ref: main
           path: target
 
-      - name: Sync AI/ML into ai_app
+      - name: Sync backend to main/backend_app
         shell: bash
         run: |
-          rm -rf target/ai_app
-          mkdir -p target/ai_app
+          rm -rf target/backend_app
+          mkdir -p target/backend_app
           rsync -av --delete \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='.idea' \
-            --exclude='.venv' \
-            --exclude='.pytest_cache' \
-            --exclude='__pycache__' \
-            --exclude='.coverage' \
-            source/ target/ai_app/
+            --exclude='node_modules' \
+            --exclude='dist' \
+            source/ target/backend_app/
 
       - name: Create promotion pull request
         id: create_pr
@@ -77,14 +75,14 @@ jobs:
         with:
           path: target
           token: ${{ secrets.PROMOTION_PR_TOKEN }}
-          branch: promotion/ai-ml-to-main
+          branch: promotion/backend-to-main
           base: main
-          commit-message: 'Promote AI/ML into ai_app'
-          title: 'Promote AI/ML into ai_app'
+          commit-message: 'Promote backend into backend_app'
+          title: 'Promote backend into backend_app'
           body: |
             This PR was generated automatically from `${{ steps.source.outputs.ref }}`.
 
-            It packages the AI/ML branch contents under `ai_app/` so `main` only receives AI changes inside that folder.
+            It packages the backend branch contents under `backend_app/` so `main` only receives backend changes inside that folder.
           delete-branch: true
 
       - name: Enable auto-merge for promotion PR
