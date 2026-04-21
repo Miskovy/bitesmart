@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 from fastapi import Body, FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import RedirectResponse
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -108,6 +109,19 @@ def middleware_client():
     @app.get("/health")
     async def health():
         return {"status": "ok"}
+
+    @app.get("/health/data")
+    async def health_data():
+        return {"status": "ok"}
+
+    @app.get("/health/status")
+    async def health_status():
+        return {"status": "ok"}
+
+    @app.get("/api")
+    @app.get("/api/")
+    async def api_root():
+        return RedirectResponse(url="/health", status_code=307)
 
     @app.get("/protected")
     async def protected():
