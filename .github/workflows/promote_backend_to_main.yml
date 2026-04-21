@@ -15,6 +15,8 @@ on:
       - AI/ML & Backend CI
     types:
       - completed
+    branches:
+      - 'backend'
 
 concurrency:
   group: promote-backend-${{ github.ref }}
