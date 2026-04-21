@@ -12,9 +12,15 @@ on:
         default: 'AI/ML'
   workflow_run:
     workflows:
-      - AI/ML CI
+      - AI/ML & Backend CI
     types:
       - completed
+    branches:
+      - 'AI/ML'
+
+concurrency:
+  group: promote-ai-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   prepare-pr:

@@ -20,7 +20,10 @@ jobs:
   ai-quality-gate:
     if: |
       (github.event_name == 'push' && github.ref_name == 'AI/ML') ||
-      (github.event_name == 'pull_request' && github.head_ref == 'AI/ML')
+      (github.event_name == 'pull_request' && (
+        github.head_ref == 'AI/ML' ||
+        github.head_ref == 'promotion/ai-ml-to-main'
+      ))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -81,7 +84,10 @@ jobs:
   backend-quality-gate:
     if: |
       (github.event_name == 'push' && github.ref_name == 'backend') ||
-      (github.event_name == 'pull_request' && github.head_ref == 'backend')
+      (github.event_name == 'pull_request' && (
+        github.head_ref == 'backend' ||
+        github.head_ref == 'promotion/backend-to-main'
+      ))
     runs-on: ubuntu-latest
     permissions:
       contents: read
