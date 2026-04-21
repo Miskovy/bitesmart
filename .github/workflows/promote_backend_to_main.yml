@@ -12,7 +12,7 @@ on:
         default: 'backend'
   workflow_run:
     workflows:
-      - Backend CI
+      - AI/ML & Backend CI
     types:
       - completed
 
