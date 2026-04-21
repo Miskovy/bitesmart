@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bitesmart AI - Realtime Core Status</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #006c0a;
+      --primary-container: #258622;
+      --on-primary: #ffffff;
+      --background: #f6fbee;
+      --on-background: #171d15;
+      --surface: #ffffff;
+      --surface-variant: #dfe4d8;
+      --on-surface: #171d15;
+      --on-surface-variant: #3f4a3b;
+      --outline: #6f7a6a;
+      --error: #ba1a1a;
+      --success: #006c0a;
+      --warning: #755800;
+      
+      --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+      
+      --radius-xl: 12px;
+      --radius-2xl: 16px;
+      --radius-3xl: 24px;
+      --radius-full: 9999px;
+      
+      --font-family: 'Epilogue', sans-serif;
+
+      --macro-protein: #d8e2ff;
+      --macro-carbs: #ffdf9a;
+      --macro-veggie: #97f986;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--background);
+      color: var(--on-background);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Cinematic Background */
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      z-index: -1;
+      opacity: 0.6;
+    }
+    .blob-1 {
+      top: -10%; left: 0%;
+      width: 500px; height: 500px;
+      background: var(--macro-carbs);
+      animation: slowDrift 14s ease-in-out infinite alternate;
+    }
+    .blob-2 {
+      bottom: -10%; right: -5%;
+      width: 600px; height: 600px;
+      background: var(--macro-veggie);
+      animation: slowDrift 20s ease-in-out infinite alternate-reverse;
+    }
+
+    @keyframes slowDrift {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(-30px, 40px) scale(1.1); }
+    }
+
+    .app-container {
+      max-width: 600px; /* Wider to fit horizontal engines */
+      width: 100%;
+      margin: 0 auto;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      z-index: 1;
+      padding: 2rem 1.5rem;
+    }
+
+    .header-title {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--on-surface);
+      text-align: center;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+
+    .header-subtitle {
+      text-align: center;
+      color: var(--outline);
+      font-size: 15px;
+      margin-bottom: 4rem;
+    }
+
+    /* Core Engine Dashboard */
+    .art-dashboard {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 4rem;
+      position: relative;
+    }
+
+    /* The Energy Line connecting them */
+    .energy-bridge {
+      width: 100px;
+      height: 4px;
+      background: rgba(0,0,0,0.05);
+      border-radius: 2px;
+      position: relative;
+      overflow: hidden;
+      z-index: 1;
+    }
+    
+    .energy-stream {
+      position: absolute;
+      top: 0; left: 0;
+      height: 100%; width: 50%;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent);
+      animation: streamFlow 1.5s infinite linear;
+      opacity: 0; /* Hidden until loaded */
+      transition: opacity 0.5s;
+    }
+    .art-dashboard.fully-operational .energy-stream {
+      opacity: 1;
+    }
+
+    @keyframes streamFlow {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(200%); }
+    }
+
+    /* Individual Node Engine */
+    .engine-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      z-index: 2;
+    }
+
+    .orb-container {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(255,255,255,0.8);
+    }
+
+    /* Rings inside the orb */
+    .ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      transition: border-color 0.8s ease;
+    }
+
+    .ring.outer {
+      width: 120px; height: 120px;
+      border-top-color: var(--outline);
+      border-bottom-color: rgba(0,0,0,0.1);
+      animation: spin 6s linear infinite;
+    }
+
+    .ring.inner {
+      width: 90px; height: 90px;
+      border-left-color: var(--outline);
+      border-right-color: rgba(0,0,0,0.05);
+      animation: spin 4s linear infinite reverse;
+    }
+
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+
+    /* The glowing core */
+    .core {
+      position: absolute;
+      width: 50px; height: 50px;
+      border-radius: 50%;
+      background: var(--surface-variant);
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .core svg {
+      width: 24px; height: 24px;
+      color: var(--on-surface-variant);
+      transition: color 0.5s;
+    }
+
+    /* State: Checking */
+    .engine-node.checking .core {
+      background: var(--macro-carbs);
+      box-shadow: 0 0 20px var(--macro-carbs);
+      animation: corePulse 1s infinite alternate;
+    }
+    .engine-node.checking .core svg { color: #936f00; }
+    
+    @keyframes corePulse {
+      0% { transform: scale(0.9); }
+      100% { transform: scale(1.1); }
+    }
+
+    /* State: Operational */
+    .engine-node.operational .core {
+      background: var(--primary);
+      box-shadow: 0 0 30px rgba(0, 108, 10, 0.6);
+      transform: scale(1.05);
+    }
+    .engine-node.operational .core svg { color: var(--on-primary); }
+    .engine-node.operational .ring.outer { border-top-color: var(--primary); border-bottom-color: rgba(0, 108, 10, 0.2); animation-duration: 10s; }
+    .engine-node.operational .ring.inner { border-left-color: var(--macro-veggie); border-right-color: rgba(0, 108, 10, 0.1); animation-duration: 8s;}
+
+    /* State: Error */
+    .engine-node.error .core {
+      background: var(--error);
+      box-shadow: 0 0 30px rgba(186, 26, 26, 0.6);
+    }
+    .engine-node.error .core svg { color: white; }
+    .engine-node.error .ring.outer, .engine-node.error .ring.inner {
+      animation-play-state: paused;
+      border-color: rgba(186, 26, 26, 0.4);
+    }
+
+    /* Node Text */
+    .node-details {
+      text-align: center;
+    }
+    .node-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--on-surface);
+      margin-bottom: 0.25rem;
+    }
+    .node-status {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--outline);
+      background: rgba(255,255,255,0.6);
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--radius-xl);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      transition: all 0.3s;
+    }
+
+    /* Realtime Log output to make it techy */
+    .log-terminal {
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(12px);
+      border-radius: var(--radius-2xl);
+      padding: 1.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      box-shadow: var(--shadow-soft);
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--on-surface-variant);
+      height: 120px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .log-entry {
+      border-left: 2px solid var(--outline);
+      padding-left: 0.5rem;
+      opacity: 0;
+      animation: fadeIn 0.3s forwards;
+    }
+    .log-entry.success { border-left-color: var(--primary); }
+    .log-entry.error { border-left-color: var(--error); color: var(--error); }
+
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+
+  </style>
+</head>
+<body>
+  <!-- Global Bitesmart Logo -->
+  <div class="brand-logo" style="position: absolute; top: 2rem; left: 2rem; display: flex; align-items: center; gap: 0.75rem; z-index: 100;">
+    <div style="background: var(--primary); width: 36px; height: 36px; border-radius: 12px; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0, 108, 10, 0.3);">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+         <path d="M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z"></path>
+         <path d="M12 3v9"></path>
+         <path d="M12 3a4 4 0 0 1 4 4"></path>
+      </svg>
+    </div>
+    <span style="font-weight: 800; font-size: 22px; letter-spacing: -0.05em; color: var(--on-surface);">Bitesmart<span style="color: var(--primary);">.ai</span></span>
+  </div>
+
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+
+  <div class="app-container">
+    
+    <header style="margin-bottom: 2rem;">
+      <h1 class="header-title">Core Telemetry</h1>
+      <p class="header-subtitle" id="global-subtitle">Awaiting synchronization...</p>
+    </header>
+
+    <!-- Art Canvas -->
+    <div class="art-dashboard" id="main-dashboard">
+      
+      <!-- Node 1: API Service -->
+      <div class="engine-node checking" id="node-service">
+        <div class="orb-container">
+          <div class="ring outer"></div>
+          <div class="ring inner"></div>
+          <div class="core">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.315 48.315 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
+            </svg>
+          </div>
+        </div>
+        <div class="node-details">
+          <h3 class="node-title">Service Core</h3>
+          <div class="node-status" id="status-text-service">Initializing...</div>
+        </div>
+      </div>
+
+      <!-- Energy Line -->
+      <div class="energy-bridge">
+        <div class="energy-stream"></div>
+      </div>
+
+      <!-- Node 2: AI Model -->
+      <div class="engine-node checking" id="node-model">
+        <div class="orb-container">
+          <div class="ring outer"></div>
+          <div class="ring inner"></div>
+          <div class="core">
+             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5C15.75 13.399 13.399 15.75 10.5 15.75C7.6005 15.75 5.25 13.399 5.25 10.5C5.25 7.6005 7.6005 5.25 10.5 5.25C13.399 5.25 15.75 7.6005 15.75 10.5Z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 20.25L14.25 14.25" />
+            </svg>
+          </div>
+        </div>
+        <div class="node-details">
+          <h3 class="node-title">AI Inference</h3>
+          <div class="node-status" id="status-text-model">Initializing...</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Terminal logs -->
+    <div class="log-terminal" id="terminal">
+      <div class="log-entry">SYSTEM: Establishing telemetry handshake...</div>
+    </div>
+
+  </div>
+
+  <script>
+    function appendLog(message, type = 'normal') {
+      const term = document.getElementById('terminal');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      
+      const time = new Date().toLocaleTimeString([], { hour12: false });
+      entry.textContent = `[${time}] ${message}`;
+      
+      term.appendChild(entry);
+      term.scrollTop = term.scrollHeight; // auto-scroll
+    }
+
+    async function runDiagnostics() {
+      const subtitle = document.getElementById('global-subtitle');
+      subtitle.textContent = "Running diagnostics pass...";
+      
+      const serviceEl = document.getElementById('node-service');
+      const serviceText = document.getElementById('status-text-service');
+      const modelEl = document.getElementById('node-model');
+      const modelText = document.getElementById('status-text-model');
+
+      // Reset to checking
+      serviceEl.className = 'engine-node checking'; modelEl.className = 'engine-node checking';
+      serviceText.textContent = 'CHECKING...'; modelText.textContent = 'CHECKING...';
+      serviceText.style.color = 'var(--outline)'; modelText.style.color = 'var(--outline)';
+      serviceText.style.background = 'rgba(255,255,255,0.6)'; modelText.style.background = 'rgba(255,255,255,0.6)';
+
+      appendLog(`Pinging Unified Health Endpoint (/health)...`);
+
+      const start = Date.now();
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        
+        // Explicitly ask for JSON so the server returns the health payload instead of this HTML file
+        const response = await fetch('/health', { 
+          method: 'GET', 
+          headers: { 'Accept': 'application/json' },
+          signal: controller.signal 
+        });
+        
+        clearTimeout(timeoutId);
+        const latency = Date.now() - start;
+
+        if (response.ok) {
+          const result = await response.json();
+          const payload = result.data;
+          
+          // Update Service Node
+          if (payload.status === "ok") {
+            serviceEl.className = 'engine-node operational';
+            serviceText.textContent = 'RUNNING';
+            serviceText.style.color = 'var(--success)';
+            serviceText.style.background = 'rgba(0, 108, 10, 0.1)';
+            appendLog(`Service Core running normally. (${latency}ms)`, 'success');
+          } else {
+            serviceEl.className = 'engine-node error';
+            serviceText.textContent = 'ERROR';
+            serviceText.style.color = 'var(--error)';
+            serviceText.style.background = 'rgba(186, 26, 26, 0.1)';
+            appendLog(`Service Core returned abnormal status.`, 'error');
+          }
+          
+          // Update Model Node
+          if (payload.model_loaded === true) {
+            modelEl.className = 'engine-node operational';
+            modelText.textContent = 'LOADED';
+            modelText.style.color = 'var(--success)';
+            modelText.style.background = 'rgba(0, 108, 10, 0.1)';
+            appendLog(`AI Inference Model loaded in memory.`, 'success');
+          } else {
+            modelEl.className = 'engine-node error';
+            modelText.textContent = 'NOT LOADED';
+            modelText.style.color = 'var(--error)';
+            modelText.style.background = 'rgba(186, 26, 26, 0.1)';
+            appendLog(`AI Model failed memory load check!`, 'error');
+          }
+          
+          // Master UI Dashboard State
+          const dashboard = document.getElementById('main-dashboard');
+          if (payload.status === "ok" && payload.model_loaded) {
+              subtitle.textContent = "All systems perfectly aligned and operational.";
+              dashboard.className = 'art-dashboard fully-operational';
+              appendLog(`DATA STREAM ALIGNED - SYSTEM OPTIMAL`, 'success');
+          } else {
+              subtitle.textContent = "Anomalies detected in the cluster.";
+              dashboard.className = 'art-dashboard';
+          }
+          
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } catch (error) {
+        serviceEl.className = 'engine-node error'; modelEl.className = 'engine-node error';
+        serviceText.textContent = 'UNREACHABLE'; modelText.textContent = 'UNREACHABLE';
+        serviceText.style.color = 'var(--error)'; modelText.style.color = 'var(--error)';
+        serviceText.style.background = 'rgba(186, 26, 26, 0.1)'; modelText.style.background = 'rgba(186, 26, 26, 0.1)';
+        appendLog(`Failed to connect. Network or Server Offline: ${error.message}`, 'error');
+      }
+      appendLog(`--- Diagnostic cycle complete. Sleeping for 60s ---`);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(runDiagnostics, 1000);
+      setInterval(runDiagnostics, 60000); // 60 seconds
+    });
+
+  </script>
+</body>
+</html>

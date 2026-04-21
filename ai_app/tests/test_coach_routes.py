@@ -38,6 +38,7 @@ def test_chat_route_calls_service_and_returns_response(coach_api, monkeypatch):
     assert kwargs["session_id"] == "session-1"
 
 
+
 def test_chat_route_validates_required_body_fields(coach_api):
     client, _, _ = coach_api
 

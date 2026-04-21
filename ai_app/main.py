@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
-
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from ultralytics import YOLO
@@ -48,6 +48,15 @@ app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
 
+@app.middleware("http")
+async def not_found_middleware(request: Request, call_next):
+    response = await call_next(request)
+    if response.status_code == 404:
+        accept = request.headers.get("accept", "")
+        if "text/html" in accept and "application/json" not in accept:
+            return FileResponse("public/404.html", status_code=404)
+    return response
+
 app.add_middleware(InternalAuthMiddleware)
 
 app.include_router(
@@ -85,9 +94,13 @@ async def root():
 
 
 @app.get("/health")
-async def health():
+async def health(request: Request):
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept and "application/json" not in accept:
+        return FileResponse("public/status.html")
+        
     return success_response(
         SuccessCodes.OK,
-        data={"status": "ok", "model_loaded": hasattr(app.state, "convnext_session")},
+        data={"status": "ok", "model_loaded": hasattr(request.app.state, "convnext_session")},
         message="Health check completed successfully.",
     )

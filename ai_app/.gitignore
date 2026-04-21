@@ -12,3 +12,5 @@ htmlcov
 .env
 /storage/models
 /storage/logs
+
+/thesis_diagrams
