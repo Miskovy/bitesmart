@@ -405,7 +405,7 @@
       serviceText.style.color = 'var(--outline)'; modelText.style.color = 'var(--outline)';
       serviceText.style.background = 'rgba(255,255,255,0.6)'; modelText.style.background = 'rgba(255,255,255,0.6)';
 
-      appendLog(`Pinging Unified Health Endpoint (/health)...`);
+      appendLog(`Pinging Unified Health Endpoint (/health/data)...`);
 
       const start = Date.now();
       try {
@@ -413,7 +413,7 @@
         const timeoutId = setTimeout(() => controller.abort(), 8000);
         
         // Explicitly ask for JSON so the server returns the health payload instead of this HTML file
-        const response = await fetch('/health', { 
+        const response = await fetch('/health/data', { 
           method: 'GET', 
           headers: { 'Accept': 'application/json' },
           signal: controller.signal 

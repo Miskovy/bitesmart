@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     APP_TIMEZONE: str = "UTC"
     PLATE_DEBUG_IMAGES: bool = False
+    HEALTH_SNAPSHOT_INTERVAL_SECONDS: int = 30
 
     INTERNAL_API_KEY: str
     INTERNAL_API_SECRET: str
