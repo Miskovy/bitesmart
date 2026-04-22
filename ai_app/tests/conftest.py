@@ -3,6 +3,7 @@ import hmac
 import os
 import sys
 import time
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,8 @@ os.environ.setdefault("INTERNAL_API_KEY", "test-api-key")
 os.environ.setdefault("INTERNAL_API_SECRET", "test-api-secret")
 os.environ.setdefault("MYSQL_PASSWORD", "test-password")
 os.environ.setdefault("GEMINI_API_KEY", "test-gemini-key")
+warnings.filterwarnings("ignore", message=".*_UnionGenericAlias.*", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"google\.genai\.types")
 
 from app.constants.ErrorCodes import ErrorCodes
 from app.exceptions.AppException import AppException

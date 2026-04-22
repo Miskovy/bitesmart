@@ -3,13 +3,13 @@ from io import BytesIO
 
 import torch
 from PIL import Image, UnidentifiedImageError
-from fastapi import UploadFile
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from torchvision import transforms
 
 from app.config.config import settings
 from app.constants.ErrorCodes import ErrorCodes
 from app.exceptions.AppException import AppException
+from app.utils.upload_validation import read_validated_image_bytes
 
 
 def transform_image(image_bytes: BytesIO) -> torch.Tensor:
@@ -30,10 +30,8 @@ def transform_image(image_bytes: BytesIO) -> torch.Tensor:
         raise AppException(ErrorCodes.INTERNAL_ERROR, "Error transforming image.") from e
 
 
-async def validate_and_prepare_image(file: UploadFile) -> tuple[BytesIO, bool]:
-    contents = await file.read()
-    if not contents:
-        raise AppException(ErrorCodes.BAD_REQUEST, "File is empty")
+async def validate_and_prepare_image(file) -> tuple[BytesIO, bool]:
+    contents = await read_validated_image_bytes(file)
 
     try:
         img = Image.open(BytesIO(contents))

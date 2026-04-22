@@ -3,11 +3,11 @@ from io import BytesIO
 
 import numpy as np
 from PIL import Image, UnidentifiedImageError
-from fastapi import UploadFile
 
 from app.config.config import settings
 from app.constants.ErrorCodes import ErrorCodes
 from app.exceptions.AppException import AppException
+from app.utils.upload_validation import read_validated_image_bytes
 
 IMAGENET_DEFAULT_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_DEFAULT_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
@@ -35,10 +35,8 @@ def transform_image_onnx(image_bytes: BytesIO) -> np.ndarray:
         raise AppException(ErrorCodes.INTERNAL_ERROR, "Error transforming image for ONNX.") from e
 
 
-async def validate_and_prepare_image(file: UploadFile) -> tuple[BytesIO, bool]:
-    contents = await file.read()
-    if not contents:
-        raise AppException(ErrorCodes.BAD_REQUEST, "File is empty")
+async def validate_and_prepare_image(file) -> tuple[BytesIO, bool]:
+    contents = await read_validated_image_bytes(file)
 
     try:
         img = Image.open(BytesIO(contents))

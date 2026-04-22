@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.config.config import settings
 from app.constants.ErrorCodes import ErrorCodes
+from app.db.session import commit_session, flush_session
 from app.exceptions.AppException import AppException
 from app.exceptions.NotFound import NotFoundException
 from app.models.chat_model import ChatMessage, ChatSession
@@ -373,7 +374,7 @@ async def chat_with_coach(
                 id=str(uuid.uuid4()), userId=user.id, title=message[:80],
             )
             db.add(session)
-            db.flush()
+            flush_session(db, internal_message="Failed to create chat session.")
 
         # Load last 20 messages for context
         past_messages = (
@@ -399,7 +400,7 @@ async def chat_with_coach(
         db.add(ChatMessage(sessionId=session.id, role="user", content=message))
         db.add(ChatMessage(sessionId=session.id, role="assistant", content=ai_reply))
         session.updatedAt = func.now()
-        db.commit()
+        commit_session(db, internal_message="Failed to save coach chat messages.")
 
         return CoachChatData(session_id=session.id, coach_response=ai_reply)
 
@@ -507,7 +508,7 @@ async def chat_with_coach_stream(
             id=str(uuid.uuid4()), userId=user.id, title=message[:80],
         )
         db.add(session)
-        db.flush()
+        flush_session(db, internal_message="Failed to create chat session.")
 
     # Emit session info first
     yield json.dumps({"event": "session", "data": {"session_id": session.id}})
@@ -538,7 +539,7 @@ async def chat_with_coach_stream(
     db.add(ChatMessage(sessionId=session.id, role="user", content=message))
     db.add(ChatMessage(sessionId=session.id, role="assistant", content=full_response.strip()))
     session.updatedAt = func.now()
-    db.commit()
+    commit_session(db, internal_message="Failed to save streamed coach chat messages.")
 
     yield json.dumps({"event": "done", "data": {"full_response": full_response.strip()}})
 
@@ -590,4 +591,4 @@ def delete_session(db: Session, session_id: str, user_id: str) -> None:
     session = _get_session_or_raise(db, session_id, user_id)
     db.query(ChatMessage).filter(ChatMessage.sessionId == session_id).delete()
     db.delete(session)
-    db.commit()
+    commit_session(db, internal_message="Failed to delete chat session.")

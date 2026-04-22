@@ -3,16 +3,16 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from sqlalchemy.orm import Session
 
-from app.constants.ErrorCodes import ErrorCodes
+from app.db.session import commit_session
 from app.constants.SuccessCodes import SuccessCodes
 from app.db.database import get_db
-from app.exceptions.AppException import AppException
 from app.exceptions.NotFound import NotFoundException
 from app.handlers.success_handler import success_response
 from app.models.food_model import AiTrainingData
 from app.schemas.prediction_v4 import ArPredictionData, FallbackPredictionData
 from app.schemas.success import SuccessResponse
 from app.services import prediction_service
+from app.utils.upload_validation import read_validated_image_bytes
 
 router = APIRouter()
 
@@ -23,14 +23,11 @@ router = APIRouter()
 async def predict_food_volume_fallback(
     request: Request,
     file: UploadFile = File(..., description="The food image to analyze."),
-    plate_diameter_cm: float = Form(..., description="Real-world diameter of the plate in cm."),
+    plate_diameter_cm: float = Form(..., gt=0, description="Real-world diameter of the plate in cm."),
     user_id: Optional[str] = Form(None, description="User UUID (optional, enables RLHF tracking)."),
     db: Session = Depends(get_db),
 ):
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise AppException(ErrorCodes.BAD_REQUEST, "File provided is not an image.")
-
-    image_bytes = await file.read()
+    image_bytes = await read_validated_image_bytes(file)
     result = prediction_service.predict_food_volume_fallback(
         image_bytes=image_bytes,
         plate_diameter_cm=plate_diameter_cm,
@@ -51,14 +48,11 @@ async def predict_food_volume_fallback(
 async def predict_food_volume_ar(
     request: Request,
     file: UploadFile = File(...),
-    food_width_cm: float = Form(..., description="Real-world width of the food from Mobile AR"),
+    food_width_cm: float = Form(..., gt=0, description="Real-world width of the food from Mobile AR"),
     user_id: Optional[str] = Form(None, description="User UUID (optional, enables RLHF tracking)."),
     db: Session = Depends(get_db),
 ):
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise AppException(ErrorCodes.BAD_REQUEST, "File provided is not an image.")
-
-    image_bytes = await file.read()
+    image_bytes = await read_validated_image_bytes(file)
     result = prediction_service.predict_food_volume_ar(
         image_bytes=image_bytes,
         food_width_cm=food_width_cm,
@@ -92,7 +86,7 @@ async def submit_correction(
         raise NotFoundException("Training data record", training_data_id)
 
     record.userCorrection = user_correction
-    db.commit()
+    commit_session(db, internal_message="Failed to submit prediction correction.")
 
     return success_response(
         SuccessCodes.OK,

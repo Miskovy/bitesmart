@@ -1,10 +1,13 @@
 import hashlib
 import hmac
 import time
+from typing import Any, Awaitable, Callable, cast
 
 from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.responses import Response
 from starlette.routing import Match
+from starlette.types import Message
 
 from app.config.config import settings
 from app.handlers.error_handler import error_response
@@ -34,7 +37,7 @@ def _route_exists(request: Request) -> bool:
 
 
 class InternalAuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if not _route_exists(request):
             return await call_next(request)
 
@@ -69,9 +72,10 @@ class InternalAuthMiddleware(BaseHTTPMiddleware):
             body_hash = hashlib.sha256(body).hexdigest()
 
             # Re-inject body so the route handler can still read it
-            async def receive():
+            async def receive() -> Message:
                 return {"type": "http.request", "body": body}
-            request._receive = receive
+
+            cast(Any, request)._receive = cast(Callable[[], Awaitable[Message]], receive)
 
         payload = f"{timestamp}:{request.method}:{request.url.path}:{body_hash}"
 

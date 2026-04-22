@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class FoodItemBase(BaseModel):
@@ -28,10 +28,9 @@ class FoodItemUpdate(BaseModel):
 
 
 class FoodItemResponse(FoodItemBase):
-    id: int
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
+    id: int
 
 
 class PaginatedFoodResponse(BaseModel):
