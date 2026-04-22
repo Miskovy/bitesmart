@@ -2,8 +2,8 @@ import sys
 from pathlib import Path
 from sqlalchemy_utils import database_exists, create_database
 
-# Ensure the script can find your 'app' module
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+# Ensure the script can find your 'app' module from the project root
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from dotenv import load_dotenv
 
 # Manually load .env from the project root
@@ -11,6 +11,13 @@ env_path = Path(__file__).resolve().parent.parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
 from app.db.database import engine, SessionLocal, Base, SQLALCHEMY_DATABASE_URL
+# Pre-import all models so SQLAlchemy metadata is aware of all relationships
+import app.models.user_model
+import app.models.subscription_model
+import app.models.food_model
+import app.models.meal_plan_model
+import app.models.gamification_model
+import app.models.chat_model
 from app.models.food_model import FoodItem
 
 # Real nutritional data per 100g and estimated densities/heights for all 119 classes
@@ -138,10 +145,13 @@ REAL_FOOD_DATA = {
 
 
 def seed_database():
-    if not database_exists(SQLALCHEMY_DATABASE_URL):
-        create_database(SQLALCHEMY_DATABASE_URL)
-        print(f"Database 'bitesmartDB' created successfully.")
-
+    print("Connecting to Bitesmart database...")
+    
+    if not database_exists(engine.url):
+        print(f"Database not found. Creating database: {engine.url.database}...")
+        create_database(engine.url)
+        
+    print("Ensuring all database tables exist...")
     Base.metadata.create_all(bind=engine)
 
     txt_path = Path(__file__).resolve().parent.parent.parent / "storage" / "data" / "food_119_classes.txt"

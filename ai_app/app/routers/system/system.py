@@ -22,11 +22,7 @@ async def api_root():
 
 @router.get("/")
 async def root():
-    return success_response(
-        SuccessCodes.OK,
-        data={"message": "Welcome to Bitesmart Ai"},
-        message="Root endpoint loaded successfully.",
-    )
+    return FileResponse("public/index.html")
 
 
 @router.get("/health/live", include_in_schema=False)
