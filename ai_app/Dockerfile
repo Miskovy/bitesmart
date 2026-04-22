@@ -36,6 +36,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
+COPY public/ ./public/
 COPY main.py .
 COPY requirements.txt .
 
