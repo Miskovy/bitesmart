@@ -1,10 +1,11 @@
 from fastapi import Request
 from fastapi.responses import FileResponse
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.responses import Response
 
 
 class NotFoundHTMLMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         response = await call_next(request)
         if response.status_code == 404:
             accept = request.headers.get("accept", "")

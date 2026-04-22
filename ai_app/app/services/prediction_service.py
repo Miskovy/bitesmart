@@ -4,6 +4,7 @@ from typing import List, Optional
 import torch
 from sqlalchemy.orm import Session
 
+from app.db.session import commit_session
 from app.constants.ErrorCodes import ErrorCodes
 from app.exceptions.AppException import AppException
 from app.exceptions.ValidationException import ValidationException
@@ -35,7 +36,7 @@ def _save_training_data(
         originalPrediction=predicted_class,
     )
     db.add(record)
-    db.commit()
+    commit_session(db, internal_message="Failed to save AI training data.")
     db.refresh(record)
     return record.id
 
