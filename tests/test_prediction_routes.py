@@ -104,6 +104,49 @@ def test_prediction_v4_fallback_route_rejects_non_image_files(prediction_v4_api,
     assert payload["message"] == "File provided is not an image."
 
 
+def test_prediction_v4_fallback_route_rejects_empty_image_files(prediction_v4_api, monkeypatch, sign_request):
+    client, prediction_v4_router_module, _ = prediction_v4_api
+
+    def fail_if_called(**kwargs):
+        raise AssertionError("prediction service should not be called for empty files")
+
+    monkeypatch.setattr(
+        prediction_v4_router_module.prediction_service,
+        "predict_food_volume_fallback",
+        fail_if_called,
+    )
+
+    headers = sign_request("/api/v4/predict", method="POST", multipart=True)
+    response = client.post(
+        "/api/v4/predict",
+        data={"plate_diameter_cm": "24"},
+        files={"file": ("meal.jpg", b"", "image/jpeg")},
+        headers=headers,
+    )
+    payload = response.json()
+
+    assert response.status_code == 400
+    assert payload["error_code"] == ErrorCodes.BAD_REQUEST.name
+    assert payload["message"] == "File is empty"
+
+
+def test_prediction_v4_fallback_route_validates_positive_plate_diameter(prediction_v4_api, sign_request):
+    client, _, _ = prediction_v4_api
+    headers = sign_request("/api/v4/predict", method="POST", multipart=True)
+
+    response = client.post(
+        "/api/v4/predict",
+        data={"plate_diameter_cm": "0"},
+        files={"file": ("meal.jpg", b"binary-image", "image/jpeg")},
+        headers=headers,
+    )
+    payload = response.json()
+
+    assert response.status_code == 422
+    assert payload["error_code"] == ErrorCodes.VALIDATION_ERROR.name
+    assert payload["details"][0]["field"] == "body -> plate_diameter_cm"
+
+
 def test_prediction_v4_fallback_route_passes_request_context_to_service(prediction_v4_api, monkeypatch, sign_request):
     client, prediction_v4_router_module, fake_db = prediction_v4_api
     captured = {}
@@ -158,6 +201,23 @@ def test_prediction_v4_ar_route_returns_validation_errors_for_missing_form_field
 
     response = client.post(
         "/api/v4/predictAR",
+        files={"file": ("meal.jpg", b"binary-image", "image/jpeg")},
+        headers=headers,
+    )
+    payload = response.json()
+
+    assert response.status_code == 422
+    assert payload["error_code"] == ErrorCodes.VALIDATION_ERROR.name
+    assert payload["details"][0]["field"] == "body -> food_width_cm"
+
+
+def test_prediction_v4_ar_route_validates_positive_food_width(prediction_v4_api, sign_request):
+    client, _, _ = prediction_v4_api
+    headers = sign_request("/api/v4/predictAR", method="POST", multipart=True)
+
+    response = client.post(
+        "/api/v4/predictAR",
+        data={"food_width_cm": "-1"},
         files={"file": ("meal.jpg", b"binary-image", "image/jpeg")},
         headers=headers,
     )
