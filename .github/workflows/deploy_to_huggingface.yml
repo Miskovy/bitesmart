@@ -1,0 +1,22 @@
+name: Deploy to Hugging Face
+on:
+  push:
+    branches:
+      - 'AI/ML' # or 'main', adjust based on which branch holds your AI Dockerfile at the root
+  workflow_dispatch:
+
+jobs:
+  sync-to-huggingface:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Push to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git push --force https://miskovy:${HF_TOKEN}@huggingface.co/spaces/miskovy/bitesmart-ai HEAD:main
