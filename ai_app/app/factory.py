@@ -6,7 +6,6 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from ultralytics import YOLO
 
-from sqlalchemy_utils import database_exists, create_database
 from app.db.database import engine, Base
 
 # Pre-import models so metadata knows about them
@@ -54,10 +53,7 @@ async def lifespan(app: FastAPI):
     start_health_refresh_task(app, settings.HEALTH_SNAPSHOT_INTERVAL_SECONDS)
 
     try:
-        startup_logger.info("Verifying database connection and tables...")
-        if not database_exists(engine.url):
-            startup_logger.info(f"Database {engine.url.database} not found, creating it...")
-            create_database(engine.url)
+        startup_logger.info("Initializing database tables...")
         Base.metadata.create_all(bind=engine)
         
         validate_runtime_settings(settings)
