@@ -44,10 +44,7 @@ COPY storage/ ./storage/
 
 # Install HF Hub and forcefully download the model files at build time
 RUN pip install --no-cache-dir huggingface_hub && \
-    huggingface-cli download Miskovy/bitesmart-models \
-    --repo-type dataset \
-    --local-dir /app/storage/models \
-    --local-dir-use-symlinks False
+    python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='Miskovy/bitesmart-models', repo_type='dataset', local_dir='/app/storage/models', local_dir_use_symlinks=False)"
 
 # Create non-root user
 RUN useradd --create-home bitesmart
