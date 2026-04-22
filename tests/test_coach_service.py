@@ -19,7 +19,7 @@ def test_today_window_in_app_timezone_uses_midnight_bounds(monkeypatch):
     assert end_of_day - start_of_day == timedelta(days=1)
 
 
-def test_today_window_in_app_timezone_falls_back_to_utc_for_invalid_timezone(monkeypatch, caplog):
+def test_today_window_in_app_timezone_falls_back_to_utc_for_invalid_timezone(monkeypatch, caplog, capsys):
     caplog.set_level(logging.WARNING)
     from app.config.config import settings
     from app.services import coach_service
@@ -33,4 +33,7 @@ def test_today_window_in_app_timezone_falls_back_to_utc_for_invalid_timezone(mon
     start_of_day, end_of_day = coach_service._today_window_in_app_timezone()
 
     assert end_of_day - start_of_day == timedelta(days=1)
-    assert "Falling back to UTC" in caplog.text
+    
+    # Check both caplog and capsys since custom logging configs may route warnings directly to stdout
+    captured_out = capsys.readouterr().out
+    assert "Falling back to UTC" in caplog.text or "Falling back to UTC" in captured_out
