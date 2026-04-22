@@ -1,4 +1,5 @@
 from datetime import timedelta, timezone
+import logging
 from zoneinfo import ZoneInfoNotFoundError
 
 
@@ -19,15 +20,15 @@ def test_today_window_in_app_timezone_uses_midnight_bounds(monkeypatch):
 
 
 def test_today_window_in_app_timezone_falls_back_to_utc_for_invalid_timezone(monkeypatch, caplog):
+    caplog.set_level(logging.WARNING)
     from app.config.config import settings
     from app.services import coach_service
 
+    def mock_zoneinfo(key):
+        raise ZoneInfoNotFoundError(key)
+
     monkeypatch.setattr(settings, "APP_TIMEZONE", "Not/A_Real_Timezone")
-    monkeypatch.setattr(
-        coach_service,
-        "ZoneInfo",
-        lambda key: (_ for _ in ()).throw(ZoneInfoNotFoundError(key)),
-    )
+    monkeypatch.setattr(coach_service, "ZoneInfo", mock_zoneinfo)
 
     start_of_day, end_of_day = coach_service._today_window_in_app_timezone()
 
