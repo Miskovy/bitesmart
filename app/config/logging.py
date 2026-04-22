@@ -3,6 +3,8 @@ import sys
 
 from app.logging_context import get_request_id
 
+_LOGGING_CONFIGURED = False
+
 
 class RequestIdFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
@@ -11,8 +13,10 @@ class RequestIdFilter(logging.Filter):
 
 
 def configure_logging() -> logging.Logger:
+    global _LOGGING_CONFIGURED
+
     logger = logging.getLogger("app")
-    if getattr(logger, "_bitesmart_logging_configured", False):
+    if _LOGGING_CONFIGURED:
         return logger
 
     handler = logging.StreamHandler(sys.stdout)
@@ -28,5 +32,5 @@ def configure_logging() -> logging.Logger:
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
     logger.propagate = False
-    logger._bitesmart_logging_configured = True
+    _LOGGING_CONFIGURED = True
     return logger

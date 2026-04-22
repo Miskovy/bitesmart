@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     MAX_IMAGE_UPLOAD_BYTES: int = Field(default=10 * 1024 * 1024, gt=0)
     HARD_MAX_IMAGE_UPLOAD_BYTES: int = Field(default=50 * 1024 * 1024, gt=0)
     MAX_IMAGE_DIMENSION_PX: int = Field(default=2048, gt=0)
+    DB_POOL_SIZE: int = Field(default=5, gt=0)
+    DB_MAX_OVERFLOW: int = Field(default=10, ge=0)
+    DB_POOL_TIMEOUT_SECONDS: int = Field(default=30, gt=0)
+    DB_POOL_RECYCLE_SECONDS: int = Field(default=1800, gt=0)
 
     INTERNAL_API_KEY: str
     INTERNAL_API_SECRET: str

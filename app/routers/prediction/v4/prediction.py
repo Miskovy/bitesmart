@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from sqlalchemy.orm import Session
 
+from app.db.session import commit_session
 from app.constants.SuccessCodes import SuccessCodes
 from app.db.database import get_db
 from app.exceptions.NotFound import NotFoundException
@@ -85,7 +86,7 @@ async def submit_correction(
         raise NotFoundException("Training data record", training_data_id)
 
     record.userCorrection = user_correction
-    db.commit()
+    commit_session(db, internal_message="Failed to submit prediction correction.")
 
     return success_response(
         SuccessCodes.OK,

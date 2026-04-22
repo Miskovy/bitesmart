@@ -3,6 +3,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.db.session import commit_session
 from app.exceptions.ConflictException import ConflictException
 from app.exceptions.NotFound import NotFoundException
 from app.models.food_model import FoodItem
@@ -48,7 +49,11 @@ def create_food(db: Session, food_in: FoodItemCreate) -> FoodItem:
 
     new_food = FoodItem(**food_in.model_dump())
     db.add(new_food)
-    db.commit()
+    commit_session(
+        db,
+        conflict_message=f"Food item with class name '{food_in.class_name}' already exists.",
+        internal_message="Failed to create food item.",
+    )
     db.refresh(new_food)
     return new_food
 
@@ -60,7 +65,11 @@ def update_food(db: Session, food_id: int, food_in: FoodItemUpdate) -> FoodItem:
     for key, value in update_data.items():
         setattr(food_item, key, value)
 
-    db.commit()
+    commit_session(
+        db,
+        conflict_message="Food item update conflicts with an existing record.",
+        internal_message="Failed to update food item.",
+    )
     db.refresh(food_item)
     return food_item
 
@@ -68,4 +77,4 @@ def update_food(db: Session, food_id: int, food_in: FoodItemUpdate) -> FoodItem:
 def delete_food(db: Session, food_id: int) -> None:
     food_item = get_food_or_raise(db, food_id)
     db.delete(food_item)
-    db.commit()
+    commit_session(db, internal_message="Failed to delete food item.")

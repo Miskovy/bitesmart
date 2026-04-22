@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -32,10 +33,12 @@ from app.services.health_service import (
 from app.services.startup_validation import validate_loaded_assets, validate_runtime_settings
 from app.utils.model_utils import load_class_names, load_onnx_model
 
+startup_logger = logging.getLogger("app.startup")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Server starting up..")
+    startup_logger.info("startup_begin")
     initialize_health_state(app)
     start_health_refresh_task(app, settings.HEALTH_SNAPSHOT_INTERVAL_SECONDS)
 
@@ -48,14 +51,15 @@ async def lifespan(app: FastAPI):
         app.state.yolo_ar_model = YOLO(settings.YOLO_AR_MODEL_PATH, task="segment")
         mark_ready(app)
 
-        print("Server started..")
+        startup_logger.info("startup_complete")
         yield
     except Exception as exc:
         mark_startup_failure(app, exc)
+        startup_logger.exception("startup_failed error=%s", str(exc))
         raise
     finally:
         await stop_health_refresh_task(app)
-        print("Server shutting down..")
+        startup_logger.info("shutdown_complete")
 
 
 def register_exception_handlers(app: FastAPI) -> None:

@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
+from app.handlers.error_handler import unhandled_exception_handler
 from app.middlewares.request_logging import RequestLoggingMiddleware
 
 
@@ -33,3 +34,19 @@ def test_request_logging_preserves_incoming_request_id():
     assert response.status_code == 200
     assert response.headers["X-Request-ID"] == request_id
     assert response.json()["request_id"] == request_id
+
+
+def test_request_logging_adds_request_id_header_on_error_response():
+    app = FastAPI()
+    app.add_middleware(RequestLoggingMiddleware)
+    app.add_exception_handler(Exception, unhandled_exception_handler)
+
+    @app.get("/boom")
+    async def boom():
+        raise RuntimeError("boom")
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get("/boom")
+
+    assert response.status_code == 500
+    assert response.headers["X-Request-ID"]
