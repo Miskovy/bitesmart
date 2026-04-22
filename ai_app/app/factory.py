@@ -77,7 +77,7 @@ def register_middlewares(app: FastAPI) -> None:
 
 def register_routers(app: FastAPI) -> None:
     app.include_router(system_router)
-    app.include_router(prediction_router, prefix="/api/v3", tags=["Prediction"])
+    # app.include_router(prediction_router, prefix="/api/v3", tags=["Prediction"])
     app.include_router(
         prediction_v4_router,
         prefix="/api/v4",
