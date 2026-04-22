@@ -39,12 +39,22 @@ COPY alembic.ini .
 COPY main.py .
 COPY requirements.txt .
 
-# Copy ML model files
+# Local models fallback (ignored by Git, used for local tests)
 COPY storage/ ./storage/
+
+# Install HF Hub and forcefully download the model files at build time
+RUN pip install --no-cache-dir huggingface_hub && \
+    huggingface-cli download Miskovy/bitesmart-models \
+    --repo-type dataset \
+    --local-dir /app/storage/models \
+    --local-dir-use-symlinks False
 
 # Create non-root user
 RUN useradd --create-home bitesmart
 USER bitesmart
+
+# Fix YOLO warning by pointing its cached config folder to writable /tmp
+ENV YOLO_CONFIG_DIR=/tmp/Ultralytics
 
 # Expose port
 EXPOSE 7860
