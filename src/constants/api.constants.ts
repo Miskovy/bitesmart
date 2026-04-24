@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 
+
 dotenv.config();
 
 export const aiBaseurl = process.env.AI_BASE_URL ? process.env.AI_BASE_URL : "";
