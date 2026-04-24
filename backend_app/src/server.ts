@@ -7,8 +7,8 @@ import { StatusCodes } from "http-status-codes";
 import { SuccessResponse } from "./utils/Response";
 import { errorHandler } from "./middlewares/ErrorHandler";
 import { AppError } from "./errors/AppError";
-import { connectToDatabase } from "./models/index";
-import routerV1 from "./routes/index";
+import { connectToDatabase } from "./db/connection";
+import apiRouter from "./routes/index";
 
 dotenv.config();
 
@@ -36,7 +36,7 @@ app.get("/", (req, res) => {
 });
 
 // API Routes
-app.use("/api/v1", routerV1);
+app.use("/api", apiRouter);
 
 // 404 Handler
 app.use((req, res, next) => {
