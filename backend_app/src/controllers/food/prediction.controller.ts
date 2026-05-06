@@ -1,4 +1,4 @@
-import { Request , Response } from "express";
+import { Request, Response } from "express";
 import { BadRequest } from "../../errors";
 import { SuccessResponse } from "../../utils/Response";
 import * as predictionService from "../../services/food/prediction.service";
