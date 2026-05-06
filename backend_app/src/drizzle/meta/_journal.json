@@ -8,6 +8,27 @@
       "when": 1776098309888,
       "tag": "0000_cold_captain_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1778101547668,
+      "tag": "0001_overrated_penance",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1778101794722,
+      "tag": "0002_lazy_young_avengers",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1778102843425,
+      "tag": "0003_dark_tony_stark",
+      "breakpoints": true
     }
   ]
 }
