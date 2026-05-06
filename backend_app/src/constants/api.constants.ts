@@ -6,4 +6,5 @@ dotenv.config();
 export const aiBaseurl = process.env.AI_BASE_URL ? process.env.AI_BASE_URL : "";
 export const aiApiKey = process.env.AI_API_KEY ? process.env.AI_API_KEY : "";
 export const aiApiSecret = process.env.AI_API_SECRET ? process.env.AI_API_SECRET : "";
+export const googleClientIds = process.env.GOOGLE_CLIENT_IDS ? process.env.GOOGLE_CLIENT_IDS.split(',').map(id => id.trim()) : [];
 

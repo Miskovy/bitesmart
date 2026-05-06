@@ -1,8 +1,7 @@
 import { Request , Response } from "express";   
 import { BadRequest } from "../../errors";
-import { login } from "../../services/auth/userAuth.service";
+import { login, loginWithGoogle, register } from "../../services/auth/userAuth.service";
 import { SuccessResponse } from "../../utils/Response";
-import {register} from '../../services/auth/userAuth.service';
 
 
 export const userLogin = async (req: Request, res: Response) => {
@@ -24,18 +23,24 @@ export const userLogin = async (req: Request, res: Response) => {
 };
 
 export const signup = async (req: Request, res: Response) => {
-    const { email, password } = req.body;
-
-    // 1. Explicit validation check
-    if (!email || !password) {
-        throw new BadRequest("Email and Password are required");
+    const { email, password, name } = req.body;
+    
+    if (!email || !password || !name) {
+        throw new BadRequest("Email, Password, and Name are required");
     }
+    
+    const result = await register(email, password, name);
+    return SuccessResponse(res, result, 201);
+};
 
-    // 2. Call the service to register the user
-    const result = await register(email, password);
-
-    // 3. Return a standardized success response
-    return SuccessResponse(res, {
-        message: result.message
-    }, 201);
+export const googleAuth = async (req: Request, res: Response) => {
+    const { idToken } = req.body;
+    
+    if (!idToken) {
+        throw new BadRequest("Google ID Token is required");
+    }
+    
+    const result = await loginWithGoogle(idToken);
+    
+    return SuccessResponse(res, result, 200);
 };

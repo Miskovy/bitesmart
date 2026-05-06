@@ -4,6 +4,10 @@ import { users } from "../../models/user";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { generateToken } from "../../utils/Auth";
+import { OAuth2Client } from "google-auth-library";
+import { googleClientIds } from "../../constants/api.constants";
+
+const client = new OAuth2Client();
 
 export const login = async (email: string, password: string) => {
     const user = await db.query.users.findFirst({
@@ -29,10 +33,8 @@ export const login = async (email: string, password: string) => {
     return { user, token };
 };
 
+export const register = async (email: string, password: string, name: string) => {
 
-// TODO : Register
-export const register = async (email: string, password: string) => {
-// 1. Check if the user already exists in the database
   const existingUser = await db
     .select()
     .from(users)
@@ -42,20 +44,30 @@ export const register = async (email: string, password: string) => {
     throw new BadRequest('User with this email already exists');
   }
 
-  // 2. Hash the password using bcrypt with a salt round of 10
   const hashedPassword = await bcrypt.hash(password, 10);
+  const userId = crypto.randomUUID();
 
-  // 3. Insert the new user record
-  // Note: If your schema requires 'name', ensure it is passed or made optional in schema.ts
-  // Cast to any to satisfy the generated insert type when some columns are required by the model.
   await db.insert(users).values({
+    id: userId,
     email,
     password: hashedPassword,
-  } as any);
+    name,
+    age: 0 // Provide a default age since it's required by the schema
+  });
+
+  const token = generateToken({
+    id: userId,
+    name,
+    email,
+  });
 
   return { 
-    success: true,
-    message: 'User registered successfully' 
+    user: {
+        id: userId,
+        name,
+        email
+    }, 
+    token 
   };
 };
 
@@ -69,8 +81,60 @@ export const verifyResetPasswordCode = async (code: string) => {
 export const resetPassword = async (token: string, newPassword: string) => {
 };
 
+export const loginWithGoogle = async (idToken: string) => {
+  const ticket = await client.verifyIdToken({
+    idToken,
+    audience: googleClientIds,
+  });
 
+  const payload = ticket.getPayload();
+  if (!payload || !payload.email || !payload.name) {
+    throw new BadRequest("Invalid Google token payload");
+  }
 
+  const { email, name, sub: googleId, picture: avatar } = payload;
 
+  let user = await db.query.users.findFirst({
+    where: eq(users.email, email),
+  });
 
+  if (!user) {
+    const userId = crypto.randomUUID();
+    // Create new user if they don't exist
+    await db.insert(users).values({
+      id: userId,
+      email,
+      password: "", // Google users might not need a password
+      name,
+      googleId,
+      avatar,
+      age: 0,
+    });
 
+    user = await db.query.users.findFirst({
+      where: eq(users.email, email),
+    });
+  } else if (!user.googleId) {
+    // Link existing user to Google ID
+    await db.update(users)
+      .set({ googleId, avatar: user.avatar || avatar })
+      .where(eq(users.email, email));
+    
+    // Refresh user object
+    user = await db.query.users.findFirst({
+      where: eq(users.email, email),
+    });
+  }
+
+  if (!user) {
+     throw new BadRequest("Failed to sign in with Google");
+  }
+
+  const token = generateToken({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+  });
+
+  return { user, token };
+};
