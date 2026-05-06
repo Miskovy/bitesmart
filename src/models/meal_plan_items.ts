@@ -2,8 +2,7 @@ import { mysqlTable, varchar, int, date, boolean, mysqlEnum } from 'drizzle-orm/
 import { mealPlans } from './meal_plans';
 import { foodItems } from './food_items';
 import { recipes } from './recipes';
-
-export const mealTypeEnum = ['Breakfast', 'Lunch', 'Dinner', 'Snack'] as const;
+import { mealTypeEnum } from './daily_logs';
 
 export const mealPlanItems = mysqlTable('meal_plan_items', {
   id: varchar('id', { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),

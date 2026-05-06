@@ -7,7 +7,7 @@ export * from "../models/chat_sessions";
 export * from "../models/community_challenges";
 export * from "../models/daily_logs";
 export * from "../models/meal_plans";
-export * as meal_plan_items from "../models/meal_plan_items";
+export * from "../models/meal_plan_items";
 export * from "../models/plans";
 export * from "../models/recipes";
 export * from "../models/recipe_ingredients";
@@ -21,4 +21,3 @@ export * from "../models/user_medical_conditions";
 export * from "../models/user_subscriptions";
 export * from "../models/user_target";
 export * from "../models/water_logs";
-// TODO: Add Rest of Models Here
