@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { sendPredictionRequestAR, sendPredictionRequestCallibration , submitCorrection } from "../../controllers/food/prediction.controller";
+import { sendPredictionRequestAR, sendPredictionRequestCallibration, submitCorrection } from "../../controllers/food/prediction.controller";
 import catchAsync from "../../utils/catchAsync";
 import multer from "multer";
 
