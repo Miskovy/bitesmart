@@ -9,7 +9,7 @@ import { authenticated } from "../middlewares/Authenticated";
 const router = Router();
 
 router.use("/food", foodRoute);
-router.use("/login", authRoute);
+router.use("/auth", authRoute);
 router.use("/prediction", predictionRoute);
 router.use(authenticated);
 router.use("/profile", profileRoute);
