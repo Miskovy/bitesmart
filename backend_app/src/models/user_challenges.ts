@@ -5,12 +5,9 @@ import { communityChallenges } from './community_challenges';
 export const statusUserChallengeEnum = mysqlEnum('status', ['Joined', 'Completed']);
 
 export const userChallenges = mysqlTable('user_challenges', {
+  id: varchar('id', { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: varchar('userId', { length: 36 }).notNull().references(() => users.id),
   challengeId: varchar('challengeId', { length: 36 }).notNull().references(() => communityChallenges.id),
   progress: double('progress'),
   status: statusUserChallengeEnum.notNull().default('Joined'),
-}, (table) => {
-  return {
-    pk: primaryKey({ columns: [table.userId, table.challengeId] }),
-  };
 });
