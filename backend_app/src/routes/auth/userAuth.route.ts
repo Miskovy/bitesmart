@@ -1,11 +1,14 @@
 import { Router } from "express";
 import catchAsync from "../../utils/catchAsync";
-import { userLogin, signup, googleAuth } from "../../controllers/auth/userAuth.controller";
+import { userLogin, signup, googleAuth, forgotPasswordController, verifyResetCodeController, resetPasswordController } from "../../controllers/auth/userAuth.controller";
 
 const router = Router();
 
 router.post("/login", catchAsync(userLogin));
 router.post("/signup", catchAsync(signup));
 router.post("/google", catchAsync(googleAuth));
+router.post("/forgot-password", catchAsync(forgotPasswordController));
+router.post("/verify-reset-code", catchAsync(verifyResetCodeController));
+router.post("/reset-password", catchAsync(resetPasswordController));
 
-export default router;
+export default router;

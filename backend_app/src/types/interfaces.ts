@@ -33,6 +33,7 @@ export interface UpdateProfileData {
         isHalal?: boolean;
         isPescatarian?: boolean;
         isGlp1User?: boolean;
+        isRamadanMode?: boolean;
     };
 
     targets?: {

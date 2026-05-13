@@ -83,4 +83,33 @@ export const updatemyProfile = async (userId: string, data: UpdateProfileData) =
 
     return await getMyProfile(userId);
 };
-export const enableMode = async (mode: userModes) => { };
+export const enableMode = async (userId: string, mode: userModes) => {
+    const updates: Partial<typeof userDietaryPreferences.$inferInsert> = {};
+
+    if (mode.glp1 !== undefined) {
+        updates.isGlp1User = mode.glp1;
+    }
+    if (mode.ramadanMode !== undefined) {
+        updates.isRamadanMode = mode.ramadanMode;
+    }
+
+    if (Object.keys(updates).length > 0) {
+        const existing = await db.query.userDietaryPreferences.findFirst({
+            where: eq(userDietaryPreferences.userId, userId)
+        });
+
+        if (existing) {
+            await db.update(userDietaryPreferences)
+                .set(updates)
+                .where(eq(userDietaryPreferences.userId, userId));
+        } else {
+            await db.insert(userDietaryPreferences)
+                .values({
+                    userId,
+                    ...updates
+                });
+        }
+    }
+
+    return await getMyProfile(userId);
+};
