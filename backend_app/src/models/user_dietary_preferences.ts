@@ -16,4 +16,5 @@ export const userDietaryPreferences = mysqlTable('user_dietary_preferences', {
   isPescatarian: boolean('isPescatarian'),
 
   isGlp1User: boolean('isGlp1User'),
+  isRamadanMode: boolean('isRamadanMode'),
 });

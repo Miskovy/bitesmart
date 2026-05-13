@@ -44,3 +44,42 @@ export const googleAuth = async (req: Request, res: Response) => {
     
     return SuccessResponse(res, result, 200);
 };
+
+export const forgotPasswordController = async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    if (!email) {
+        throw new BadRequest("Email is required");
+    }
+
+    const { forgetPassword } = await import("../../services/auth/userAuth.service");
+    const result = await forgetPassword(email);
+
+    return SuccessResponse(res, result, 200);
+};
+
+export const verifyResetCodeController = async (req: Request, res: Response) => {
+    const { code } = req.body;
+
+    if (!code) {
+        throw new BadRequest("Code is required");
+    }
+
+    const { verifyResetPasswordCode } = await import("../../services/auth/userAuth.service");
+    const result = await verifyResetPasswordCode(code);
+
+    return SuccessResponse(res, result, 200);
+};
+
+export const resetPasswordController = async (req: Request, res: Response) => {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+        throw new BadRequest("Token and newPassword are required");
+    }
+
+    const { resetPassword } = await import("../../services/auth/userAuth.service");
+    const result = await resetPassword(token, newPassword);
+
+    return SuccessResponse(res, result, 200);
+};
