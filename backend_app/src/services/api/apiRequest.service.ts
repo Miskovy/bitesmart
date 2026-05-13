@@ -1,7 +1,7 @@
 import axios from "axios";
 import { aiBaseurl, aiApiKey, aiApiSecret } from "../../constants/api.constants";
 import CryptoJS from "crypto-js";
-
+import { Readable } from "stream";
 
 const buildAuthHeaders = (method: string, path: string, data?: any) => {
     const timestamp = Date.now().toString();
@@ -20,13 +20,35 @@ const buildAuthHeaders = (method: string, path: string, data?: any) => {
 export const aiApiRequest = async (prefix: string, method: string, data?: any) => {
     const basePath = new URL(aiBaseurl).pathname;
     const cleanPrefix = prefix.startsWith("/") ? prefix.slice(1) : prefix;
-    const pathForSignature = basePath.endsWith("/") ? `${basePath}${cleanPrefix}` : `${basePath}/${cleanPrefix}`;
+    const pathWithoutQuery = cleanPrefix.split("?")[0];
+    const pathForSignature = basePath.endsWith("/") ? `${basePath}${pathWithoutQuery}` : `${basePath}/${pathWithoutQuery}`;
+
+    const baseUrlCleaned = aiBaseurl.endsWith("/") ? aiBaseurl.slice(0, -1) : aiBaseurl;
 
     const response = await axios.request({
-        url    : `${aiBaseurl}/${cleanPrefix}`,
+        url    : `${baseUrlCleaned}/${cleanPrefix}`,
         method,
         data,
         headers: buildAuthHeaders(method, pathForSignature, data),
+    });
+
+    return response.data;
+};
+
+export const aiApiStreamRequest = async (prefix: string, method: string, data?: any): Promise<Readable> => {
+    const basePath = new URL(aiBaseurl).pathname;
+    const cleanPrefix = prefix.startsWith("/") ? prefix.slice(1) : prefix;
+    const pathWithoutQuery = cleanPrefix.split("?")[0];
+    const pathForSignature = basePath.endsWith("/") ? `${basePath}${pathWithoutQuery}` : `${basePath}/${pathWithoutQuery}`;
+
+    const baseUrlCleaned = aiBaseurl.endsWith("/") ? aiBaseurl.slice(0, -1) : aiBaseurl;
+
+    const response = await axios.request<Readable>({
+        url    : `${baseUrlCleaned}/${cleanPrefix}`,
+        method,
+        data,
+        headers: buildAuthHeaders(method, pathForSignature, data),
+        responseType: 'stream',
     });
 
     return response.data;
