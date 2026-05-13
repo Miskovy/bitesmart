@@ -73,12 +73,72 @@ export const register = async (email: string, password: string, name: string) =>
 
 
 export const forgetPassword = async (email: string) => {
+  const user = await db.query.users.findFirst({
+    where: eq(users.email, email),
+  });
+
+  if (!user) {
+    throw new BadRequest("User not found");
+  }
+
+  const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit code
+  const expires = new Date();
+  expires.setMinutes(expires.getMinutes() + 15); // 15 minutes expiration
+
+  await db.update(users)
+    .set({ resetPasswordCode: code, resetPasswordExpires: expires })
+    .where(eq(users.id, user.id));
+
+  const { sendEmail } = await import("../../utils/email");
+  await sendEmail(
+    user.email,
+    "Password Reset Code",
+    `Your password reset code is: ${code}. It will expire in 15 minutes.`
+  );
+
+  return { message: "Password reset code sent to your email" };
 };
 
 export const verifyResetPasswordCode = async (code: string) => {
+  const user = await db.query.users.findFirst({
+    where: eq(users.resetPasswordCode, code),
+  });
+
+  if (!user) {
+    throw new BadRequest("Invalid code");
+  }
+
+  if (user.resetPasswordExpires && new Date() > user.resetPasswordExpires) {
+    throw new BadRequest("Code has expired");
+  }
+
+  return { valid: true };
 };
 
 export const resetPassword = async (token: string, newPassword: string) => {
+  const user = await db.query.users.findFirst({
+    where: eq(users.resetPasswordCode, token),
+  });
+
+  if (!user) {
+    throw new BadRequest("Invalid token");
+  }
+
+  if (user.resetPasswordExpires && new Date() > user.resetPasswordExpires) {
+    throw new BadRequest("Token has expired");
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  await db.update(users)
+    .set({
+      password: hashedPassword,
+      resetPasswordCode: null,
+      resetPasswordExpires: null,
+    })
+    .where(eq(users.id, user.id));
+
+  return { message: "Password reset successfully" };
 };
 
 export const loginWithGoogle = async (idToken: string) => {

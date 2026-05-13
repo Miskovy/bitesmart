@@ -42,4 +42,26 @@ export const updateProfileData = async (req: Request, res: Response) => {
 };
 
 // Enable Mode: GLP-1 or Ramadan Mode
-export const enableMode = async (req: Request, res: Response) => {};
+export const enableMode = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      throw new BadRequest("User ID is missing or user is not authenticated");
+    }
+
+    const { glp1, ramadanMode } = req.body;
+
+    if (glp1 === undefined && ramadanMode === undefined) {
+      throw new BadRequest("Must provide glp1 or ramadanMode in the request body");
+    }
+
+    const { enableMode: enableModeService } = await import("../../services/user/profile.service");
+    const updatedProfile = await enableModeService(userId, { glp1, ramadanMode });
+
+    SuccessResponse(res, updatedProfile, 200);
+
+  } catch (error: any) {
+    throw new BadRequest(error.message || "Failed to update mode");
+  }
+};

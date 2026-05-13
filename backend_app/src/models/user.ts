@@ -21,5 +21,7 @@ export const users = mysqlTable('users', {
   activityLevel: mysqlEnum('activityLevel', activityLevelEnum),  
   xp: int('xp').notNull().default(0),  
   userGoal: mysqlEnum('userGoal', goalsEnum),  
+  resetPasswordCode: varchar('resetPasswordCode', { length: 255 }),
+  resetPasswordExpires: timestamp('resetPasswordExpires'),
   createdAt: timestamp('created_at').defaultNow().notNull(),  
 });  
