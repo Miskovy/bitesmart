@@ -1,4 +1,4 @@
-name: AI/ML & Backend CI
+name: AI/ML, Backend & Flutter CI
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -8,6 +8,7 @@ on:
     branches:
       - 'AI/ML'
       - 'backend'
+      - 'flutter'
   pull_request:
     branches:
       - 'main'
@@ -134,3 +135,52 @@ jobs:
       - name: Build
         working-directory: ${{ steps.project.outputs.dir }}
         run: npm run build
+
+  flutter-quality-gate:
+    if: |
+      (github.event_name == 'push' && github.ref_name == 'flutter') ||
+      (github.event_name == 'pull_request' && (
+        github.head_ref == 'flutter' ||
+        github.head_ref == 'promotion/flutter-to-main'
+      ))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Detect project directory
+        id: project
+        shell: bash
+        run: |
+          if [ -f pubspec.yaml ]; then
+             echo "dir=." >> "$GITHUB_OUTPUT"
+          elif [ -f flutter_app/pubspec.yaml ]; then
+             echo "dir=flutter_app" >> "$GITHUB_OUTPUT"
+          else
+             echo "Unable to locate the flutter project directory."
+             exit 1
+          fi
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies
+        working-directory: ${{ steps.project.outputs.dir }}
+        run: flutter pub get
+
+      - name: Format
+        working-directory: ${{ steps.project.outputs.dir }}
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze
+        working-directory: ${{ steps.project.outputs.dir }}
+        run: flutter analyze
+
+      - name: Run tests
+        working-directory: ${{ steps.project.outputs.dir }}
+        run: flutter test

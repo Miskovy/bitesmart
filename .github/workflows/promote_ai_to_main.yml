@@ -12,7 +12,7 @@ on:
         default: 'AI/ML'
   workflow_run:
     workflows:
-      - AI/ML & Backend CI
+      - AI/ML, Backend & Flutter CI
     types:
       - completed
     branches:
