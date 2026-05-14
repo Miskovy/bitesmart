@@ -3,6 +3,7 @@ import { getAllChats, getChatMessages , deleteChat, sendMessage, sendMessageStre
 import { BadRequest, UnauthorizedError } from "../../errors";
 import { SuccessResponse } from "../../utils/Response";
 
+//! Created by Antigravity: Updated to support search, pagination, and category query params
 export const getAllUserChats = async (req: Request, res: Response) => {
     const userId = req.user?.id;
 
@@ -10,7 +11,14 @@ export const getAllUserChats = async (req: Request, res: Response) => {
         throw new UnauthorizedError("Invalid User");
     }
 
-    const chats = await getAllChats(userId);
+    const { search, page, limit, category } = req.query;
+
+    const chats = await getAllChats(userId, {
+        search: search as string | undefined,
+        page: page ? Number(page) : undefined,
+        limit: limit ? Number(limit) : undefined,
+        category: category as string | undefined,
+    });
 
     SuccessResponse(res, chats);
 };

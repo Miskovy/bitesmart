@@ -5,7 +5,9 @@ export interface userModes {
 
 export interface UpdateProfileData {
     name?: string;
+    email?: string;
     avatar?: string;
+    phone?: string;
     height?: number;
     weight?: number;
     BMI?: number;
