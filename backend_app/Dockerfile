@@ -13,7 +13,7 @@ RUN npm install
 # Copy source code and config files
 COPY tsconfig.json ./
 COPY src/ ./src/
-COPY drizzle/ ./drizzle/
+# COPY drizzle/ ./drizzle/
 
 # Build the TypeScript code
 RUN npm run build
@@ -45,7 +45,7 @@ COPY --chown=node:node --from=builder /app/node_modules ./node_modules
 COPY --chown=node:node --from=builder /app/dist ./dist
 
 # Copy the drizzle database migrations (in case you need to run them on startup)
-COPY --chown=node:node --from=builder /app/drizzle ./drizzle
+# COPY --chown=node:node --from=builder /app/drizzle ./drizzle
 
 # Expose the port your app runs on
 EXPOSE 3000
