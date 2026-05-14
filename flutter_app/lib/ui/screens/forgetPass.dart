@@ -1,4 +1,4 @@
-import 'package:bite_smart/ui/screens/OTPScreen.dart';
+import 'package:bite_smart/ui/screens/otpScreen.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
@@ -223,7 +223,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const SecurityCheckScreen(),
+                            builder: (context) => const otpScreen(),
                           ),
                         );
                       }

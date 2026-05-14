@@ -4,14 +4,14 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class SecurityCheckScreen extends StatefulWidget {
-  const SecurityCheckScreen({super.key});
+class otpScreen extends StatefulWidget {
+  const otpScreen({super.key});
 
   @override
-  State<SecurityCheckScreen> createState() => _SecurityCheckScreenState();
+  State<otpScreen> createState() => _otpScreenState();
 }
 
-class _SecurityCheckScreenState extends State<SecurityCheckScreen> {
+class _otpScreenState extends State<otpScreen> {
   int _start = 59;
   Timer? _timer;
 
