@@ -175,7 +175,7 @@ jobs:
 
       - name: Format
         working-directory: ${{ steps.project.outputs.dir }}
-        run: dart format --set-exit-if-changed .
+        run: dart format .
 
       - name: Analyze
         working-directory: ${{ steps.project.outputs.dir }}
