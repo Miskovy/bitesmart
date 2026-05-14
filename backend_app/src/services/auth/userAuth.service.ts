@@ -6,7 +6,7 @@ import bcrypt from "bcrypt";
 import { generateToken } from "../../utils/Auth";
 import { OAuth2Client } from "google-auth-library";
 import { googleClientIds } from "../../constants/api.constants";
-
+import { sendEmail } from "../../utils/email";
 const client = new OAuth2Client();
 
 export const login = async (email: string, password: string) => {
@@ -89,8 +89,7 @@ export const forgetPassword = async (email: string) => {
     .set({ resetPasswordCode: code, resetPasswordExpires: expires })
     .where(eq(users.id, user.id));
 
-  const { sendEmail } = await import("../../utils/email");
-  await sendEmail(
+    await sendEmail(
     user.email,
     "Password Reset Code",
     `Your password reset code is: ${code}. It will expire in 15 minutes.`
