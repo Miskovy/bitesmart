@@ -1,0 +1,31 @@
+name: Deploy to Hugging Face
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ai_app/**'
+  workflow_dispatch:
+
+jobs:
+  sync-to-huggingface:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Push to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          # The promotion workflow places our AI code into the ai_app directory on main.
+          # We isolate that directory and push it as the root of the Hugging Face space.
+          cd ai_app
+          git init
+          git checkout -b main
+          git add .
+          git -c user.name="GitHub Actions" -c user.email="actions@github.com" commit -m "Deploy to Hugging Face Space"
+          git push --force https://miskovy:${HF_TOKEN}@huggingface.co/spaces/miskovy/bitesmart-ai main

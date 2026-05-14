@@ -1,0 +1,99 @@
+name: Prepare Flutter Promotion PR
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: 'Source ref to package under main/flutter_app'
+        required: true
+        default: 'flutter'
+  workflow_run:
+    workflows:
+      - AI/ML, Backend & Flutter CI
+    types:
+      - completed
+    branches:
+      - 'flutter'
+
+concurrency:
+  group: promote-flutter-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare-pr:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'flutter')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Resolve source ref
+        id: source
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ref=${{ inputs.source_ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout flutter source commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.ref }}
+          path: source
+
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: target
+
+      - name: Sync flutter to main/flutter_app
+        shell: bash
+        run: |
+          rm -rf target/flutter_app
+          mkdir -p target/flutter_app
+          rsync -av --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.idea' \
+            --exclude='build' \
+            --exclude='.dart_tool' \
+            --exclude='.flutter-plugins' \
+            --exclude='.flutter-plugins-dependencies' \
+            source/ target/flutter_app/
+
+      - name: Create promotion pull request
+        id: create_pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          path: target
+          token: ${{ secrets.PROMOTION_PR_TOKEN }}
+          branch: promotion/flutter-to-main
+          base: main
+          commit-message: 'Promote flutter into flutter_app'
+          title: 'Promote flutter into flutter_app'
+          body: |
+            This PR was generated automatically from `${{ steps.source.outputs.ref }}`.
+
+            It packages the flutter branch contents under `flutter_app/` so `main` only receives flutter changes inside that folder.
+          delete-branch: true
+
+      - name: Enable auto-merge for promotion PR
+        if: ${{ steps.create_pr.outputs.pull-request-operation != 'closed' && steps.create_pr.outputs.pull-request-number != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.PROMOTION_PR_TOKEN }}
+        shell: bash
+        run: |
+          gh pr merge "${{ steps.create_pr.outputs.pull-request-number }}" \
+            --repo "${{ github.repository }}" \
+            --squash \
+            --auto
