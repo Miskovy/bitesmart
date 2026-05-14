@@ -1,4 +1,23 @@
 import { aiApiRequest, aiApiStreamRequest } from "../api/apiRequest.service";
+import { db } from "../../db/connection";
+import { userTarget } from "../../models/user_target";
+import { eq } from "drizzle-orm";
+import { calculateUserTargets } from "./target.service";
+
+const ensureUserTargets = async (userId: string) => {
+    const existing = await db.query.userTarget.findFirst({
+        where: eq(userTarget.userId, userId)
+    });
+    if (!existing) {
+        try {
+            await calculateUserTargets(userId);
+        } catch (error) {
+            // If we can't calculate targets (e.g. incomplete profile), the AI will still fail,
+            // but we at least attempted to heal it. We let the original error bubble up or let the AI handle it.
+            console.error("Failed to auto-calculate targets:", error);
+        }
+    }
+};
 
 //! Created by Antigravity: Updated to support search, pagination, and category filtering
 export const getAllChats = async (
@@ -18,19 +37,29 @@ export const getChatMessages = async (userId: string, chatId: string) => {
     return await aiApiRequest(`/coach/sessions/${chatId}/history?user_id=${userId}`, "GET");
 };
 
-export const sendMessage = async (userId: string, message: string, chatId: string) => {
-    return await aiApiRequest(`/coach/chat`, "POST", {
+export const sendMessage = async (userId: string, message: string, chatId?: string) => {
+    await ensureUserTargets(userId);
+    
+    const payload: any = {
         user_id: userId,
         message: message,
-        session_id: chatId
-    });
+    };
+    if (chatId) {
+        payload.session_id = chatId;
+    }
+    return await aiApiRequest(`/coach/chat`, "POST", payload);
 };
 export const sendMessageStream = async (userId: string, message: string, chatId?: string) => {
-    return await aiApiStreamRequest(`/coach/chat/stream`, "POST", {
+    await ensureUserTargets(userId);
+
+    const payload: any = {
         user_id: userId,
         message: message,
-        session_id: chatId
-    });
+    };
+    if (chatId) {
+        payload.session_id = chatId;
+    }
+    return await aiApiStreamRequest(`/coach/chat/stream`, "POST", payload);
 };
 
 export const deleteChat = async (userId: string, chatId: string) => {
