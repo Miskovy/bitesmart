@@ -25,14 +25,20 @@ export const aiApiRequest = async (prefix: string, method: string, data?: any) =
 
     const baseUrlCleaned = aiBaseurl.endsWith("/") ? aiBaseurl.slice(0, -1) : aiBaseurl;
 
-    const response = await axios.request({
-        url    : `${baseUrlCleaned}/${cleanPrefix}`,
-        method,
-        data,
-        headers: buildAuthHeaders(method, pathForSignature, data),
-    });
-
-    return response.data;
+    try {
+        const response = await axios.request({
+            url    : `${baseUrlCleaned}/${cleanPrefix}`,
+            method,
+            data,
+            headers: buildAuthHeaders(method, pathForSignature, data),
+        });
+        return response.data;
+    } catch (error: any) {
+        if (error.response && error.response.data && error.response.data.message) {
+            throw new Error(error.response.data.message);
+        }
+        throw error;
+    }
 };
 
 export const aiApiStreamRequest = async (prefix: string, method: string, data?: any): Promise<Readable> => {
@@ -43,15 +49,21 @@ export const aiApiStreamRequest = async (prefix: string, method: string, data?: 
 
     const baseUrlCleaned = aiBaseurl.endsWith("/") ? aiBaseurl.slice(0, -1) : aiBaseurl;
 
-    const response = await axios.request<Readable>({
-        url    : `${baseUrlCleaned}/${cleanPrefix}`,
-        method,
-        data,
-        headers: buildAuthHeaders(method, pathForSignature, data),
-        responseType: 'stream',
-    });
-
-    return response.data;
+    try {
+        const response = await axios.request<Readable>({
+            url    : `${baseUrlCleaned}/${cleanPrefix}`,
+            method,
+            data,
+            headers: buildAuthHeaders(method, pathForSignature, data),
+            responseType: 'stream',
+        });
+        return response.data;
+    } catch (error: any) {
+        if (error.response && error.response.data && error.response.data.message) {
+            throw new Error(error.response.data.message);
+        }
+        throw error;
+    }
 };
 
 export const apiRequest = async (url: string, method: string, data: any) => {
