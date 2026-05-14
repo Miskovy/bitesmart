@@ -26,9 +26,14 @@ app.use(cors({
 // Logging
 app.use(morgan("dev"));
 
+import path from "path";
+
 // Body Parsing
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+//! Created by Antigravity: Serve uploaded files (avatars, etc.) as static assets
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // Health Check
 app.get("/", (req, res) => {

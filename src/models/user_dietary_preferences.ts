@@ -1,4 +1,4 @@
-import { mysqlTable, varchar, boolean } from 'drizzle-orm/mysql-core';
+import { mysqlTable, varchar, boolean, int } from 'drizzle-orm/mysql-core';
 import { users } from './user'; // Adjust this import path as needed
 
 export const userDietaryPreferences = mysqlTable('user_dietary_preferences', {
@@ -17,4 +17,13 @@ export const userDietaryPreferences = mysqlTable('user_dietary_preferences', {
 
   isGlp1User: boolean('isGlp1User'),
   isRamadanMode: boolean('isRamadanMode'),
+
+  //! Created by Antigravity: GLP-1 specific settings
+  highProteinGoal: boolean('highProteinGoal').default(false),
+  hydrationReminderHours: int('hydrationReminderHours').default(2),
+
+  //! Created by Antigravity: Ramadan specific settings
+  suhoorTime: varchar('suhoorTime', { length: 10 }),
+  iftarTime: varchar('iftarTime', { length: 10 }),
+  hydrationFocus: boolean('hydrationFocus').default(false),
 });

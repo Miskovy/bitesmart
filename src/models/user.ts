@@ -1,4 +1,4 @@
-import { mysqlTable, varchar, double, int, timestamp, mysqlEnum } from 'drizzle-orm/mysql-core';  
+import { mysqlTable, varchar, double, int, timestamp, mysqlEnum, boolean } from 'drizzle-orm/mysql-core';  
 
 export const goalsEnum = ['WeightLoss', 'Maintenance', 'MuscleGain'] as const;  
 export const userRoleEnum = ['User', 'Admin', 'ContentManager'] as const;  
@@ -12,6 +12,8 @@ export const users = mysqlTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),  
   googleId: varchar('googleId', { length: 255 }),  
   avatar: varchar('avatar', { length: 255 }),  
+  //! Created by Antigravity: Phone number for Edit Profile screen
+  phone: varchar('phone', { length: 20 }),  
   role: mysqlEnum('role', userRoleEnum).notNull().default('User'),  
   height: double('height'),  
   weight: double('weight'),  
@@ -23,5 +25,9 @@ export const users = mysqlTable('users', {
   userGoal: mysqlEnum('userGoal', goalsEnum),  
   resetPasswordCode: varchar('resetPasswordCode', { length: 255 }),
   resetPasswordExpires: timestamp('resetPasswordExpires'),
+  notificationsEnabled: boolean('notificationsEnabled').default(false),
+  healthDataEnabled: boolean('healthDataEnabled').default(false),
+  cameraAccessEnabled: boolean('cameraAccessEnabled').default(false),
+  deviceToken: varchar('deviceToken', { length: 255 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),  
-});  
+});
