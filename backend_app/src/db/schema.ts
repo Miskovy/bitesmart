@@ -21,3 +21,4 @@ export * from "../models/user_medical_conditions";
 export * from "../models/user_subscriptions";
 export * from "../models/user_target";
 export * from "../models/water_logs";
+export * from "../models/health_sync";

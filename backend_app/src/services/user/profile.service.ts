@@ -113,3 +113,32 @@ export const enableMode = async (userId: string, mode: userModes) => {
 
     return await getMyProfile(userId);
 };
+
+//! Created by Antigravity: Service to update device settings (Notifications, Health Data, Camera Access, Device Token)
+export const updateDeviceSettings = async (
+    userId: string, 
+    settings: { notificationsEnabled?: boolean; healthDataEnabled?: boolean; cameraAccessEnabled?: boolean; deviceToken?: string }
+) => {
+    const updates: Partial<typeof users.$inferInsert> = {};
+
+    if (settings.notificationsEnabled !== undefined) {
+        updates.notificationsEnabled = settings.notificationsEnabled;
+    }
+    if (settings.healthDataEnabled !== undefined) {
+        updates.healthDataEnabled = settings.healthDataEnabled;
+    }
+    if (settings.cameraAccessEnabled !== undefined) {
+        updates.cameraAccessEnabled = settings.cameraAccessEnabled;
+    }
+    if (settings.deviceToken !== undefined) {
+        updates.deviceToken = settings.deviceToken;
+    }
+
+    if (Object.keys(updates).length > 0) {
+        await db.update(users)
+            .set(updates)
+            .where(eq(users.id, userId));
+    }
+
+    return await getMyProfile(userId);
+};
