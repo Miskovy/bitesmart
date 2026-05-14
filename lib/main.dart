@@ -15,6 +15,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
 
+// RUN APP
+
+
   runApp(
     EasyLocalization(
       supportedLocales: [Locale('en', 'US'), Locale('ar', 'EG')],
