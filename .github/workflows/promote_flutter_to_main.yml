@@ -1,4 +1,4 @@
-name: Prepare Backend Promotion PR
+name: Prepare Flutter Promotion PR
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -7,26 +7,26 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: 'Source ref to package under main/backend_app'
+        description: 'Source ref to package under main/flutter_app'
         required: true
-        default: 'backend'
+        default: 'flutter'
   workflow_run:
     workflows:
       - AI/ML, Backend & Flutter CI
     types:
       - completed
     branches:
-      - 'backend'
+      - 'flutter'
 
 concurrency:
-  group: promote-backend-${{ github.ref }}
+  group: promote-flutter-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   prepare-pr:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'backend')
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'flutter')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -44,7 +44,7 @@ jobs:
             echo "ref=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Checkout backend source commit
+      - name: Checkout flutter source commit
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.source.outputs.ref }}
@@ -56,18 +56,20 @@ jobs:
           ref: main
           path: target
 
-      - name: Sync backend to main/backend_app
+      - name: Sync flutter to main/flutter_app
         shell: bash
         run: |
-          rm -rf target/backend_app
-          mkdir -p target/backend_app
+          rm -rf target/flutter_app
+          mkdir -p target/flutter_app
           rsync -av --delete \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='.idea' \
-            --exclude='node_modules' \
-            --exclude='dist' \
-            source/ target/backend_app/
+            --exclude='build' \
+            --exclude='.dart_tool' \
+            --exclude='.flutter-plugins' \
+            --exclude='.flutter-plugins-dependencies' \
+            source/ target/flutter_app/
 
       - name: Create promotion pull request
         id: create_pr
@@ -75,14 +77,14 @@ jobs:
         with:
           path: target
           token: ${{ secrets.PROMOTION_PR_TOKEN }}
-          branch: promotion/backend-to-main
+          branch: promotion/flutter-to-main
           base: main
-          commit-message: 'Promote backend into backend_app'
-          title: 'Promote backend into backend_app'
+          commit-message: 'Promote flutter into flutter_app'
+          title: 'Promote flutter into flutter_app'
           body: |
             This PR was generated automatically from `${{ steps.source.outputs.ref }}`.
 
-            It packages the backend branch contents under `backend_app/` so `main` only receives backend changes inside that folder.
+            It packages the flutter branch contents under `flutter_app/` so `main` only receives flutter changes inside that folder.
           delete-branch: true
 
       - name: Enable auto-merge for promotion PR
