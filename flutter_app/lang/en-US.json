@@ -1,0 +1,170 @@
+{
+  "selectLanguage": "Select Language",
+  "chooseLanguageSubtitle": "Choose your preferred language to start your journey.",
+  "continueBtn": "Continue"
+  ,
+  "welcome": {
+    "app_name": "NUTRICOACH AI",
+    "title_part1": "Your Personal\n",
+    "title_health": "Health ",
+    "title_part2": "Journey\nStarts Here",
+    "description": "Smart weight management and AI\nnutrition tracking tailored just for \nyou.",
+    "get_started": "Get Started",
+    "have_account": "I already have an account",
+    "terms": "By continuing, you agree to our Terms & Privacy Policy." 
+}
+,
+"signup": {
+    "title": "Start your journey",
+    "subtitle": "Create an account to track your nutrition",
+    "full_name": "Full Name",
+    "name_hint": "Jane Doe",
+    "email": "Email or Phone",
+    "email_hint": "jane@example.com",
+    "password": "Password",
+    "password_hint": "........",
+    "agree": "I agree to the Terms & Conditions and Privacy Policy",
+    "create_btn": "Create Account",
+    "or_continue": "or continue with",
+    "google": "Google",
+    "apple": "Apple",
+    "have_account": "Already have an account?",
+    "login": "Log in",
+    "creating": "Creating Account...",
+    "agree_error": "Please agree to the terms"
+  },
+  "login": {
+    "welcome_back": "Welcome Back",
+    "subtitle": "Log in to continue your wellness journey",
+    "email_or_phone": "Email or Phone",
+    "email_hint": "hello@example.com",
+    "password": "Password",
+    "password_hint": "........",
+    "forgot_password": "Forgot Password?",
+    "log_in": "Log In",
+    "or_continue": "or continue with",
+    "google": "Google",
+    "apple": "Apple",
+    "no_account": "Don't have an account?",
+    "sign_up": "Sign up",
+    "processing": "Processing Data..."
+  },
+  "forgot": {
+    "title": "Forgot Password",
+    "subtitle": "Don't worry! Enter your registered email or phone number below to receive a password reset code.",
+    "email_or_phone_label": "Email or Phone Number",
+    "email_hint": "hello@healthtrack.com",
+    "send_code": "Send Code",
+    "remembered": "Remembered?",
+    "log_in": "Log in",
+    "validation": {
+      "required": "Please enter your email or phone number",
+      "invalid": "Enter a valid email or phone number"
+    }
+  },
+  "otp": {
+    "security_check": "Security Check",
+    "sent_to": "We've sent a 6-digit verification code to",
+    "resend_code": "Resend code in",
+    "change_email": "Change Email / Phone",
+    "verify_continue": "Verify & Continue",
+    "by_continuing": "By continuing, you agree to our Terms of\nService and Privacy Policy."
+  },
+  "reset": {
+    "title": "Reset Password",
+    "description": "Your new password must be different from previously used passwords.",
+    "new_password": "New Password",
+    "hint": "********",
+    "password_strength": "Password Strength",
+    "weak": "Weak",
+    "medium": "Medium",
+    "strong": "Strong",
+    "condition_length": "8+ characters",
+    "condition_symbol": "1 symbol",
+    "condition_uppercase": "1 uppercase",
+    "condition_number": "1 number",
+    "confirm_password": "Confirm Password",
+    "reset_button": "Reset Password"
+  },
+  "goal": {
+    "title": "Choose Your Goal",
+    "subtitle": "We'll tailor your nutrition plan and daily habits based on this choice.",
+    "weight_loss": "Weight Loss",
+    "weight_loss_desc": "Shed pounds sustainably with a caloric deficit and balanced macros.",
+    "maintenance": "Maintenance",
+    "maintenance_desc": "Keep your current weight while improving metabolic health and energy.",
+    "muscle_gain": "Muscle Gain",
+    "muscle_gain_desc": "Build strength and lean mass with high-protein targets and hypertrophy.",
+    "next_step": "Next Step"
+  },
+  "onboarding": {
+    "title_part1": "Log in ",
+    "title_part2": "Seconds",
+    "description": "Snap a photo of your meal, and our AI will automatically identify and track your nutrients.",
+    "next": "Next"
+  },
+  "ai_coach": {
+    "analyzing": "Analyzing...",
+    "protein": "Protein: 24g ✅",
+    "title_part1": "Your AI\n",
+    "title_part2": "Health Coach",
+    "description": "Get real-time feedback, meal suggestions, and answers to your health questions 24/7.",
+    "next": "Next"
+  },
+  "insights": {
+    "weight": "WEIGHT",
+    "protein": "PROTEIN",
+    "burned": "BURNED",
+    "title": "Track Your Trends",
+    "description": "Visualize your progress over time with detailed analytics on your nutrition, weight, and habits.",
+    "get_started": "Get Started"
+  },
+  "splash": {
+    "brand": "Bitesmart",
+    "tagline": "AI HEALTH & COACHING",
+    "loading": "Loading..."
+  },
+  "permission": {
+    "title": "Unlock Your Potential",
+    "subtitle": "To personalize your coaching and automate tracking, we need access to a few capabilities on your device.",
+    "camera_title": "Camera Access",
+    "camera_description": "Required to snap photos of your meals for instant AI calorie and macro logging.",
+    "notifications_title": "Notifications",
+    "notifications_description": "Get timely reminders for hydration, meal logging, and daily motivation.",
+    "health_title": "Health Data",
+    "health_description": "Sync steps and workouts from Apple Health to adjust your daily calorie goals automatically.",
+    "allow_button": "Allow Access",
+    "not_now": "Not Now"
+  },
+  "premium": {
+    "restore": "Restore Purchase",
+    "title": "Unlock Your Full Potential",
+    "subtitle": "Get the AI advantage. Accelerate your weight loss with advanced nutrition tracking and human coaching.",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "save": "SAVE 40%",
+    "features": "Features",
+    "free": "Free",
+    "pro": "PRO",
+    "calorie_track": "Calorie Tracking",
+    "basic_log": "Basic Logging",
+    "ai_meal": "AI Meal Suggestions",
+    "instant_scan": "Instant AI Scan",
+    "total": "Total",
+    "start_btn": "Start Free Trial",
+    "footer": "Cancel anytime. Your subscription automatically renews until you cancel in your app settings.",
+    "restore_purchase": "Restore Purchase",
+    "save_40": "SAVE 40%",
+    "calorie_tracking": "Calorie Tracking",
+    "macro_tracking": "Macro Tracking",
+    "meal_suggestions": "AI Meal Suggestions",
+    "ai_coaching": "24/7 AI Coaching",
+    "health_sync": "Health Data Sync",
+    "progress_analytics": "Advanced Analytics",
+    "priority_support": "Priority Support",
+    "monthly_billing": "Billed monthly",
+    "yearly_billing": "Billed yearly",
+    "subscribe_now": "Subscribe Now",
+    "terms": "Cancel anytime. Your subscription automatically renews until you cancel in your app settings."
+  }
+}
