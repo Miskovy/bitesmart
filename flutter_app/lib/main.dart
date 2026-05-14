@@ -23,7 +23,7 @@ void main() async {
   runApp(
     EasyLocalization(
       supportedLocales: [Locale('en', 'US'), Locale('ar', 'EG')],
-      path: 'assets/translations', 
+      path: 'lang', 
       fallbackLocale: Locale('en', 'US'),
       child: MyApp(),
     ),
@@ -55,6 +55,7 @@ class MyApp extends StatelessWidget {
       localizationsDelegates: context.localizationDelegates,
       supportedLocales: context.supportedLocales,
       locale: context.locale,
+      debugShowCheckedModeBanner: false,
       home: Splashscreen(),
     );
   }
