@@ -1,18 +1,15 @@
-import 'package:bite_smart/ui/screens/splashScreen.dart';
+import 'package:bite_smart/features/auth/screens/splashScreen.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
 
-// RUN APP
-
-
   runApp(
     EasyLocalization(
       supportedLocales: [Locale('en', 'US'), Locale('ar', 'EG')],
-      path: 'lang', // <-- change the path of the translation files
+      path: 'lang',
       fallbackLocale: Locale('en', 'US'),
       child: MyApp(),
     ),
@@ -29,7 +26,7 @@ class MyApp extends StatelessWidget {
       supportedLocales: context.supportedLocales,
       locale: context.locale,
       debugShowCheckedModeBanner: false,
-      home: const Splashscreen(),
+      home: const Splashscreen()
     );
   }
 }
