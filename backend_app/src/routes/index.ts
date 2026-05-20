@@ -9,6 +9,9 @@ import dailyLogsRoute from "./user/dailyLogs.route";
 //! Created by Antigravity: Import symptom and mode settings routes
 import symptomRoute from "./user/symptom.route";
 import modeSettingsRoute from "./user/modeSettings.route";
+//! Created by Antigravity: Import challenges and leaderboard routes
+import challengeRoute from "./user/challenge.route";
+import leaderboardRoute from "./user/leaderboard.route";
 import { authenticated } from "../middlewares/Authenticated";
 
 const router = Router();
@@ -24,4 +27,8 @@ router.use("/logs", dailyLogsRoute);
 //! Created by Antigravity: Register symptom and mode settings routes
 router.use("/symptoms", symptomRoute);
 router.use("/settings", modeSettingsRoute);
+//! Created by Antigravity: Register challenges and leaderboard routes
+router.use("/challenges", challengeRoute);
+router.use("/leaderboard", leaderboardRoute);
+
 export default router;

@@ -111,7 +111,9 @@ export const calculateUserTargets = async (userId: string) => {
         proteins: Math.round(proteinGrams),
         fats: Math.round(fatGrams),
         carbs: Math.round(carbGrams),
-        water_ml: waterMl
+        water_ml: waterMl,
+        //! Created by Antigravity: Set autoCalculateWithAi to true when auto-calculating
+        autoCalculateWithAi: true
     };
 
     // 4. Save to Database (Upsert)

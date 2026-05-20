@@ -3,8 +3,14 @@ import mysql from 'mysql2/promise';
 import { drizzle } from 'drizzle-orm/mysql2';
 import * as schema from '../db/schema';
 
+//! Created by Antigravity: Fail fast if DATABASE_URL is not configured
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+    throw new Error("FATAL: DATABASE_URL environment variable is not set. Server cannot start.");
+}
+
 const pool = mysql.createPool({
-    uri                : process.env.DATABASE_URL || 'mysql://user:password@localhost:3306/bitesmart',
+    uri                : databaseUrl,
     waitForConnections : true,
     connectionLimit    : 10,
     queueLimit         : 0,

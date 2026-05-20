@@ -41,7 +41,7 @@ export const updateProfileData = async (req: Request, res: Response) => {
   }
 };
 
-// Enable Mode: GLP-1 or Ramadan Mode
+// Enable Mode: GLP-1 or Ramadan/Fasting Mode
 export const enableMode = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
@@ -50,14 +50,15 @@ export const enableMode = async (req: Request, res: Response) => {
       throw new BadRequest("User ID is missing or user is not authenticated");
     }
 
-    const { glp1, ramadanMode } = req.body;
+    //! Created by Antigravity: Support both legacy ramadanMode and renamed fastingMode parameters
+    const { glp1, ramadanMode, fastingMode } = req.body;
 
-    if (glp1 === undefined && ramadanMode === undefined) {
-      throw new BadRequest("Must provide glp1 or ramadanMode in the request body");
+    if (glp1 === undefined && ramadanMode === undefined && fastingMode === undefined) {
+      throw new BadRequest("Must provide glp1, fastingMode, or ramadanMode in the request body");
     }
 
     const { enableMode: enableModeService } = await import("../../services/user/profile.service");
-    const updatedProfile = await enableModeService(userId, { glp1, ramadanMode });
+    const updatedProfile = await enableModeService(userId, { glp1, ramadanMode, fastingMode });
 
     SuccessResponse(res, updatedProfile, 200);
 

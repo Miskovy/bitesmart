@@ -1,6 +1,8 @@
 export interface userModes {
     glp1?: boolean;
     ramadanMode?: boolean;
+    //! Created by Antigravity: Added renamed fasting mode parameter
+    fastingMode?: boolean;
 };
 
 export interface UpdateProfileData {
@@ -47,6 +49,8 @@ export interface UpdateProfileData {
         sodium_mg?: number;
         vitamin_d_iu?: number;
         water_ml?: number;
+        //! Created by Antigravity: State flag for auto calculation of macros
+        autoCalculateWithAi?: boolean;
     };
 }
 
