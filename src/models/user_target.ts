@@ -1,4 +1,4 @@
-import { mysqlTable, varchar, int, double } from 'drizzle-orm/mysql-core';
+import { mysqlTable, varchar, int, double, boolean } from 'drizzle-orm/mysql-core';
 import { users } from './user';
 
 export const userTarget = mysqlTable('usertarget', {
@@ -12,4 +12,6 @@ export const userTarget = mysqlTable('usertarget', {
   sodium_mg: double('sodium_mg'),
   vitamin_d_iu: double('vitamin_d_iu'),
   water_ml: int('water_ml').default(2000),
+  //! Created by Antigravity: Flag indicating if macro targets are automatically calculated with AI
+  autoCalculateWithAi: boolean('autoCalculateWithAi').default(true),
 });

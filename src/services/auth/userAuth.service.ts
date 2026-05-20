@@ -30,7 +30,9 @@ export const login = async (email: string, password: string) => {
         email: user.email,
     });
 
-    return { user, token };
+    //! Created by Antigravity: Strip password hash from login response to prevent credential leak
+    const { password: _pw, resetPasswordCode: _rc, resetPasswordExpires: _re, ...safeUser } = user;
+    return { user: safeUser, token };
 };
 
 export const register = async (email: string, password: string, name: string) => {
@@ -77,11 +79,15 @@ export const forgetPassword = async (email: string) => {
     where: eq(users.email, email),
   });
 
+  //! Created by Antigravity: Use generic response to prevent user enumeration attacks
   if (!user) {
-    throw new BadRequest("User not found");
+    return { message: "If an account exists with this email, a password reset code has been sent" };
   }
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit code
+  //! Created by Antigravity: Use crypto.getRandomValues for secure random code generation
+  const randomBytes = new Uint32Array(1);
+  crypto.getRandomValues(randomBytes);
+  const code = (100000 + (randomBytes[0] % 900000)).toString();
   const expires = new Date();
   expires.setMinutes(expires.getMinutes() + 15); // 15 minutes expiration
 
@@ -95,7 +101,7 @@ export const forgetPassword = async (email: string) => {
     `Your password reset code is: ${code}. It will expire in 15 minutes.`
   );
 
-  return { message: "Password reset code sent to your email" };
+  return { message: "If an account exists with this email, a password reset code has been sent" };
 };
 
 export const verifyResetPasswordCode = async (code: string) => {
@@ -195,5 +201,7 @@ export const loginWithGoogle = async (idToken: string) => {
     email: user.email,
   });
 
-  return { user, token };
+  //! Created by Antigravity: Strip password hash from Google login response
+  const { password: _pw, resetPasswordCode: _rc, resetPasswordExpires: _re, ...safeGoogleUser } = user;
+  return { user: safeGoogleUser, token };
 };
