@@ -5,6 +5,11 @@ import 'dotenv/config';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
+//! Created by Antigravity: Fail fast if JWT_SECRET is not configured (prevents signing with 'undefined')
+if (!JWT_SECRET) {
+    throw new Error("FATAL: JWT_SECRET environment variable is not set. Server cannot start.");
+}
+
 const TOKEN_EXPIRY: SignOptions['expiresIn'] = '7d';
 
 interface GenerateTokenInput {

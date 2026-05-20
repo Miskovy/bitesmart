@@ -9,14 +9,18 @@ async function createDatabase() {
   const dbName = dbNameMatch ? dbNameMatch[1] : 'bitesmart';
   const baseUrl = url.replace(`/${dbName}`, '');
 
-  console.log(`Connecting to ${baseUrl} to create database ${dbName}...`);
+  //! Created by Antigravity: Print masked URL to protect security credentials
+  const maskedUrl = baseUrl.replace(/\/\/([^:]+):([^@]+)@/, '//xxxx:xxxx@');
+  console.log(`Connecting to ${maskedUrl} to create database ${dbName}...`);
   try {
     const connection = await mysql.createConnection(baseUrl);
     await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`);
     console.log(`Database '${dbName}' created or already exists.`);
     await connection.end();
   } catch (error) {
-    console.error('Error creating database:', error);
+    //! Created by Antigravity: Print masked error to prevent credentials leak
+    const errorString = String(error).replace(/\/\/([^:]+):([^@]+)@/g, '//xxxx:xxxx@');
+    console.error('Error creating database:', errorString);
     process.exit(1);
   }
 }
