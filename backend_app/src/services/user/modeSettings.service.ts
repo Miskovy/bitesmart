@@ -51,19 +51,57 @@ export const saveGlp1Settings = async (
     };
 };
 
-//! Created by Antigravity: Service to save full Ramadan Mode settings bundle
-export const saveRamadanSettings = async (
+//! Created by Antigravity: Service to get GLP-1 settings
+export const getGlp1Settings = async (userId: string) => {
+    const prefs = await db.query.userDietaryPreferences.findFirst({
+        where: eq(userDietaryPreferences.userId, userId)
+    });
+    return prefs ? {
+        isGlp1User: prefs.isGlp1User ?? false,
+        highProteinGoal: prefs.highProteinGoal ?? false,
+        hydrationReminderHours: prefs.hydrationReminderHours ?? 2
+    } : {
+        isGlp1User: false,
+        highProteinGoal: false,
+        hydrationReminderHours: 2
+    };
+};
+
+//! Created by Antigravity: Service to get Fasting settings (formerly Ramadan Mode)
+export const getFastingSettings = async (userId: string) => {
+    const prefs = await db.query.userDietaryPreferences.findFirst({
+        where: eq(userDietaryPreferences.userId, userId)
+    });
+    return prefs ? {
+        isFastingMode: prefs.isRamadanMode ?? false,
+        suhoorTime: prefs.suhoorTime ?? "04:30 AM",
+        iftarTime: prefs.iftarTime ?? "07:45 PM",
+        hydrationFocus: prefs.hydrationFocus ?? false
+    } : {
+        isFastingMode: false,
+        suhoorTime: "04:30 AM",
+        iftarTime: "07:45 PM",
+        hydrationFocus: false
+    };
+};
+
+//! Created by Antigravity: Service to save full Fasting Mode settings bundle
+export const saveFastingSettings = async (
     userId: string,
     settings: {
         suhoorTime?: string;
         iftarTime?: string;
         hydrationFocus?: boolean;
+        isFastingMode?: boolean;
     }
 ) => {
-    const updates: Partial<typeof userDietaryPreferences.$inferInsert> = {
-        isRamadanMode: true,
-    };
+    const updates: Partial<typeof userDietaryPreferences.$inferInsert> = {};
 
+    if (settings.isFastingMode !== undefined) {
+        updates.isRamadanMode = settings.isFastingMode;
+    } else {
+        updates.isRamadanMode = true;
+    }
     if (settings.suhoorTime !== undefined) {
         updates.suhoorTime = settings.suhoorTime;
     }
@@ -89,13 +127,25 @@ export const saveRamadanSettings = async (
         });
     }
 
-    // Return the updated preferences
-    const updated = await db.query.userDietaryPreferences.findFirst({
-        where: eq(userDietaryPreferences.userId, userId)
-    });
+    const updated = await getFastingSettings(userId);
 
     return {
-        message: "Ramadan Mode settings saved successfully",
+        message: "Fasting Mode settings saved successfully",
         settings: updated,
     };
+};
+
+//! Created by Antigravity: Service to save full Ramadan Mode settings bundle (backward compatibility)
+export const saveRamadanSettings = async (
+    userId: string,
+    settings: {
+        suhoorTime?: string;
+        iftarTime?: string;
+        hydrationFocus?: boolean;
+    }
+) => {
+    return saveFastingSettings(userId, {
+        ...settings,
+        isFastingMode: true
+    });
 };

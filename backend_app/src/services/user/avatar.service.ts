@@ -23,8 +23,9 @@ export const uploadAvatar = async (userId: string, file: Express.Multer.File) =>
         fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
-    // Generate a unique filename
-    const ext = path.extname(file.originalname);
+    //! Created by Antigravity: Derive extension from mimetype, not from user-controlled originalname (path traversal prevention)
+    const extMap: Record<string, string> = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp" };
+    const ext = extMap[file.mimetype] || ".jpg";
     const filename = `${userId}-${Date.now()}${ext}`;
     const filePath = path.join(uploadsDir, filename);
 

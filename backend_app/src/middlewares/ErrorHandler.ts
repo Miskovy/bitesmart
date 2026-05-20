@@ -42,13 +42,15 @@ export const errorHandler: ErrorRequestHandler = (
         error: {
             code: statusCode,
             message: message,
-            details: details,
+            //! Created by Antigravity: Don't leak internal error details to client on 500 errors
+            details: statusCode >= 500 ? undefined : details,
         },
     };
 
     if (statusCode >= 500) {
         console.error(`[${new Date().toISOString()}] ${err.stack || err}`);
-        console.log(response);
+        //! Created by Antigravity: Send generic message to client for internal server errors
+        response.error.message = "Internal Server Error";
     }
     res.status(statusCode).json(response);
 };

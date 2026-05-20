@@ -5,6 +5,9 @@ export interface TokenPayload {
     name: string;
 }
 
+//! Created by Antigravity: Define AppUser to match TokenPayload for proper Express Request typing
+type AppUser = TokenPayload;
+
 declare global {
     namespace Express {
         interface Request {

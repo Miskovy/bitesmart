@@ -18,9 +18,11 @@ const app = express();
 app.use(helmet());
 
 // CORS Configuration
+//! Created by Antigravity: Restrict CORS origin in production instead of wildcard
+const allowedOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()) : ["*"];
 app.use(cors({
-    origin: "*",
-    credentials: true
+    origin: allowedOrigins.includes("*") ? "*" : allowedOrigins,
+    credentials: !allowedOrigins.includes("*"), //! credentials only work with specific origins
 }));
 
 // Logging

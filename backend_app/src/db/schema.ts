@@ -22,3 +22,5 @@ export * from "../models/user_subscriptions";
 export * from "../models/user_target";
 export * from "../models/water_logs";
 export * from "../models/health_sync";
+//! Created by Antigravity: Export completed days model
+export * from "../models/completed_days";
