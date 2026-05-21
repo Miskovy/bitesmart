@@ -44,6 +44,7 @@ class _LoginscreenState extends State<Loginscreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
@@ -70,7 +71,9 @@ class _LoginscreenState extends State<Loginscreen> {
           },
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 20.0),
+              padding: EdgeInsets.symmetric(horizontal: 30.0, vertical: 20.0).copyWith(
+                bottom: 20.0 + MediaQuery.of(context).viewInsets.bottom,
+              ),
               child: Form(
                 key: _formKey,
                 child: Column(
