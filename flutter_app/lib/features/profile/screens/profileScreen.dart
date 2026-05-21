@@ -13,7 +13,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -138,37 +137,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 child: Column(
                   children: [
-                    // Subscription
-                    _settingsTile(
-                      icon: Icons.workspace_premium_rounded,
-                      iconColor: const Color(0xFFE87040),
-                      iconBg: const Color(0xFFFFF0E8),
-                      title: 'Subscription',
-                      subtitle: 'Premium Active',
-                      subtitleColor: const Color(0xFF2d7a4f),
-                      trailing: const Icon(
-                        Icons.chevron_right_rounded,
-                        color: Color(0xFFCCCCCC),
-                      ),
-                      onTap: () {},
-                    ),
-                    _divider(),
-
-                    // Health Data Sync
-                    _settingsTile(
-                      icon: Icons.favorite_rounded,
-                      iconColor: const Color(0xFFE84040),
-                      iconBg: const Color(0xFFFFE8E8),
-                      title: 'Health Data Sync',
-                      subtitle: 'Connected to Apple Health',
-                      subtitleColor: const Color(0xFF888888),
-                      trailing: const Icon(
-                        Icons.chevron_right_rounded,
-                        color: Color(0xFFCCCCCC),
-                      ),
-                      onTap: () {},
-                    ),
-                    _divider(),
                     _settingsTile(
                       icon: Icons.insights,
                       iconColor: const Color(0xFF2d7a4f),
@@ -180,9 +148,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Icons.chevron_right_rounded,
                         color: Color(0xFFCCCCCC),
                       ),
-                      onTap: ()=>Navigator.push(context, MaterialPageRoute(builder: (context) => const InsightsScreen())),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const InsightsScreen(),
+                        ),
+                      ),
                     ),
-                     _divider(),
+                    _divider(),
                     _settingsTile(
                       icon: Icons.calendar_month_outlined,
                       iconColor: const Color.fromARGB(255, 230, 232, 230),
@@ -194,7 +167,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Icons.chevron_right_rounded,
                         color: Color(0xFFCCCCCC),
                       ),
-                      onTap: ()=>Navigator.push(context, MaterialPageRoute(builder: (context) => const MyPlanScreen())),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MyPlanScreen(),
+                        ),
+                      ),
                     ),
                     _divider(),
 
@@ -217,45 +195,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                     ),
-                    
+
                     _divider(),
-              _settingsTile(
-                icon: Icons.language_rounded,
-                iconColor: const Color(0xFF534AB7),
-                iconBg: const Color(0xFFEEEEFE),
-                title: 'Language',
-                subtitle: null,
-                subtitleColor: null,
-                trailing: DropdownButton<String>(
-                  value: context.locale.languageCode,
-                  underline: const SizedBox(),
-                  icon: const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 18,
-                    color: Color(0xFFCCCCCC),
-                  ),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF888888),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'en', child: Text('English 🇺🇸')),
-                    DropdownMenuItem(value: 'ar', child: Text('العربية 🇪🇬')),
+                    _settingsTile(
+                      icon: Icons.language_rounded,
+                      iconColor: const Color(0xFF534AB7),
+                      iconBg: const Color(0xFFEEEEFE),
+                      title: 'Language',
+                      subtitle: null,
+                      subtitleColor: null,
+                      trailing: DropdownButton<String>(
+                        value: context.locale.languageCode,
+                        underline: const SizedBox(),
+                        icon: const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 18,
+                          color: Color(0xFFCCCCCC),
+                        ),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF888888),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'en',
+                            child: Text('English 🇺🇸'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'ar',
+                            child: Text('العربية 🇪🇬'),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val == 'ar') {
+                            context.setLocale(const Locale('ar', 'EG'));
+                          } else {
+                            context.setLocale(const Locale('en', 'US'));
+                          }
+                        },
+                      ),
+                      onTap: () {},
+                    ),
                   ],
-                  onChanged: (val) {
-                    if (val == 'ar') {
-                      context.setLocale(const Locale('ar', 'EG'));
-                    } else {
-                      context.setLocale(const Locale('en', 'US'));
-                    }
-                  },
-                ),
-                onTap: () {},
-              ),
-                  ],
                 ),
               ),
-              
 
               const SizedBox(height: 30),
             ],

@@ -1,7 +1,12 @@
+import 'package:bite_smart/features/auth/data/bloc/auth_bloc.dart';
+import 'package:bite_smart/features/auth/data/bloc/auth_event.dart';
+import 'package:bite_smart/features/auth/data/bloc/auth_state.dart';
 import 'package:bite_smart/features/auth/screens/forgetPass.dart';
 import 'package:bite_smart/features/auth/screens/signup.dart';
+import 'package:bite_smart/features/home/screens/navBar.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class Loginscreen extends StatefulWidget {
   const Loginscreen({super.key});
@@ -17,14 +22,22 @@ class _LoginscreenState extends State<Loginscreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  // وظيفة التحقق عند الضغط على الزر
   void _submitData() {
     if (_formKey.currentState!.validate()) {
-      // إذا كانت البيانات صحيحة
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('login.processing'.tr()), backgroundColor: Colors.green),
-      );
+      context.read<AuthBloc>().add(
+            LoginEvent(
+              email: _emailController.text.trim(),
+              password: _passwordController.text.trim(),
+            ),
+          );
     }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -32,173 +45,246 @@ class _LoginscreenState extends State<Loginscreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(30.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // اللوجو (الأيقونة الخضراء)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE2F0D9), // لون خلفية الورقة
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.eco, // أيقونة الورقة
-                    color: Color(0xFF4CAF50),
-                    size: 40,
-                  ),
+        child: BlocListener<AuthBloc, AuthState>(
+          listener: (context, state) {
+            if (state is AuthLoginSuccess || state is AuthAuthenticated) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('login.success'.tr().isEmpty ? 'Login successful' : 'login.success'.tr()),
+                  backgroundColor: Colors.green,
                 ),
-                Text(
-                  'login.welcome_back'.tr(),
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+              );
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const MainHome()),
+                (route) => false,
+              );
+            } else if (state is AuthError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.red,
                 ),
-                Text(
-                  'login.subtitle'.tr(),
-                  style: const TextStyle(fontSize: 14, color: Colors.blueGrey),
-                ),
-                TextField(
-                  controller: _emailController,
-                  decoration: _inputDecoration(
-                    label: 'login.email_or_phone'.tr(),
-                    hint: 'login.email_hint'.tr(),
-                    icon: Icons.email_outlined,
-                  ),
-                ),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: _isObscured, // يستخدم المتغير للتحكم في الظهور
-                  decoration: _inputDecoration(
-                    label: 'login.password'.tr(),
-                    hint: 'login.password_hint'.tr(),
-                    icon: Icons.lock_outline,
-                    suffix: IconButton(
-                      icon: Icon(
-                        // تغيير شكل الأيقونة بناءً على الحالة
-                        _isObscured
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: Colors.black26,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _isObscured = !_isObscured;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-
-                // نسيت كلمة المرور
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ForgotPasswordScreen(),
-                      ),
-                    ),
-                    child: Text(
-                      'login.forgot_password'.tr(),
-                      style: const TextStyle(color: Colors.blueGrey, fontSize: 13),
-                    ),
-                  ),
-                ),
-
-                // زر تسجيل الدخول
-                SizedBox(
-                  width: .4 * MediaQuery.of(context).size.width,
-                  height: 46,
-                  child: ElevatedButton(
-                    onPressed: _submitData,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF43A047),
-                      shape: RoundedRectangleBorder(
+              );
+            }
+          },
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 20.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Logo (Green eco icon)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2F0D9),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      'login.log_in'.tr(),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                      child: const Icon(
+                        Icons.eco,
+                        color: Color(0xFF4CAF50),
+                        size: 40,
                       ),
                     ),
-                  ),
-                ),
-
-                // خط الفاصل
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: Colors.grey.shade300)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        'login.or_continue'.tr(),
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
-                    ),
-                    Expanded(child: Divider(color: Colors.grey.shade300)),
-                  ],
-                ),
-
-                // أزرار Google و Apple
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildSocialButton(
-                        label: 'login.google'.tr(),
-                        icon: Icons.g_mobiledata,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildSocialButton(
-                        label: 'login.apple'.tr(),
-                        icon: Icons.apple,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-                // إنشاء حساب
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+                    const SizedBox(height: 24),
                     Text(
-                      'login.no_account'.tr(),
-                      style: const TextStyle(color: Colors.blueGrey),
+                      'login.welcome_back'.tr(),
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
                     ),
-                    TextButton(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => SignupScreen(),
+                    const SizedBox(height: 8),
+                    Text(
+                      'login.subtitle'.tr(),
+                      style: const TextStyle(fontSize: 14, color: Colors.blueGrey),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Email field
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Email is required';
+                        }
+                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
+                          return 'Enter a valid email address';
+                        }
+                        return null;
+                      },
+                      decoration: _inputDecoration(
+                        label: 'login.email_or_phone'.tr(),
+                        hint: 'login.email_hint'.tr(),
+                        icon: Icons.email_outlined,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Password field
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _isObscured,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _submitData(),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Password is required';
+                        }
+                        if (value.length < 6) {
+                          return 'Password must be at least 6 characters';
+                        }
+                        return null;
+                      },
+                      decoration: _inputDecoration(
+                        label: 'login.password'.tr(),
+                        hint: 'login.password_hint'.tr(),
+                        icon: Icons.lock_outline,
+                        suffix: IconButton(
+                          icon: Icon(
+                            _isObscured
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: Colors.black26,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isObscured = !_isObscured;
+                            });
+                          },
                         ),
                       ),
-                      child: Text(
-                        'login.sign_up'.tr(),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                    ),
+
+                    // Forgot Password
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ForgotPasswordScreen(),
+                          ),
+                        ),
+                        child: Text(
+                          'login.forgot_password'.tr(),
+                          style: const TextStyle(color: Colors.blueGrey, fontSize: 13),
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Login Button with Loading Indicator
+                    BlocBuilder<AuthBloc, AuthState>(
+                      builder: (context, state) {
+                        if (state is AuthLoading) {
+                          return const SizedBox(
+                            height: 46,
+                            width: 46,
+                            child: CircularProgressIndicator(
+                              color: Color(0xFF4CAF50),
+                            ),
+                          );
+                        }
+                        return SizedBox(
+                          width: .5 * MediaQuery.of(context).size.width,
+                          height: 46,
+                          child: ElevatedButton(
+                            onPressed: _submitData,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF43A047),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: Text(
+                              'login.log_in'.tr(),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Divider
+                    Row(
+                      children: [
+                        Expanded(child: Divider(color: Colors.grey.shade300)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Text(
+                            'login.or_continue'.tr(),
+                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ),
+                        Expanded(child: Divider(color: Colors.grey.shade300)),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Google & Apple Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildSocialButton(
+                            label: 'login.google'.tr(),
+                            icon: Icons.g_mobiledata,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildSocialButton(
+                            label: 'login.apple'.tr(),
+                            icon: Icons.apple,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Create Account
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'login.no_account'.tr(),
+                          style: const TextStyle(color: Colors.blueGrey),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => SignupScreen(),
+                            ),
+                          ),
+                          child: Text(
+                            'login.sign_up'.tr(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-              ],
+              ),
             ),
           ),
         ),
@@ -239,7 +325,15 @@ class _LoginscreenState extends State<Loginscreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.green, width: 2),
+        borderSide: const BorderSide(color: Color(0xFF43A047), width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red, width: 1),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red, width: 2),
       ),
     );
   }
