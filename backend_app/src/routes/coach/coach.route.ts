@@ -1,5 +1,11 @@
 import { Router } from "express";
-import { getAllUserChats, getUserChatMessages, deleteUserChat, sendUserMessage, sendUserMessageStream } from "../../controllers/user/coach.controller";
+import {
+    getAllUserChats,
+    getUserChatMessages,
+    deleteUserChat,
+    sendUserMessage,
+    sendUserMessageStream
+} from "../../controllers/user/coach.controller";
 import catchAsync from "../../utils/catchAsync";
 
 const router = Router();

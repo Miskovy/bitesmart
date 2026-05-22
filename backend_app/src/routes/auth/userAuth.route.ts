@@ -1,6 +1,13 @@
 import { Router } from "express";
 import catchAsync from "../../utils/catchAsync";
-import { userLogin, signup, googleAuth, forgotPasswordController, verifyResetCodeController, resetPasswordController } from "../../controllers/auth/userAuth.controller";
+import {
+    userLogin,
+    signup,
+    googleAuth,
+    forgotPasswordController,
+    verifyResetCodeController,
+    resetPasswordController
+} from "../../controllers/auth/userAuth.controller";
 
 const router = Router();
 
@@ -11,4 +18,4 @@ router.post("/forgot-password", catchAsync(forgotPasswordController));
 router.post("/verify-reset-code", catchAsync(verifyResetCodeController));
 router.post("/reset-password", catchAsync(resetPasswordController));
 
-export default router;
+export default router;
