@@ -1,11 +1,10 @@
 import { Router } from "express";
 import catchAsync from "../../utils/catchAsync";
-//! Created by Antigravity: Import multer for avatar upload
 import multer from "multer";
-import { 
-    getProfileData, 
-    updateProfileData, 
-    enableMode, 
+import {
+    getProfileData,
+    updateProfileData,
+    enableMode,
     calculateAndSaveTargets,
     updateDeviceSettingsController,
     syncHealthDataController,
@@ -13,7 +12,6 @@ import {
 } from "../../controllers/user/profile.controller";
 
 const router = Router();
-//! Created by Antigravity: Multer instance for avatar upload (in-memory buffer)
 const upload = multer();
 
 
