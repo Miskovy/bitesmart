@@ -12,29 +12,29 @@ import { getForgotEmailTemplate } from "../../utils/emailTemplate";
 const client = new OAuth2Client();
 
 export const login = async (email: string, password: string) => {
-    const user = await db.query.users.findFirst({
-        where: eq(users.email, email),
-    });
+  const user = await db.query.users.findFirst({
+    where: eq(users.email, email),
+  });
 
-    if (!user) {
-        throw new BadRequest("Invalid Credentials");
-    }
+  if (!user) {
+    throw new BadRequest("Invalid Credentials");
+  }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+  const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    if (!isPasswordValid) {
-        throw new BadRequest("Invalid Credentials");
-    }
+  if (!isPasswordValid) {
+    throw new BadRequest("Invalid Credentials");
+  }
 
-    const token = generateToken({
-        id   : user.id,
-        name : user.name,
-        email: user.email,
-    });
+  const token = generateToken({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+  });
 
-    //! Created by Antigravity: Strip password hash from login response to prevent credential leak
-    const { password: _pw, ...safeUser } = user;
-    return { user: safeUser, token };
+  //! Created by Antigravity: Strip password hash from login response to prevent credential leak
+  const { password: _pw, ...safeUser } = user;
+  return { user: safeUser, token };
 };
 
 export const register = async (email: string, password: string, name: string) => {
@@ -65,13 +65,13 @@ export const register = async (email: string, password: string, name: string) =>
     email,
   });
 
-  return { 
+  return {
     user: {
-        id: userId,
-        name,
-        email
-    }, 
-    token 
+      id: userId,
+      name,
+      email
+    },
+    token
   };
 };
 
@@ -81,17 +81,12 @@ export const forgetPassword = async (email: string) => {
     where: eq(users.email, email),
   });
 
-  //! Created by Antigravity: Use generic response to prevent user enumeration attacks
   if (!user) {
     return { message: "If an account exists with this email, a password reset code has been sent" };
   }
-
-  //! Created by Antigravity: Use crypto.getRandomValues for secure random code generation
   const randomBytes = new Uint32Array(1);
   crypto.getRandomValues(randomBytes);
   const code = (100000 + (randomBytes[0] % 900000)).toString();
-
-  // Store the OTP code with a 15-minute TTL (900 seconds) in the hybrid otpStore
   await otpStore.set(code, user.email, 900);
 
   const textBody = `Your password reset code is: ${code}. It will expire in 15 minutes.`;
@@ -184,7 +179,7 @@ export const loginWithGoogle = async (idToken: string) => {
     await db.update(users)
       .set({ googleId, avatar: user.avatar || avatar })
       .where(eq(users.email, email));
-    
+
     // Refresh user object
     user = await db.query.users.findFirst({
       where: eq(users.email, email),
@@ -192,7 +187,7 @@ export const loginWithGoogle = async (idToken: string) => {
   }
 
   if (!user) {
-     throw new BadRequest("Failed to sign in with Google");
+    throw new BadRequest("Failed to sign in with Google");
   }
 
   const token = generateToken({
@@ -201,7 +196,6 @@ export const loginWithGoogle = async (idToken: string) => {
     email: user.email,
   });
 
-  //! Created by Antigravity: Strip password hash from Google login response
   const { password: _pw, ...safeGoogleUser } = user;
   return { user: safeGoogleUser, token };
 };

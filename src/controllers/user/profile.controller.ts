@@ -6,7 +6,7 @@ import { SuccessResponse } from "../../utils/Response";
 
 export const getProfileData = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id; 
+    const userId = req.user?.id;
     if (!userId) {
       throw new BadRequest("User ID is missing or user is not authenticated");
     }
@@ -15,7 +15,7 @@ export const getProfileData = async (req: Request, res: Response) => {
     SuccessResponse(res, profileData, 200);
 
   } catch (error) {
-    throw new BadRequest("Failed to retrieve profile data");
+    throw new BadRequest(`Failed to retrieve profile data: ${error}`);
   }
 };
 
@@ -37,7 +37,7 @@ export const updateProfileData = async (req: Request, res: Response) => {
     SuccessResponse(res, updatedProfile, 200);
 
   } catch (error) {
-    throw new BadRequest("Failed to update profile data");
+    throw new BadRequest(`Failed to update profile data: ${error}`);
   }
 };
 
@@ -119,7 +119,7 @@ export const syncHealthDataController = async (req: Request, res: Response) => {
     const { activeCaloriesBurned, steps, dateStr } = req.body;
 
     if (activeCaloriesBurned === undefined || steps === undefined || !dateStr) {
-        throw new BadRequest("activeCaloriesBurned, steps, and dateStr are required.");
+      throw new BadRequest("activeCaloriesBurned, steps, and dateStr are required.");
     }
 
     const { syncHealthData } = await import("../../services/user/health.service");
