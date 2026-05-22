@@ -4,7 +4,7 @@ import { users } from "../../models/user";
 import { userMedicalConditions } from "../../models/user_medical_conditions";
 import { userDietaryPreferences } from "../../models/user_dietary_preferences";
 import { userTarget } from "../../models/user_target";
-import { NotFound } from "../../errors";
+import { NotFound, BadRequest } from "../../errors";
 import { userModes } from "../../types/interfaces";
 import { UpdateProfileData } from "../../types/interfaces";
 
@@ -42,6 +42,17 @@ export const getMyProfile = async (userId: string) => {
 
 export const updatemyProfile = async (userId: string, data: UpdateProfileData) => {
     const { medicalConditions, dietaryPreferences, targets, ...userCoreData } = data;
+
+    // Email Uniqueness Check
+    if (userCoreData.email) {
+        const existingUser = await db.query.users.findFirst({
+            where: eq(users.email, userCoreData.email),
+        });
+
+        if (existingUser && existingUser.id !== userId) {
+            throw new BadRequest("Email isn't available");
+        }
+    }
 
     const updatePromises = [];
 
@@ -160,7 +171,7 @@ export const enableMode = async (userId: string, mode: userModes) => {
 
 //! Created by Antigravity: Service to update device settings (Notifications, Health Data, Camera Access, Device Token)
 export const updateDeviceSettings = async (
-    userId: string, 
+    userId: string,
     settings: { notificationsEnabled?: boolean; healthDataEnabled?: boolean; cameraAccessEnabled?: boolean; deviceToken?: string }
 ) => {
     const updates: Partial<typeof users.$inferInsert> = {};
