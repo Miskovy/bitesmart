@@ -23,8 +23,6 @@ export const users = mysqlTable('users', {
   activityLevel: mysqlEnum('activityLevel', activityLevelEnum),  
   xp: int('xp').notNull().default(0),  
   userGoal: mysqlEnum('userGoal', goalsEnum),  
-  resetPasswordCode: varchar('resetPasswordCode', { length: 255 }),
-  resetPasswordExpires: timestamp('resetPasswordExpires'),
   notificationsEnabled: boolean('notificationsEnabled').default(false),
   healthDataEnabled: boolean('healthDataEnabled').default(false),
   cameraAccessEnabled: boolean('cameraAccessEnabled').default(false),

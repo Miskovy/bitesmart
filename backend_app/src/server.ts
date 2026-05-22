@@ -37,6 +37,10 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 //! Created by Antigravity: Serve uploaded files (avatars, etc.) as static assets
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
+// Serve static assets from public folder (branding logos, email designs, etc.)
+app.use("/public", express.static(path.join(process.cwd(), "public")));
+
+
 // Health Check
 app.get("/", (req, res) => {
     SuccessResponse(res, { message: "Bitesmart API is running" }, StatusCodes.OK);

@@ -7,6 +7,8 @@ import { generateToken } from "../../utils/Auth";
 import { OAuth2Client } from "google-auth-library";
 import { googleClientIds } from "../../constants/api.constants";
 import { sendEmail } from "../../utils/email";
+import { otpStore } from "./otpStore";
+import { getForgotEmailTemplate } from "../../utils/emailTemplate";
 const client = new OAuth2Client();
 
 export const login = async (email: string, password: string) => {
@@ -31,7 +33,7 @@ export const login = async (email: string, password: string) => {
     });
 
     //! Created by Antigravity: Strip password hash from login response to prevent credential leak
-    const { password: _pw, resetPasswordCode: _rc, resetPasswordExpires: _re, ...safeUser } = user;
+    const { password: _pw, ...safeUser } = user;
     return { user: safeUser, token };
 };
 
@@ -88,49 +90,46 @@ export const forgetPassword = async (email: string) => {
   const randomBytes = new Uint32Array(1);
   crypto.getRandomValues(randomBytes);
   const code = (100000 + (randomBytes[0] % 900000)).toString();
-  const expires = new Date();
-  expires.setMinutes(expires.getMinutes() + 15); // 15 minutes expiration
 
-  await db.update(users)
-    .set({ resetPasswordCode: code, resetPasswordExpires: expires })
-    .where(eq(users.id, user.id));
+  // Store the OTP code with a 15-minute TTL (900 seconds) in the hybrid otpStore
+  await otpStore.set(code, user.email, 900);
 
-    await sendEmail(
+  const textBody = `Your password reset code is: ${code}. It will expire in 15 minutes.`;
+  const htmlBody = getForgotEmailTemplate(code);
+
+  await sendEmail(
     user.email,
     "Password Reset Code",
-    `Your password reset code is: ${code}. It will expire in 15 minutes.`
+    textBody,
+    htmlBody
   );
 
   return { message: "If an account exists with this email, a password reset code has been sent" };
 };
 
 export const verifyResetPasswordCode = async (code: string) => {
-  const user = await db.query.users.findFirst({
-    where: eq(users.resetPasswordCode, code),
-  });
+  const email = await otpStore.get(code);
 
-  if (!user) {
-    throw new BadRequest("Invalid code");
-  }
-
-  if (user.resetPasswordExpires && new Date() > user.resetPasswordExpires) {
-    throw new BadRequest("Code has expired");
+  if (!email) {
+    throw new BadRequest("Invalid or expired code");
   }
 
   return { valid: true };
 };
 
 export const resetPassword = async (token: string, newPassword: string) => {
+  const email = await otpStore.get(token);
+
+  if (!email) {
+    throw new BadRequest("Invalid or expired reset token");
+  }
+
   const user = await db.query.users.findFirst({
-    where: eq(users.resetPasswordCode, token),
+    where: eq(users.email, email),
   });
 
   if (!user) {
-    throw new BadRequest("Invalid token");
-  }
-
-  if (user.resetPasswordExpires && new Date() > user.resetPasswordExpires) {
-    throw new BadRequest("Token has expired");
+    throw new BadRequest("User not found");
   }
 
   const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -138,10 +137,11 @@ export const resetPassword = async (token: string, newPassword: string) => {
   await db.update(users)
     .set({
       password: hashedPassword,
-      resetPasswordCode: null,
-      resetPasswordExpires: null,
     })
     .where(eq(users.id, user.id));
+
+  // Delete the OTP code from the store once used
+  await otpStore.delete(token);
 
   return { message: "Password reset successfully" };
 };
@@ -202,6 +202,6 @@ export const loginWithGoogle = async (idToken: string) => {
   });
 
   //! Created by Antigravity: Strip password hash from Google login response
-  const { password: _pw, resetPasswordCode: _rc, resetPasswordExpires: _re, ...safeGoogleUser } = user;
+  const { password: _pw, ...safeGoogleUser } = user;
   return { user: safeGoogleUser, token };
 };
