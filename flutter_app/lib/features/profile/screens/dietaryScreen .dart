@@ -1,5 +1,10 @@
 import 'package:bite_smart/features/profile/screens/macroTarget.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_setup_bloc.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_setup_event.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_setup_state.dart';
+import 'package:bite_smart/features/profile/data/models/profile_setup_model.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class DietaryPreferencesScreen extends StatefulWidget {
@@ -10,9 +15,28 @@ class DietaryPreferencesScreen extends StatefulWidget {
 }
 
 class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
-  // تخزين الحالات المختارة (Vegetarian و Gluten-Free مختارين افتراضياً كما في الصورة)
+  // تخزين الحالات المختارة
   final Set<String> _selectedDiets = {'vegetarian', 'gluten_free'};
   bool _glp1Enabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final currentPrefs = context.read<ProfileSetupBloc>().state.data.dietaryPreferences;
+    _selectedDiets.clear();
+    if (currentPrefs.isVegetarian) _selectedDiets.add('vegetarian');
+    if (currentPrefs.isVegan) _selectedDiets.add('vegan');
+    if (currentPrefs.isKeto) _selectedDiets.add('keto');
+    if (currentPrefs.isPaleo) _selectedDiets.add('paleo');
+    if (currentPrefs.isGlutenFree) _selectedDiets.add('gluten_free');
+    if (currentPrefs.isHalal) _selectedDiets.add('halal');
+    if (currentPrefs.isPescatarian) _selectedDiets.add('pescatarian');
+
+    if (_selectedDiets.isEmpty && context.read<ProfileSetupBloc>().state.status == ProfileSetupStatus.initial) {
+      _selectedDiets.addAll({'vegetarian', 'gluten_free'});
+    }
+    _glp1Enabled = currentPrefs.isGlp1User;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,8 +110,30 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
               width: .4 * MediaQuery.of(context).size.width,
               height: 46,
               child: ElevatedButton(
-                onPressed: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => const MacrosTargetScreen())),
+                onPressed: () {
+                  final dietaryPreferences = DietaryPreferencesData(
+                    isVegetarian: _selectedDiets.contains('vegetarian'),
+                    isVegan: _selectedDiets.contains('vegan'),
+                    isKeto: _selectedDiets.contains('keto'),
+                    isPaleo: _selectedDiets.contains('paleo'),
+                    isGlutenFree: _selectedDiets.contains('gluten_free'),
+                    isHalal: _selectedDiets.contains('halal'),
+                    isPescatarian: _selectedDiets.contains('pescatarian'),
+                    isGlp1User: _glp1Enabled,
+                    isRamadanMode: false, // Default is false since there's no UI switch for it
+                  );
+
+                  context.read<ProfileSetupBloc>().add(
+                    SetDietaryPreferencesEvent(dietaryPreferences),
+                  );
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MacrosTargetScreen(),
+                    ),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF388E3C),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),

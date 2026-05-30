@@ -9,6 +9,9 @@ import 'package:bite_smart/features/auth/data/bloc/auth_bloc.dart';
 import 'package:bite_smart/features/auth/data/bloc/auth_event.dart';
 import 'package:bite_smart/features/auth/data/bloc/auth_state.dart';
 import 'package:bite_smart/features/auth/screens/language.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_bloc.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_event.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_state.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -18,6 +21,18 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    final profileState = context.read<ProfileBloc>().state;
+    if (profileState is! ProfileLoaded) {
+      final authState = context.read<AuthBloc>().state;
+      if (authState is AuthAuthenticated) {
+        context.read<ProfileBloc>().add(LoadProfileEvent(userId: authState.userId));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
@@ -57,32 +72,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         border: Border.all(color: Colors.white, width: 3),
                       ),
                       child: ClipOval(
-                        child: Image.network(
-                          'https://i.pravatar.cc/150?img=47',
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.person,
-                            size: 50,
-                            color: Color(0xFFB09080),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 2,
-                      right: 2,
-                      child: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2d7a4f),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const Icon(
-                          Icons.edit,
-                          size: 13,
-                          color: Colors.white,
+                        child: BlocBuilder<ProfileBloc, ProfileState>(
+                          builder: (context, state) {
+                            String imageUrl = 'https://i.pravatar.cc/150?img=47';
+                            if (state is ProfileLoaded && state.profileImageUrl != null && state.profileImageUrl!.isNotEmpty) {
+                              imageUrl = state.profileImageUrl!;
+                            }
+                            return Image.network(
+                              imageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.person,
+                                size: 50,
+                                color: Color(0xFFB09080),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -92,13 +97,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 12),
 
                 // ── Name & goal ─────────────────────────────────────────────
-                BlocBuilder<AuthBloc, AuthState>(
+                BlocBuilder<ProfileBloc, ProfileState>(
                   builder: (context, state) {
-                    String name = 'Sarah Jenkins';
+                    String name = 'user name';
                     String subText = 'Goal: Maintenance Phase';
-                    if (state is AuthAuthenticated) {
-                      name = state.displayName ?? state.email.split('@').first;
-                      subText = state.email;
+                    if (state is ProfileLoaded) {
+                      name = state.displayName ?? 'user name';
+                      if (state.userGoal != null && state.userGoal!.isNotEmpty) {
+                        subText = 'Goal: ${state.userGoal}';
+                      } else {
+                        subText = state.email ?? '';
+                      }
+                    } else {
+                      final authState = context.read<AuthBloc>().state;
+                      if (authState is AuthAuthenticated) {
+                        name = authState.displayName ?? authState.email.split('@').first;
+                        subText = authState.email;
+                      }
                     }
                     return Column(
                       children: [

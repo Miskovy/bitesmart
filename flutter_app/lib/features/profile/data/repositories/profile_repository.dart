@@ -2,6 +2,7 @@ import 'package:bite_smart/core/network/api_service.dart';
 import 'package:bite_smart/features/profile/data/models/dietary_preference_model.dart';
 import 'package:bite_smart/features/profile/data/models/macro_targets_model.dart';
 import 'package:bite_smart/features/profile/data/models/user_profile_model.dart';
+import 'package:bite_smart/features/profile/data/models/profile_setup_model.dart';
 
 abstract class IProfileRepository {
   Future<UserProfileModel> getUserProfile({required String userId});
@@ -19,9 +20,19 @@ abstract class IProfileRepository {
     required String userId,
     required MacroTargetsModel targets,
   });
+  Future<void> submitProfileSetup(ProfileSetupModel data);
+  Future<String> uploadAvatar({required String userId, required String filePath});
 }
 
 class ProfileRepository implements IProfileRepository {
+  @override
+  Future<void> submitProfileSetup(ProfileSetupModel data) async {
+    final responseData = await ApiService.instance.put('/profile', data.toJson());
+    if (responseData['success'] != true) {
+      throw Exception(responseData['message'] ?? 'Failed to submit profile setup');
+    }
+  }
+
   @override
   Future<UserProfileModel> getUserProfile({required String userId}) async {
     try {
@@ -55,6 +66,9 @@ class ProfileRepository implements IProfileRepository {
       if (profile.height != null) data['height'] = profile.height;
       if (profile.weight != null) data['weight'] = profile.weight;
       if (profile.profileImageUrl != null) data['avatar'] = profile.profileImageUrl;
+      if (profile.phone != null) data['phone'] = profile.phone;
+      if (profile.userGoal != null) data['userGoal'] = profile.userGoal;
+      if (profile.activityLevel != null) data['activityLevel'] = profile.activityLevel;
 
       final responseData = await ApiService.instance.put('/profile', data);
       if (responseData['success'] == true) {
@@ -151,6 +165,25 @@ class ProfileRepository implements IProfileRepository {
       }
     } catch (e) {
       return targets;
+    }
+  }
+
+  @override
+  Future<String> uploadAvatar({required String userId, required String filePath}) async {
+    final responseData = await ApiService.instance.postMultipart(
+      '/profile/avatar',
+      fileKey: 'avatar',
+      filePath: filePath,
+    );
+    if (responseData['success'] == true) {
+      final data = responseData['data'] as Map<String, dynamic>;
+      final avatarUrl = data['avatarUrl'] as String;
+      if (avatarUrl.startsWith('/uploads')) {
+        return 'https://bitesmart-production.up.railway.app$avatarUrl';
+      }
+      return avatarUrl;
+    } else {
+      throw Exception(responseData['message'] ?? 'Failed to upload avatar');
     }
   }
 }

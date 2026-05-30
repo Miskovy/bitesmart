@@ -1,5 +1,9 @@
 import 'package:bite_smart/features/profile/screens/personalData.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_setup_bloc.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_setup_event.dart';
+import 'package:bite_smart/features/profile/data/models/profile_setup_model.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class MedicalConditionsScreen extends StatefulWidget {
@@ -16,8 +20,59 @@ class _MedicalConditionsScreenState extends State<MedicalConditionsScreen> {
     'pcos': false,
     'celiac': false,
     'ibs': false,
-    'hypo': false,
+    'anemia': false,
   };
+  String _diabetesType = 'type2';
+
+  @override
+  void initState() {
+    super.initState();
+    final currentConditions = context.read<ProfileSetupBloc>().state.data.medicalConditions;
+    _conditionsState['diabetes'] = currentConditions.isDiabetesType1 || currentConditions.isDiabetesType2;
+    if (currentConditions.isDiabetesType1) {
+      _diabetesType = 'type1';
+    } else if (currentConditions.isDiabetesType2) {
+      _diabetesType = 'type2';
+    } else {
+      _diabetesType = 'type2';
+    }
+    _conditionsState['hypertension'] = currentConditions.isHypertension;
+    _conditionsState['pcos'] = currentConditions.isPCOS;
+    _conditionsState['celiac'] = currentConditions.isCeliacDisease;
+    _conditionsState['ibs'] = currentConditions.isIBS;
+    _conditionsState['anemia'] = currentConditions.isAnemia;
+  }
+
+  Widget _buildDiabetesTypePill(String type, String label) {
+    bool isSelected = _diabetesType == type;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _diabetesType = type;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFE8F5E9) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF388E3C) : Colors.grey.shade300,
+            width: 1.5,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: isSelected ? const Color(0xFF1B5E20) : Colors.grey.shade600,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +86,6 @@ class _MedicalConditionsScreenState extends State<MedicalConditionsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      // الـ body هنا واخد القائمة فقط وبتعمل سكرول براحتها
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -61,6 +115,19 @@ class _MedicalConditionsScreenState extends State<MedicalConditionsScreen> {
                     iconBg: const Color(0xFFE3F2FD),
                   ),
                   const Divider(height: 1, indent: 55),
+                  if (_conditionsState['diabetes'] == true) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(left: 55, right: 16, top: 8, bottom: 8),
+                      child: Row(
+                        children: [
+                          _buildDiabetesTypePill('type1', 'medical.diabetes_type1'.tr()),
+                          const SizedBox(width: 10),
+                          _buildDiabetesTypePill('type2', 'medical.diabetes_type2'.tr()),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1, indent: 55),
+                  ],
                   _buildConditionRow(
                     key: 'hypertension',
                     title: 'medical.hypertension_title'.tr(),
@@ -108,12 +175,12 @@ class _MedicalConditionsScreenState extends State<MedicalConditionsScreen> {
                 _buildSectionTitle('medical.metabolic'.tr()),
                 _buildCategoryCard([
                   _buildConditionRow(
-                    key: 'hypo',
-                    title: 'medical.hypo_title'.tr(),
-                    desc: 'medical.hypo_desc'.tr(),
-                    icon: Icons.fitness_center,
-                    iconColor: Colors.teal,
-                    iconBg: const Color(0xFFE0F2F1),
+                    key: 'anemia',
+                    title: 'medical.anemia_title'.tr(),
+                    desc: 'medical.anemia_desc'.tr(),
+                    icon: Icons.water_drop,
+                    iconColor: Colors.redAccent,
+                    iconBg: const Color(0xFFFFEBEE),
                   ),
                 ]),
               ],
@@ -122,7 +189,6 @@ class _MedicalConditionsScreenState extends State<MedicalConditionsScreen> {
         ),
       ),
       
-      // هنا حطينا الزرار بره الـ body علشان يفضل ثابت وظاهر دايماً
       bottomNavigationBar: 
       SafeArea(
         child: Padding(
@@ -133,9 +199,25 @@ class _MedicalConditionsScreenState extends State<MedicalConditionsScreen> {
               width: .4* MediaQuery.of(context).size.width,
               height: 46,
               child: ElevatedButton(
-                onPressed: () => Navigator.push(context,
+                onPressed: () {
+                  final isDiabetesSelected = _conditionsState['diabetes'] == true;
+                  final medicalConditions = MedicalConditionsData(
+                    isDiabetesType1: isDiabetesSelected && _diabetesType == 'type1',
+                    isDiabetesType2: isDiabetesSelected && _diabetesType == 'type2',
+                    isHypertension: _conditionsState['hypertension'] == true,
+                    isPCOS: _conditionsState['pcos'] == true,
+                    isAnemia: _conditionsState['anemia'] == true,
+                    isCeliacDisease: _conditionsState['celiac'] == true,
+                    isIBS: _conditionsState['ibs'] == true,
+                  );
+
+                  context.read<ProfileSetupBloc>().add(SetMedicalConditionsEvent(medicalConditions));
+
+                  Navigator.push(
+                    context,
                     MaterialPageRoute(builder: (context) => const PersonalDataScreen())
-                  ),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF388E3C),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -226,4 +308,4 @@ class _MedicalConditionsScreenState extends State<MedicalConditionsScreen> {
       ),
     );
   }
-}
+}

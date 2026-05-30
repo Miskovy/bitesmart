@@ -120,4 +120,34 @@ class ApiService {
       rethrow;
     }
   }
+
+  /// Execute a multipart POST request to upload a file
+  Future<Map<String, dynamic>> postMultipart(
+    String path, {
+    required String fileKey,
+    required String filePath,
+    Map<String, String>? fields,
+  }) async {
+    try {
+      final token = await SecureStorageService.instance.getToken();
+      final uri = Uri.parse('$baseUrl$path');
+      final request = http.MultipartRequest('POST', uri);
+      
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      
+      request.files.add(await http.MultipartFile.fromPath(fileKey, filePath));
+      
+      if (fields != null) {
+        request.fields.addAll(fields);
+      }
+      
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      return _processResponse(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
