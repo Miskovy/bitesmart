@@ -115,7 +115,7 @@ class InsightsScreen extends StatelessWidget {
 
                     // Get Started Button
                     SizedBox(
-                      width: .5 * MediaQuery.of(context).size.width,
+                      width: .4 * MediaQuery.of(context).size.width,
                       height: 46,
                       child: ElevatedButton(
                         onPressed: () => Navigator.push(context, 
@@ -145,7 +145,7 @@ class InsightsScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),

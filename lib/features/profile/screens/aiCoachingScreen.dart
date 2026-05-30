@@ -149,7 +149,7 @@ class AICoachScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: 20),
             ],
           ),
         ),

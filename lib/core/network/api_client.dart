@@ -3,7 +3,8 @@ import 'package:bite_smart/core/services/secure_storage_service.dart';
 import 'package:dio/dio.dart';
 
 class ApiClient {
-  static const String baseUrl = 'https://bitesmart-production.up.railway.app';
+  static const String baseUrl =
+      'https://bitesmart-production.up.railway.app/api';
   late final Dio _dio;
 
   // Private constructor for singleton
@@ -11,9 +12,9 @@ class ApiClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 15),
-        sendTimeout: const Duration(seconds: 15),
+        connectTimeout:  Duration(minutes: 1 ),
+        receiveTimeout:  Duration(minutes: 1),
+        sendTimeout:  Duration(minutes: 1),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -25,7 +26,6 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // Retrieve saved token
           final token = await SecureStorageService.instance.getToken();
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';

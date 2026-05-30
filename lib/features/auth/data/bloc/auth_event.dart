@@ -65,18 +65,18 @@ class VerifyOtpEvent extends AuthEvent {
 
 // Reset password event
 class ResetPasswordEvent extends AuthEvent {
-  final String email;
+  final String token;
   final String newPassword;
   final String confirmPassword;
 
   const ResetPasswordEvent({
-    required this.email,
+    required this.token,
     required this.newPassword,
     required this.confirmPassword,
   });
 
   @override
-  List<Object?> get props => [email, newPassword, confirmPassword];
+  List<Object?> get props => [token, newPassword, confirmPassword];
 }
 
 // Logout event

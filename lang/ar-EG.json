@@ -21,6 +21,20 @@
     "email_hint": "example@mail.com",
     "password": "كلمة المرور",
     "password_hint": "........",
+    "confirm_password": "تأكيد كلمة المرور",
+    "confirm_password_hint": "........",
+    "passwords_dont_match": "كلمتا المرور غير متطابقتين",
+    "password_required": "كلمة المرور مطلوبة",
+    "confirm_password_required": "يرجى تأكيد كلمة المرور",
+    "name_error": "الاسم مطلوب",
+    "email_error": "البريد الإلكتروني مطلوب",
+    "email_invalid_error": "يرجى إدخال بريد إلكتروني صالح",
+    "password_len_error": "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل",
+    "password_uppercase_error": "يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل",
+    "password_lowercase_error": "يجب أن تحتوي كلمة المرور على حرف صغير واحد على الأقل",
+    "password_number_error": "يجب أن تحتوي كلمة المرور على رقم واحد على الأقل",
+    "password_special_error": "يجب أن تحتوي كلمة المرور على رمز خاص واحد على الأقل",
+    "email_already_registered": "هذا البريد الإلكتروني مسجل بالفعل",
     "agree": "أوافق على الشروط والأحكام وسياسة الخصوصية",
     "create_btn": "إنشاء حساب",
     "or_continue": "أو الاستمرار بواسطة",
@@ -131,8 +145,10 @@
     "notifications_description": "احصل على تذكيرات فورية للترطيب، وتسجيل الوجبات، والتحفيز اليومي.",
     "health_title": "بيانات الصحة",
     "health_description": "مزامنة الخطوات والتمارين من Apple Health لتعديل أهداف السعرات اليومية تلقائيًا.",
-    "allow_button": "السماح بالوصول",
-    "not_now": "ليس الآن"
+    "next_button": "التالي",
+    "not_now": "ليس الآن",
+    "disable_info": "لتعطيل الصلاحيات، يرجى فتح إعدادات الجهاز.",
+    "settings_btn": "الإعدادات"
   },
   "premium": {
     "restore": "استعادة الشراء",
@@ -290,5 +306,14 @@
     "height_cm": "الطول (سم)",
     "primary_goal": "الهدف الرئيسي",
     "save_success": "تم تحديث الملف الشخصي بنجاح!"
+  },
+  "profile": {
+    "title": "الملف الشخصي",
+    "edit_profile": "تعديل الملف الشخصي",
+    "sign_out": "تسجيل الخروج",
+    "sign_out_confirm": "هل أنت متأكد أنك تريد تسجيل الخروج؟",
+    "cancel": "إلغاء",
+    "confirm": "سجل خروجي",
+    "sign_out_sub": "تسجيل الخروج من الحساب الحالي"
   }
 }

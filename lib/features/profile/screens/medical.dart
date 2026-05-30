@@ -13,7 +13,7 @@ class _MedicalConditionsScreenState extends State<MedicalConditionsScreen> {
   final Map<String, bool> _conditionsState = {
     'diabetes': false,
     'hypertension': false,
-    'pcos': true,
+    'pcos': false,
     'celiac': false,
     'ibs': false,
     'hypo': false,
