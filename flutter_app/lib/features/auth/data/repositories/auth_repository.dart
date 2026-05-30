@@ -290,7 +290,9 @@ class AuthRepository implements IAuthRepository {
       // Initialize GoogleSignIn singleton once (required in v7+)
       if (!_isGoogleSignInInitialized) {
         try {
-          await GoogleSignIn.instance.initialize();
+          await GoogleSignIn.instance.initialize(
+            serverClientId: '631866973740-rse08hek68dcrfc0r787rcrmeu335nuv.apps.googleusercontent.com',
+          );
         } catch (e) {
           if (e.toString().contains('already been called')) {
             // Ignore if it has already been initialized
