@@ -12,6 +12,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ProfileBloc({required this.profileRepository}) : super(const ProfileInitial()) {
     on<LoadProfileEvent>(_onLoadProfileEvent);
     on<UpdateProfileEvent>(_onUpdateProfileEvent);
+    on<UploadAvatarEvent>(_onUploadAvatarEvent);
     on<UpdateDietaryPreferencesEvent>(_onUpdateDietaryPreferencesEvent);
     on<UpdateMacroTargetsEvent>(_onUpdateMacroTargetsEvent);
     on<UpdateMedicalInfoEvent>(_onUpdateMedicalInfoEvent);
@@ -34,6 +35,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         displayName: profile.displayName,
         email: profile.email,
         profileImageUrl: profile.profileImageUrl,
+        phone: profile.phone,
+        userGoal: profile.userGoal,
+        activityLevel: profile.activityLevel,
         age: profile.age,
         gender: profile.gender,
         height: profile.height,
@@ -56,6 +60,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         email: event.email ?? '',
         displayName: event.displayName,
         profileImageUrl: event.profileImageUrl,
+        phone: event.phone,
+        userGoal: event.userGoal,
+        activityLevel: event.activityLevel,
         age: event.age,
         gender: event.gender,
         height: event.height,
@@ -72,6 +79,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         displayName: event.displayName,
         email: event.email,
         profileImageUrl: event.profileImageUrl,
+        phone: event.phone,
+        userGoal: event.userGoal,
+        activityLevel: event.activityLevel,
         age: event.age,
         gender: event.gender,
         height: event.height,
@@ -216,6 +226,57 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       ));
     } catch (e) {
       emit(ProfileError(message: e.toString()));
+    }
+  }
+
+  // Handle upload avatar
+  Future<void> _onUploadAvatarEvent(
+    UploadAvatarEvent event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final currentState = state;
+    emit(const ProfileLoading());
+    try {
+      final newAvatarUrl = await profileRepository.uploadAvatar(
+        userId: event.userId,
+        filePath: event.filePath,
+      );
+      
+      if (currentState is ProfileLoaded) {
+        emit(ProfileLoaded(
+          userId: currentState.userId,
+          displayName: currentState.displayName,
+          email: currentState.email,
+          profileImageUrl: newAvatarUrl,
+          phone: currentState.phone,
+          userGoal: currentState.userGoal,
+          activityLevel: currentState.activityLevel,
+          age: currentState.age,
+          gender: currentState.gender,
+          height: currentState.height,
+          weight: currentState.weight,
+        ));
+      } else {
+        final profile = await profileRepository.getUserProfile(userId: event.userId);
+        emit(ProfileLoaded(
+          userId: profile.id,
+          displayName: profile.displayName,
+          email: profile.email,
+          profileImageUrl: newAvatarUrl,
+          phone: profile.phone,
+          userGoal: profile.userGoal,
+          activityLevel: profile.activityLevel,
+          age: profile.age,
+          gender: profile.gender,
+          height: profile.height,
+          weight: profile.weight,
+        ));
+      }
+    } catch (e) {
+      emit(ProfileError(message: e.toString()));
+      if (currentState is ProfileLoaded) {
+        emit(currentState);
+      }
     }
   }
 }

@@ -1,6 +1,9 @@
-import 'package:bite_smart/features/profile/screens/dietaryScreen%20.dart';
+import 'package:bite_smart/features/profile/screens/activityLevelScreen.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_setup_bloc.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_setup_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class PersonalDataScreen extends StatefulWidget {
   const PersonalDataScreen({super.key});
@@ -18,6 +21,24 @@ class _PersonalDataScreenState extends State<PersonalDataScreen> {
   final TextEditingController _weightController = TextEditingController(text: "");
   
   final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    final data = context.read<ProfileSetupBloc>().state.data;
+    if (data.gender != null) {
+      selectedGender = data.gender!;
+    }
+    if (data.age != null) {
+      _ageController.text = data.age.toString();
+    }
+    if (data.height != null) {
+      _heightController.text = data.height!.round().toString();
+    }
+    if (data.weight != null) {
+      _weightController.text = data.weight!.round().toString();
+    }
+  }
 
   @override
   void dispose() {
@@ -243,24 +264,22 @@ class _PersonalDataScreenState extends State<PersonalDataScreen> {
 
           if (_formKey.currentState!.validate()) {
             final int age = int.parse(_ageController.text);
-            final int height = int.parse(_heightController.text);
-            final int weight = int.parse(_weightController.text);
+            final double height = double.parse(_heightController.text);
+            final double weight = double.parse(_weightController.text);
 
-            debugPrint(
-              "Saved to DB -> Gender: $selectedGender, Age: $age, Height: $height, Weight: $weight",
-            );
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('All metrics saved successfully!'),
+            context.read<ProfileSetupBloc>().add(
+              SetPersonalDataEvent(
+                gender: selectedGender,
+                age: age,
+                height: height,
+                weight: weight,
               ),
             );
 
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    const DietaryPreferencesScreen(),
+                builder: (context) => const ActivityLevelScreen(),
               ),
             );
           }

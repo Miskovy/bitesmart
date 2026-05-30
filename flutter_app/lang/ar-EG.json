@@ -187,6 +187,8 @@
     "common": "الحالات الشائعة",
     "diabetes_title": "السكري",
     "diabetes_desc": "السكري من النوع 1 أو النوع 2",
+    "diabetes_type1": "السكري من النوع 1",
+    "diabetes_type2": "السكري من النوع 2",
     "hypertension_title": "ارتفاع ضغط الدم",
     "hypertension_desc": "ارتفاع ضغط الدم",
     "pcos_title": "تكيس المبايض",
@@ -197,8 +199,21 @@
     "ibs_title": "القولون العصبي",
     "ibs_desc": "متلازمة القولون العصبي",
     "metabolic": "الحالات الأيضية",
-    "hypo_title": "قصور الغدة الدرقية",
-    "hypo_desc": "انخفاض هرمونات الغدة الدرقية",
+    "anemia_title": "فقر الدم (الأنيميا)",
+    "anemia_desc": "نقص خلايا الدم الحمراء أو نقص الحديد",
+    "continue": "متابعة"
+  },
+  "activity": {
+    "title": "مستوى النشاط",
+    "subtitle": "اختر مستوى نشاطك البدني اليومي لحساب احتياجاتك من الطاقة بدقة.",
+    "sedentary_title": "خامل",
+    "sedentary_desc": "قليل أو معدوم التمرين، وظيفة مكتبية",
+    "lightly_active_title": "نشط قليلاً",
+    "lightly_active_desc": "تمرين خفيف أو رياضة 1-3 أيام في الأسبوع",
+    "moderately_active_title": "نشط متوسطاً",
+    "moderately_active_desc": "تمرين متوسط أو رياضة 3-5 أيام في الأسبوع",
+    "very_active_title": "نشط جداً",
+    "very_active_desc": "تمرين شاق أو رياضة 6-7 أيام في الأسبوع",
     "continue": "متابعة"
   },
   "diet": {
@@ -305,7 +320,8 @@
     "weight_kg": "الوزن (كغ)",
     "height_cm": "الطول (سم)",
     "primary_goal": "الهدف الرئيسي",
-    "save_success": "تم تحديث الملف الشخصي بنجاح!"
+    "save_success": "تم تحديث الملف الشخصي بنجاح!",
+    "re_enter_all_data": "إعادة إدخال جميع البيانات"
   },
   "profile": {
     "title": "الملف الشخصي",

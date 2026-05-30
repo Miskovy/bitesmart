@@ -1,6 +1,15 @@
 import 'dart:math';
 import 'package:bite_smart/features/home/screens/navBar.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_setup_bloc.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_setup_event.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_setup_state.dart';
+import 'package:bite_smart/features/profile/data/models/profile_setup_model.dart';
+import 'package:bite_smart/features/auth/data/bloc/auth_bloc.dart';
+import 'package:bite_smart/features/auth/data/bloc/auth_state.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_bloc.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_event.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class DonutChartPainter extends CustomPainter {
@@ -93,6 +102,21 @@ class _MacrosTargetScreenState extends State<MacrosTargetScreen>
     _saveScale = Tween<double>(begin: 1.0, end: 0.95).animate(
       CurvedAnimation(parent: _saveController, curve: Curves.easeInOut),
     );
+
+    // Read initial values from bloc if they exist
+    final currentTargets = context.read<ProfileSetupBloc>().state.data.targets;
+    if (currentTargets != null) {
+      _isAiEnabled = currentTargets.autoCalculateWithAi;
+      final double proteinCals = currentTargets.proteins * 4;
+      final double carbsCals = currentTargets.carbs * 4;
+      final double fatsCals = currentTargets.fats * 9;
+      final double sum = proteinCals + carbsCals + fatsCals;
+      if (sum > 0) {
+        _proteinPer = (proteinCals / sum) * 100;
+        _carbsPer = (carbsCals / sum) * 100;
+        _fatsPer = (fatsCals / sum) * 100;
+      }
+    }
   }
 
   @override
@@ -104,78 +128,116 @@ class _MacrosTargetScreenState extends State<MacrosTargetScreen>
   void _onSavePressed() async {
     await _saveController.forward();
     await _saveController.reverse();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('macros.save_success'.tr()),
-          backgroundColor: const Color(0xFF388E3C),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-        ),
-        
-      );
-    }
+    
+    final targets = TargetsData(
+      calTotal: _totalCalories,
+      proteins: _proteinGrams,
+      carbs: _carbsGrams,
+      fats: _fatsGrams,
+      autoCalculateWithAi: _isAiEnabled,
+    );
+
+    context.read<ProfileSetupBloc>().add(SetTargetsEvent(targets));
+    context.read<ProfileSetupBloc>().add(const SubmitProfileSetupEvent());
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F7F4),
-      appBar: AppBar(
-        title: Text(
-          'macros.title'.tr(),
-          style: const TextStyle(
-            color: Color(0xFF1B2E1B),
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
+    return BlocListener<ProfileSetupBloc, ProfileSetupState>(
+      listener: (context, state) {
+        if (state.status == ProfileSetupStatus.success) {
+          final authState = context.read<AuthBloc>().state;
+          if (authState is AuthAuthenticated) {
+            context.read<ProfileBloc>().add(LoadProfileEvent(userId: authState.userId));
+          }
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('macros.save_success'.tr()),
+              backgroundColor: const Color(0xFF388E3C),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              margin: const EdgeInsets.all(16),
+            ),
+          );
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const MainHome()),
+            (route) => false,
+          );
+        } else if (state.status == ProfileSetupStatus.failure) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Error'),
+              content: Text(state.errorMessage ?? 'An error occurred during submission'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F7F4),
+        appBar: AppBar(
+          title: Text(
+            'macros.title'.tr(),
+            style: const TextStyle(
+              color: Color(0xFF1B2E1B),
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
+            ),
           ),
-        ),
-        centerTitle: true,
-      ),  
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-        child: Column(
-          children: [
-            _buildAiToggleCard(),
-            const SizedBox(height: 10),
-            _buildCalorieChart(),
-            const SizedBox(height: 10),
-            _buildLegend(),
-            const SizedBox(height: 10),
-            _buildMacroCard(
-              label: "macros.protein".tr(),
-              percentage: _proteinPer,
-              grams: _proteinGrams,
-              color: const Color(0xFF4CAF50),
-              bgColor: const Color(0xFFE8F5E9),
-              icon: Icons.fitness_center_rounded,
-              onChanged: (val) => setState(() => _proteinPer = val),
-            ),
-            const SizedBox(height: 10),
-            _buildMacroCard(
-              label: "macros.carbs".tr(),
-              percentage: _carbsPer,
-              grams: _carbsGrams,
-              color: const Color(0xFF2196F3),
-              bgColor: const Color(0xFFE3F2FD),
-              icon: Icons.grain_rounded,
-              onChanged: (val) => setState(() => _carbsPer = val),
-            ),
-            const SizedBox(height: 10),
-            _buildMacroCard(
-              label: "macros.fats".tr(),
-              percentage: _fatsPer,
-              grams: _fatsGrams,
-              color: const Color(0xFFFFC107),
-              bgColor: const Color(0xFFFFF8E1),
-              icon: Icons.local_fire_department_rounded,
-              onChanged: (val) => setState(() => _fatsPer = val),
-            ),
-            const SizedBox(height: 20),
-            _buildSaveButton(),
-            const SizedBox(height: 10),
-          ],
+          centerTitle: true,
+        ),  
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          child: Column(
+            children: [
+              _buildAiToggleCard(),
+              const SizedBox(height: 10),
+              _buildCalorieChart(),
+              const SizedBox(height: 10),
+              _buildLegend(),
+              const SizedBox(height: 10),
+              _buildMacroCard(
+                label: "macros.protein".tr(),
+                percentage: _proteinPer,
+                grams: _proteinGrams,
+                color: const Color(0xFF4CAF50),
+                bgColor: const Color(0xFFE8F5E9),
+                icon: Icons.fitness_center_rounded,
+                onChanged: (val) => setState(() => _proteinPer = val),
+              ),
+              const SizedBox(height: 10),
+              _buildMacroCard(
+                label: "macros.carbs".tr(),
+                percentage: _carbsPer,
+                grams: _carbsGrams,
+                color: const Color(0xFF2196F3),
+                bgColor: const Color(0xFFE3F2FD),
+                icon: Icons.grain_rounded,
+                onChanged: (val) => setState(() => _carbsPer = val),
+              ),
+              const SizedBox(height: 10),
+              _buildMacroCard(
+                label: "macros.fats".tr(),
+                percentage: _fatsPer,
+                grams: _fatsGrams,
+                color: const Color(0xFFFFC107),
+                bgColor: const Color(0xFFFFF8E1),
+                icon: Icons.local_fire_department_rounded,
+                onChanged: (val) => setState(() => _fatsPer = val),
+              ),
+              const SizedBox(height: 20),
+              _buildSaveButton(),
+              const SizedBox(height: 10),
+            ],
+          ),
         ),
       ),
     );
@@ -455,40 +517,55 @@ class _MacrosTargetScreenState extends State<MacrosTargetScreen>
     );
   }
 
-  // ── Save Button ─────────────────────────────
   Widget _buildSaveButton() {
-    return ScaleTransition(
-      scale: _saveScale,
-      child: SizedBox(
-                width: .4 * MediaQuery.of(context).size.width,
-                height: 46,
-                child: ElevatedButton(
-                  onPressed:(){_onSavePressed();
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const MainHome()));
-                  },
-                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF43A047),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                "macros.save_targets".tr(),
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  letterSpacing: 0.5,
-                ),
+    return BlocBuilder<ProfileSetupBloc, ProfileSetupState>(
+      builder: (context, state) {
+        final isSubmitting = state.status == ProfileSetupStatus.submitting;
+        return ScaleTransition(
+          scale: _saveScale,
+          child: SizedBox(
+            width: .4 * MediaQuery.of(context).size.width,
+            height: 46,
+            child: ElevatedButton(
+              onPressed: isSubmitting
+                  ? null
+                  : () {
+                      _onSavePressed();
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF43A047),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
               ),
-              const SizedBox(width: 10),
-              const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 22),
-            ],
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "macros.save_targets".tr(),
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 22),
+                      ],
+                    ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
