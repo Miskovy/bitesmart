@@ -28,6 +28,7 @@ abstract class IAuthRepository {
 class AuthRepository implements IAuthRepository {
   static const String _userEmailKey = 'cached_user_email';
   static const String _userNameKey = 'cached_user_name';
+  static bool _isGoogleSignInInitialized = false;
   final _secureStorage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
@@ -281,8 +282,24 @@ class AuthRepository implements IAuthRepository {
   @override
   Future<UserModel> googleSignIn() async {
     try {
-      // Initialize GoogleSignIn singleton (required in v7+)
-      await GoogleSignIn.instance.initialize();
+      // Google Sign-In authenticate() is not supported on web in v7+
+      if (kIsWeb) {
+        throw Exception('Google Sign-In is not supported on web. Please use the mobile app.');
+      }
+
+      // Initialize GoogleSignIn singleton once (required in v7+)
+      if (!_isGoogleSignInInitialized) {
+        try {
+          await GoogleSignIn.instance.initialize();
+        } catch (e) {
+          if (e.toString().contains('already been called')) {
+            // Ignore if it has already been initialized
+          } else {
+            rethrow;
+          }
+        }
+        _isGoogleSignInInitialized = true;
+      }
 
       // Authenticate
       final GoogleSignInAccount? googleUser = await GoogleSignIn.instance.authenticate();
