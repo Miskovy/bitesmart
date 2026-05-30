@@ -17,15 +17,9 @@ export const userLogin = async (req: Request, res: Response) => {
         throw new BadRequest("Email and Password are required");
     }
 
-    const { user, token } = await login(email, password);
+    const result = await login(email, password);
 
-    return SuccessResponse(res, {
-        user: {
-            name: user.name,
-            email: user.email,
-        },
-        token,
-    }, 200);
+    return SuccessResponse(res, result, 200);
 };
 
 export const signup = async (req: Request, res: Response) => {

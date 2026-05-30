@@ -1,7 +1,7 @@
 import { db } from "../../db/connection";
 import { BadRequest } from "../../errors";
 import { users } from "../../models/user";
-import { eq } from "drizzle-orm";
+import { eq, InferSelectModel } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { generateToken } from "../../utils/Auth";
 import { OAuth2Client } from "google-auth-library";
@@ -10,6 +10,36 @@ import { sendEmail } from "../../utils/email";
 import { otpStore } from "./otpStore";
 import { getForgotEmailTemplate } from "../../utils/emailTemplate";
 const client = new OAuth2Client();
+
+export type BaseUser = InferSelectModel<typeof users>;
+
+export interface FullUser extends BaseUser {
+  dietaryPreferences?: any[];
+  medicalConditions?: any[];
+  targets?: any[];
+  cameraPermission?: boolean;
+  notifications?: boolean;
+}
+
+const getMissingPreferences = (user: Partial<FullUser>) => {
+  const missing: string[] = [];
+  if (!user.gender) missing.push("gender");
+  if (!user.age || user.age <= 0) missing.push("age");
+  if (!user.height) missing.push("height");
+  if (!user.weight) missing.push("weight");
+  if (!user.userGoal) missing.push("userGoal");
+  if (!user.activityLevel) missing.push("activityLevel");
+  
+  // Relations or extended properties
+  if (!user.dietaryPreferences || user.dietaryPreferences.length === 0) missing.push("dietaryPreferences");
+  if (!user.medicalConditions || user.medicalConditions.length === 0) missing.push("medicalConditions");
+  
+  // Other flags you're tracking
+  if (user.cameraPermission === undefined) missing.push("cameraPermission");
+  if (user.notifications === undefined) missing.push("notifications");
+
+  return missing;
+};
 
 export const login = async (email: string, password: string) => {
   const user = await db.query.users.findFirst({
@@ -34,7 +64,9 @@ export const login = async (email: string, password: string) => {
 
   //! Created by Antigravity: Strip password hash from login response to prevent credential leak
   const { password: _pw, ...safeUser } = user;
-  return { user: safeUser, token };
+  const missingFields = getMissingPreferences(user);
+  
+  return { user: { ...safeUser, missingFields }, token };
 };
 
 export const register = async (email: string, password: string, name: string) => {
@@ -69,7 +101,8 @@ export const register = async (email: string, password: string, name: string) =>
     user: {
       id: userId,
       name,
-      email
+      email,
+      missingFields: ["gender", "age", "height", "weight", "userGoal", "activityLevel", "dietaryPreferences", "medicalConditions"]
     },
     token
   };
@@ -197,5 +230,6 @@ export const loginWithGoogle = async (idToken: string) => {
   });
 
   const { password: _pw, ...safeGoogleUser } = user;
-  return { user: safeGoogleUser, token };
+  const missingFields = getMissingPreferences(user);
+  return { user: { ...safeGoogleUser, missingFields }, token };
 };
