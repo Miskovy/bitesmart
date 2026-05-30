@@ -13,12 +13,16 @@ class Welcomescreen extends StatelessWidget {
         children: [
           /// 🔹 Background Image
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
+              color: Colors.white,
               image: DecorationImage(
-                image: NetworkImage(
+                image: const NetworkImage(
                   "https://i.postimg.cc/X7JcDHNp/Background-Image-Container.jpg",
                 ),
                 fit: BoxFit.cover,
+                onError: (exception, stackTrace) {
+                  // Suppress warning/crash when offline
+                },
               ),
             ),
           ),
