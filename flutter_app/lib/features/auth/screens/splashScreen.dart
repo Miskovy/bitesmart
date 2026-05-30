@@ -88,10 +88,20 @@ class _SplashscreenState extends State<Splashscreen> {
                 ),
               ),
               SizedBox(height: .2 * MediaQuery.of(context).size.height),
-              Image.network(
-                'https://i.postimg.cc/KYdnKxtk/load.jpg',
+              Image.asset(
+                'assets/load.jpg',
                 width: .08 * MediaQuery.of(context).size.width,
                 height: .08 * MediaQuery.of(context).size.height,
+                errorBuilder: (context, error, stackTrace) {
+                  return const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF4CAF50),
+                      strokeWidth: 2,
+                    ),
+                  );
+                },
               ),
               Text(
                 'splash.loading'.tr(),
