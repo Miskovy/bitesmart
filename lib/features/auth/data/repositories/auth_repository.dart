@@ -357,6 +357,9 @@ class AuthRepository implements IAuthRepository {
       }
     } catch (e) {
       final errStr = e.toString();
+      if (errStr.contains('canceled') || errStr.contains('cancelled')) {
+        throw Exception('Google Sign-In was cancelled by user');
+      }
       if (errStr.contains('sign_in_failed')) {
         throw Exception('Google Sign-In configuration error. Please ensure SHA-1/OAuth IDs are correctly configured.');
       }
