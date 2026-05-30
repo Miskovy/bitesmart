@@ -5,6 +5,9 @@ class UserProfileModel extends Equatable {
   final String? displayName;
   final String email;
   final String? profileImageUrl;
+  final String? phone;
+  final String? userGoal;
+  final String? activityLevel;
   final int? age;
   final String? gender;
   final double? height;
@@ -17,6 +20,9 @@ class UserProfileModel extends Equatable {
     required this.email,
     this.displayName,
     this.profileImageUrl,
+    this.phone,
+    this.userGoal,
+    this.activityLevel,
     this.age,
     this.gender,
     this.height,
@@ -31,6 +37,9 @@ class UserProfileModel extends Equatable {
     String? displayName,
     String? email,
     String? profileImageUrl,
+    String? phone,
+    String? userGoal,
+    String? activityLevel,
     int? age,
     String? gender,
     double? height,
@@ -43,6 +52,9 @@ class UserProfileModel extends Equatable {
       displayName: displayName ?? this.displayName,
       email: email ?? this.email,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      phone: phone ?? this.phone,
+      userGoal: userGoal ?? this.userGoal,
+      activityLevel: activityLevel ?? this.activityLevel,
       age: age ?? this.age,
       gender: gender ?? this.gender,
       height: height ?? this.height,
@@ -57,8 +69,13 @@ class UserProfileModel extends Equatable {
     return {
       'id': id,
       'displayName': displayName,
+      'name': displayName,
       'email': email,
       'profileImageUrl': profileImageUrl,
+      'avatar': profileImageUrl,
+      'phone': phone,
+      'userGoal': userGoal,
+      'activityLevel': activityLevel,
       'age': age,
       'gender': gender,
       'height': height,
@@ -73,12 +90,15 @@ class UserProfileModel extends Equatable {
     return UserProfileModel(
       id: json['id'] as String,
       email: json['email'] as String,
-      displayName: json['displayName'] as String?,
-      profileImageUrl: json['profileImageUrl'] as String?,
+      displayName: (json['displayName'] ?? json['name']) as String?,
+      profileImageUrl: (json['profileImageUrl'] ?? json['avatar']) as String?,
+      phone: json['phone'] as String?,
+      userGoal: json['userGoal'] as String?,
+      activityLevel: json['activityLevel'] as String?,
       age: json['age'] as int?,
       gender: json['gender'] as String?,
-      height: json['height'] as double?,
-      weight: json['weight'] as double?,
+      height: (json['height'] as num?)?.toDouble(),
+      weight: (json['weight'] as num?)?.toDouble(),
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : null,
@@ -94,6 +114,9 @@ class UserProfileModel extends Equatable {
         displayName,
         email,
         profileImageUrl,
+        phone,
+        userGoal,
+        activityLevel,
         age,
         gender,
         height,

@@ -23,6 +23,9 @@ class ProfileLoaded extends ProfileState {
   final String? displayName;
   final String? email;
   final String? profileImageUrl;
+  final String? phone;
+  final String? userGoal;
+  final String? activityLevel;
   final int? age;
   final String? gender;
   final double? height;
@@ -33,6 +36,9 @@ class ProfileLoaded extends ProfileState {
     this.displayName,
     this.email,
     this.profileImageUrl,
+    this.phone,
+    this.userGoal,
+    this.activityLevel,
     this.age,
     this.gender,
     this.height,
@@ -45,6 +51,9 @@ class ProfileLoaded extends ProfileState {
         displayName,
         email,
         profileImageUrl,
+        phone,
+        userGoal,
+        activityLevel,
         age,
         gender,
         height,

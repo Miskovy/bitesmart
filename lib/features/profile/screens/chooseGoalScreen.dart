@@ -1,6 +1,9 @@
 import 'package:bite_smart/features/profile/screens/onBoardingScreen.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_setup_bloc.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_setup_event.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ChooseGoalScreen extends StatefulWidget {
   const ChooseGoalScreen({super.key});
@@ -12,6 +15,19 @@ class ChooseGoalScreen extends StatefulWidget {
 class _ChooseGoalScreenState extends State<ChooseGoalScreen> {
   // متغير لتخزين الاختيار الحالي (بدأنا بـ 0 اللي هو أول اختيار)
   int selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final currentGoal = context.read<ProfileSetupBloc>().state.data.userGoal;
+    if (currentGoal == 'WeightLoss') {
+      selectedIndex = 0;
+    } else if (currentGoal == 'Maintenance') {
+      selectedIndex = 1;
+    } else if (currentGoal == 'MuscleGain') {
+      selectedIndex = 2;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,9 +80,18 @@ class _ChooseGoalScreenState extends State<ChooseGoalScreen> {
                 width: .4 * MediaQuery.of(context).size.width,
                 height: 46,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => const OnboardingScreen())
-                  ),
+                  onPressed: () {
+                    String goalStr = 'WeightLoss';
+                    if (selectedIndex == 1) goalStr = 'Maintenance';
+                    if (selectedIndex == 2) goalStr = 'MuscleGain';
+                    context.read<ProfileSetupBloc>().add(SetGoalEvent(goalStr));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const OnboardingScreen(),
+                      ),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF43A047),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -76,8 +101,8 @@ class _ChooseGoalScreenState extends State<ChooseGoalScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text('goal.next_step'.tr(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward, color: Colors.white, size: 20),
+                       const SizedBox(width: 8),
+                       const Icon(Icons.arrow_forward, color: Colors.white, size: 20),
                     ],
                   ),
                 ),
@@ -89,6 +114,7 @@ class _ChooseGoalScreenState extends State<ChooseGoalScreen> {
       ),
     );
   }
+
 
   // ويدجت بناء الكارت مع منطق التغيير
   Widget _buildGoalCard({

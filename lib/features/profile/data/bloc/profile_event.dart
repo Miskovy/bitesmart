@@ -23,6 +23,9 @@ class UpdateProfileEvent extends ProfileEvent {
   final String? displayName;
   final String? email;
   final String? profileImageUrl;
+  final String? phone;
+  final String? userGoal;
+  final String? activityLevel;
   final int? age;
   final String? gender;
   final double? height;
@@ -33,6 +36,9 @@ class UpdateProfileEvent extends ProfileEvent {
     this.displayName,
     this.email,
     this.profileImageUrl,
+    this.phone,
+    this.userGoal,
+    this.activityLevel,
     this.age,
     this.gender,
     this.height,
@@ -45,11 +51,27 @@ class UpdateProfileEvent extends ProfileEvent {
         displayName,
         email,
         profileImageUrl,
+        phone,
+        userGoal,
+        activityLevel,
         age,
         gender,
         height,
         weight,
       ];
+}
+
+class UploadAvatarEvent extends ProfileEvent {
+  final String userId;
+  final String filePath;
+
+  const UploadAvatarEvent({
+    required this.userId,
+    required this.filePath,
+  });
+
+  @override
+  List<Object?> get props => [userId, filePath];
 }
 
 // Update dietary preferences event
