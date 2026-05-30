@@ -1,9 +1,15 @@
+import 'package:bite_smart/features/auth/screens/loginScreen.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bite_smart/features/auth/data/bloc/auth_bloc.dart';
+import 'package:bite_smart/features/auth/data/bloc/auth_event.dart';
+import 'package:bite_smart/features/auth/data/bloc/auth_state.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
-  const ResetPasswordScreen({super.key});
+  final String token;
+  const ResetPasswordScreen({super.key, required this.token});
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -30,6 +36,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     if (hasUppercase) count++;
     if (hasNumber) count++;
     return count;
+  }
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    _confirmController.dispose();
+    super.dispose();
   }
 
   @override
@@ -85,206 +98,248 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
-              Text(
-                'reset.title'.tr(),
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF101828),
+        child: BlocListener<AuthBloc, AuthState>(
+          listener: (context, state) {
+            if (ModalRoute.of(context)?.isCurrent != true) return;
+            if (state is AuthPasswordResetSuccess) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message ?? 'Password reset successfully'),
+                  backgroundColor: Colors.green,
                 ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'reset.description'.tr(),
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                  height: 1.5,
+              );
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const Loginscreen()),
+                (route) => false,
+              );
+            } else if (state is AuthError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.red,
                 ),
-              ),
-
-              const SizedBox(height: 40),
-
-              Text(
-                'reset.new_password'.tr(),
-                style: const TextStyle(
-                  color: Color(0xFF101828),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _passwordController,
-                obscureText: _isObscured,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  hintText: 'reset.hint'.tr(),
-                  hintStyle: const TextStyle(color: Colors.black12),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _isObscured
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      color: Colors.black26,
-                    ),
-                    onPressed: () => setState(() => _isObscured = !_isObscured),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.black12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: Colors.green,
-                      width: 1.5,
-                    ),
+              );
+            }
+          },
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
+                Text(
+                  'reset.title'.tr(),
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF101828),
                   ),
                 ),
-              ),
+                const SizedBox(height: 12),
+                Text(
+                  'reset.description'.tr(),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                    height: 1.5,
+                  ),
+                ),
 
-              const SizedBox(height: 20),
+                const SizedBox(height: 40),
 
-              // الـ Strength Meter المحدث لـ 4 خطوات
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'reset.password_strength'.tr(),
-                    style: const TextStyle(
-                      color: Colors.blueGrey,
-                      fontSize: 13,
-                    ),
+                Text(
+                  'reset.new_password'.tr(),
+                  style: const TextStyle(
+                    color: Color(0xFF101828),
+                    fontWeight: FontWeight.bold,
                   ),
-                  Text(
-                    _strengthCount == 0
-                        ? ''
-                        : (_strengthCount <= 2
-                              ? 'reset.weak'.tr()
-                              : (_strengthCount == 3
-                                    ? 'reset.medium'.tr()
-                                    : 'reset.strong'.tr())),
-                    style: TextStyle(
-                      color: _strengthCount == 4
-                          ? Colors.green
-                          : (_strengthCount >= 2 ? Colors.orange : Colors.red),
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  _strengthBar(active: _strengthCount >= 1), // 8 حروف
-                  _strengthBar(active: _strengthCount >= 2), // رمز
-                  _strengthBar(active: _strengthCount >= 3), // حرف كبير
-                  _strengthBar(
-                    active: _strengthCount >= 4,
-                  ), // رقم (الخط الأخير)
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // عرض الشروط الأربعة
-              Wrap(
-                spacing: 15,
-                runSpacing: 8,
-                children: [
-                  _passwordCondition(
-                    label: 'reset.condition_length'.tr(),
-                    isMet: has8Chars,
-                  ),
-                  _passwordCondition(
-                    label: 'reset.condition_symbol'.tr(),
-                    isMet: hasSymbol,
-                  ),
-                  _passwordCondition(
-                    label: 'reset.condition_uppercase'.tr(),
-                    isMet: hasUppercase,
-                  ),
-                  _passwordCondition(
-                    label: 'reset.condition_number'.tr(),
-                    isMet: hasNumber,
-                  ), // الشرط الجديد
-
-                  Text(
-                    'reset.confirm_password'.tr(),
-                    style: const TextStyle(
-                      color: Color(0xFF101828),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _confirmController,
-                    obscureText: _isObscured,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: '********',
-                      hintStyle: const TextStyle(color: Colors.black12),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.black12),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: _isObscured,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText: 'reset.hint'.tr(),
+                    hintStyle: const TextStyle(color: Colors.black12),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isObscured
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: Colors.black26,
                       ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Colors.green,
-                          width: 1.5,
-                        ),
+                      onPressed: () => setState(() => _isObscured = !_isObscured),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.black12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.green,
+                        width: 1.5,
                       ),
                     ),
                   ),
+                ),
 
-                  const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-                  // الزرار مبيشتغلش إلا لو الـ 4 شروط تحققوا والباسورد متطابق
-                  Center(
-                    child: SizedBox(
-                      
-                      width: .4 * MediaQuery.of(context).size.width,
-                      height: 46,
-                      child: ElevatedButton(
-                        onPressed:
-                            _strengthCount == 4 &&
-                                _passwordController.text.isNotEmpty &&
-                                _passwordController.text ==
-                                    _confirmController.text
-                            ? () {
-                                /* تنفيذ الحفظ */
-                              }
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF43A047),
-                          disabledBackgroundColor: Colors.grey.shade300,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 0,
+                // الـ Strength Meter المحدث لـ 4 خطوات
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'reset.password_strength'.tr(),
+                      style: const TextStyle(
+                        color: Colors.blueGrey,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      _strengthCount == 0
+                          ? ''
+                          : (_strengthCount <= 2
+                                ? 'reset.weak'.tr()
+                                : (_strengthCount == 3
+                                      ? 'reset.medium'.tr()
+                                      : 'reset.strong'.tr())),
+                      style: TextStyle(
+                        color: _strengthCount == 4
+                            ? Colors.green
+                            : (_strengthCount >= 2 ? Colors.orange : Colors.red),
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    _strengthBar(active: _strengthCount >= 1), // 8 حروف
+                    _strengthBar(active: _strengthCount >= 2), // رمز
+                    _strengthBar(active: _strengthCount >= 3), // حرف كبير
+                    _strengthBar(
+                      active: _strengthCount >= 4,
+                    ), // رقم (الخط الأخير)
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // عرض الشروط الأربعة
+                Wrap(
+                  spacing: 15,
+                  runSpacing: 8,
+                  children: [
+                    _passwordCondition(
+                      label: 'reset.condition_length'.tr(),
+                      isMet: has8Chars,
+                    ),
+                    _passwordCondition(
+                      label: 'reset.condition_symbol'.tr(),
+                      isMet: hasSymbol,
+                    ),
+                    _passwordCondition(
+                      label: 'reset.condition_uppercase'.tr(),
+                      isMet: hasUppercase,
+                    ),
+                    _passwordCondition(
+                      label: 'reset.condition_number'.tr(),
+                      isMet: hasNumber,
+                    ), // الشرط الجديد
+
+                    Text(
+                      'reset.confirm_password'.tr(),
+                      style: const TextStyle(
+                        color: Color(0xFF101828),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _confirmController,
+                      obscureText: _isObscured,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        hintText: '********',
+                        hintStyle: const TextStyle(color: Colors.black12),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.black12),
                         ),
-                        child: Text(
-                          'reset.reset_button'.tr(),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Colors.green,
+                            width: 1.5,
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ],
+
+                    const SizedBox(height: 20),
+
+                    // الزرار مبيشتغلش إلا لو الـ 4 شروط تحققوا والباسورد متطابق
+                    Center(
+                      child: BlocBuilder<AuthBloc, AuthState>(
+                        builder: (context, state) {
+                          if (state is AuthLoading) {
+                            return const SizedBox(
+                              height: 46,
+                              width: 46,
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF43A047),
+                              ),
+                            );
+                          }
+                          return SizedBox(
+                            width: .4 * MediaQuery.of(context).size.width,
+                            height: 46,
+                            child: ElevatedButton(
+                              onPressed: _strengthCount == 4 &&
+                                      _passwordController.text.isNotEmpty &&
+                                      _passwordController.text ==
+                                          _confirmController.text
+                                  ? () {
+                                      context.read<AuthBloc>().add(
+                                            ResetPasswordEvent(
+                                              token: widget.token,
+                                              newPassword: _passwordController.text,
+                                              confirmPassword: _confirmController.text,
+                                            ),
+                                          );
+                                    }
+                                  : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF43A047),
+                                disabledBackgroundColor: Colors.grey.shade300,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: Text(
+                                'reset.reset_button'.tr(),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

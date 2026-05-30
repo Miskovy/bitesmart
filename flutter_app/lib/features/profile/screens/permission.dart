@@ -1,6 +1,7 @@
 import 'package:bite_smart/features/profile/screens/medical.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class PermissionScreen extends StatefulWidget {
   const PermissionScreen({super.key});
@@ -11,8 +12,71 @@ class PermissionScreen extends StatefulWidget {
 
 class _PermissionScreenState extends State<PermissionScreen> {
   bool cameraEnabled = false;
-  bool notificationsEnabled = true;
-  bool healthDataEnabled = false;
+  bool notificationsEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermissions();
+  }
+
+  Future<void> _checkPermissions() async {
+    final cameraStatus = await Permission.camera.status;
+    final notificationsStatus = await Permission.notification.status;
+    if (mounted) {
+      setState(() {
+        cameraEnabled = cameraStatus.isGranted;
+        notificationsEnabled = notificationsStatus.isGranted;
+      });
+    }
+  }
+
+  Future<void> _toggleCamera(bool value) async {
+    if (value) {
+      final status = await Permission.camera.request();
+      if (mounted) {
+        setState(() {
+          cameraEnabled = status.isGranted;
+        });
+      }
+      if (status.isPermanentlyDenied) {
+        _showSettingsPrompt();
+      }
+    } else {
+      _showSettingsPrompt();
+    }
+  }
+
+  Future<void> _toggleNotifications(bool value) async {
+    if (value) {
+      final status = await Permission.notification.request();
+      if (mounted) {
+        setState(() {
+          notificationsEnabled = status.isGranted;
+        });
+      }
+      if (status.isPermanentlyDenied) {
+        _showSettingsPrompt();
+      }
+    } else {
+      _showSettingsPrompt();
+    }
+  }
+
+  void _showSettingsPrompt() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('permission.disable_info'.tr()),
+        action: SnackBarAction(
+          label: 'permission.settings_btn'.tr(),
+          onPressed: () => openAppSettings(),
+        ),
+      ),
+    );
+    // Keep switch visually enabled since we can't programmatically disable granted OS permission
+    _checkPermissions();
+  }
 
 
   @override
@@ -53,22 +117,16 @@ class _PermissionScreenState extends State<PermissionScreen> {
                 titleKey: 'permission.camera_title',
                 subtitleKey: 'permission.camera_description',
                 enabled: cameraEnabled,
-                onChanged: (value) => setState(() => cameraEnabled = value),
+                onChanged: _toggleCamera,
               ),
               _buildPermissionCard(
                 icon: Icons.notifications_outlined,
                 titleKey: 'permission.notifications_title',
                 subtitleKey: 'permission.notifications_description',
                 enabled: notificationsEnabled,
-                onChanged: (value) => setState(() => notificationsEnabled = value),
+                onChanged: _toggleNotifications,
               ),
-              _buildPermissionCard(
-                icon: Icons.favorite_border,
-                titleKey: 'permission.health_title',
-                subtitleKey: 'permission.health_description',
-                enabled: healthDataEnabled,
-                onChanged: (value) => setState(() => healthDataEnabled = value),
-              ),
+              
               const Spacer(),
               SizedBox(
                 width: .4*MediaQuery.of(context).size.width,
@@ -81,22 +139,13 @@ class _PermissionScreenState extends State<PermissionScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                   child: Text(
-                    'permission.allow_button'.tr(),
+                    'permission.next_button'.tr(),
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
-              Center(
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Text(
-                    'permission.not_now'.tr(),
-                    style: TextStyle(fontSize: 15, color: Colors.green.shade700, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
+              
+              const SizedBox(height: 20),
             ],
           ),
         ),

@@ -37,7 +37,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         displayName: user.displayName,
       ));
     } catch (e) {
-      emit(AuthError(message: e.toString()));
+      emit(AuthError(message: e.toString().replaceAll('Exception: ', '')));
     }
   }
 
@@ -56,7 +56,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         message: 'Signup successful',
       ));
     } catch (e) {
-      emit(AuthError(message: e.toString()));
+      emit(AuthError(message: e.toString().replaceAll('Exception: ', '')));
     }
   }
 
@@ -70,7 +70,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         message: 'OTP sent successfully',
       ));
     } catch (e) {
-      emit(AuthError(message: e.toString()));
+      emit(AuthError(message: e.toString().replaceAll('Exception: ', '')));
     }
   }
 
@@ -78,20 +78,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onVerifyOtpEvent(VerifyOtpEvent event, Emitter<AuthState> emit) async {
     emit(const AuthLoading());
     try {
-      final isVerified = await authRepository.verifyOtp(
+      final token = await authRepository.verifyOtp(
         emailOrPhone: event.emailOrPhone,
         otp: event.otp,
       );
-      if (isVerified) {
+      if (token.isNotEmpty) {
         emit(AuthOtpVerified(
           email: event.emailOrPhone,
           message: 'OTP verified successfully',
+          token: token,
         ));
       } else {
         emit(const AuthError(message: 'OTP verification failed'));
       }
     } catch (e) {
-      emit(AuthError(message: e.toString()));
+      emit(AuthError(message: e.toString().replaceAll('Exception: ', '')));
     }
   }
 
@@ -107,14 +108,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         return;
       }
       await authRepository.resetPassword(
-        email: event.email,
+        token: event.token,
         newPassword: event.newPassword,
       );
       emit(AuthPasswordResetSuccess(
         message: 'Password reset successfully',
       ));
     } catch (e) {
-      emit(AuthError(message: e.toString()));
+      emit(AuthError(message: e.toString().replaceAll('Exception: ', '')));
     }
   }
 
@@ -125,7 +126,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await authRepository.logout();
       emit(const AuthUnauthenticated());
     } catch (e) {
-      emit(AuthError(message: e.toString()));
+      emit(AuthError(message: e.toString().replaceAll('Exception: ', '')));
     }
   }
 
@@ -164,7 +165,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         displayName: user.displayName,
       ));
     } catch (e) {
-      emit(AuthError(message: e.toString()));
+      emit(AuthError(message: e.toString().replaceAll('Exception: ', '')));
     }
   }
 
@@ -182,7 +183,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         displayName: user.displayName,
       ));
     } catch (e) {
-      emit(AuthError(message: e.toString()));
+      emit(AuthError(message: e.toString().replaceAll('Exception: ', '')));
     }
   }
 }
