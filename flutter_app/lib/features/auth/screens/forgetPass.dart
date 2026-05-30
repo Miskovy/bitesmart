@@ -1,6 +1,10 @@
 import 'package:bite_smart/features/auth/screens/otpScreen.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bite_smart/features/auth/data/bloc/auth_bloc.dart';
+import 'package:bite_smart/features/auth/data/bloc/auth_event.dart';
+import 'package:bite_smart/features/auth/data/bloc/auth_state.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -88,187 +92,224 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 20),
+        child: BlocListener<AuthBloc, AuthState>(
+          listener: (context, state) {
+            if (ModalRoute.of(context)?.isCurrent != true) return;
+            if (state is AuthOtpSent) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message ?? 'Code sent successfully'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => otpScreen(email: _inputController.text.trim()),
+                ),
+              );
+            } else if (state is AuthError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          },
+          child: Form(
+            key: _formKey,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 30.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 20),
 
-                // الأيقونة بنفس تصميمك
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5),
+                  // الأيقونة بنفس تصميمك
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 15,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.lock_reset_rounded,
+                      color: Color(0xFF4CAF50),
+                      size: 50,
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+
+                  Text(
+                    'forgot.title'.tr(),
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0D1B2A),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  Text(
+                    'forgot.subtitle'.tr(),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.blueGrey,
+                      height: 1.5,
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'forgot.email_or_phone_label'.tr(),
+                        style: const TextStyle(
+                          color: Colors.blueGrey,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // TextFormField بنفس الـ Styling بتاعك بالملي
+                      TextFormField(
+                        controller: _inputController,
+                        validator: _validateInput,
+                        decoration: InputDecoration(
+                          hintText: 'forgot.email_hint'.tr(),
+                          hintStyle: const TextStyle(color: Colors.black26),
+                          prefixIcon: const Icon(
+                            Icons.alternate_email,
+                            color: Colors.black26,
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+
+                          // الحدود العادية (بدون خطأ)
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: const BorderSide(
+                              color: Colors.green,
+                              width: 1.5,
+                            ),
+                          ),
+
+                          // الحدود في حالة وجود خطأ (عشان نحافظ على شكل الـ UI)
+                          errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: const BorderSide(
+                              color: Colors.red,
+                              width: 1,
+                            ),
+                          ),
+                          focusedErrorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: const BorderSide(
+                              color: Colors.red,
+                              width: 1.5,
+                            ),
+                          ),
+                          errorStyle: const TextStyle(
+                            height: 1,
+                          ), // عشان ميبوظش المسافات
+                        ),
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.lock_reset_rounded,
-                    color: Color(0xFF4CAF50),
-                    size: 50,
-                  ),
-                ),
 
-                const SizedBox(height: 40),
+                  Spacer(),
 
-                Text(
-                  'forgot.title'.tr(),
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0D1B2A),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                Text(
-                  'forgot.subtitle'.tr(),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.blueGrey,
-                    height: 1.5,
-                  ),
-                ),
-
-                const SizedBox(height: 40),
-
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'forgot.email_or_phone_label'.tr(),
-                      style: const TextStyle(
-                        color: Colors.blueGrey,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // TextFormField بنفس الـ Styling بتاعك بالملي
-                    TextFormField(
-                      controller: _inputController,
-                      validator: _validateInput,
-                      decoration: InputDecoration(
-                        hintText: 'forgot.email_hint'.tr(),
-                        hintStyle: const TextStyle(color: Colors.black26),
-                        prefixIcon: const Icon(
-                          Icons.alternate_email,
-                          color: Colors.black26,
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-
-                        // الحدود العادية (بدون خطأ)
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          borderSide: const BorderSide(
-                            color: Colors.green,
-                            width: 1.5,
-                          ),
-                        ),
-
-                        // الحدود في حالة وجود خطأ (عشان نحافظ على شكل الـ UI)
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          borderSide: const BorderSide(
-                            color: Colors.red,
-                            width: 1,
-                          ),
-                        ),
-                        focusedErrorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          borderSide: const BorderSide(
-                            color: Colors.red,
-                            width: 1.5,
-                          ),
-                        ),
-                        errorStyle: const TextStyle(
-                          height: 1,
-                        ), // عشان ميبوظش المسافات
-                      ),
-                    ),
-                  ],
-                ),
-
-                Spacer(),
-
-                SizedBox(
-                  width: .4 * MediaQuery.of(context).size.width,
-                  height: 46,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        // لو المدخلات صح، ينقل للصفحة اللي بعدها
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const otpScreen(),
+                  BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, state) {
+                      if (state is AuthLoading) {
+                        return const SizedBox(
+                          height: 46,
+                          width: 46,
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF43A047),
                           ),
                         );
                       }
+                      return SizedBox(
+                        width: .4 * MediaQuery.of(context).size.width,
+                        height: 46,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (_formKey.currentState!.validate()) {
+                              context.read<AuthBloc>().add(
+                                    SendOtpEvent(
+                                      emailOrPhone: _inputController.text.trim(),
+                                    ),
+                                  );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF43A047),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            elevation: 5,
+                            shadowColor: Colors.green.withOpacity(0.3),
+                          ),
+                          child: Text(
+                            'forgot.send_code'.tr(),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      );
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF43A047),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      elevation: 5,
-                      shadowColor: Colors.green.withOpacity(0.3),
-                    ),
-                    child: Text(
-                      'forgot.send_code'.tr(),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
                   ),
-                ),
-                const SizedBox(height: 40),
+                  const SizedBox(height: 40),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'forgot.remembered'.tr(),
-                      style: const TextStyle(color: Colors.blueGrey),
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Text(
-                        'forgot.log_in'.tr(),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF43A047),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'forgot.remembered'.tr(),
+                        style: const TextStyle(color: Colors.blueGrey),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Text(
+                          'forgot.log_in'.tr(),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF43A047),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 50),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: 50),
+                ],
+              ),
             ),
           ),
         ),

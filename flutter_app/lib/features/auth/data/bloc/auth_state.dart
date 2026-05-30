@@ -66,14 +66,16 @@ class AuthOtpSent extends AuthState {
 class AuthOtpVerified extends AuthState {
   final String email;
   final String? message;
+  final String? token;
 
   const AuthOtpVerified({
     required this.email,
     this.message,
+    this.token,
   });
 
   @override
-  List<Object?> get props => [email, message];
+  List<Object?> get props => [email, message, token];
 }
 
 // Password reset states

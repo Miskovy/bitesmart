@@ -48,6 +48,7 @@ class _LoginscreenState extends State<Loginscreen> {
       body: SafeArea(
         child: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
+            if (ModalRoute.of(context)?.isCurrent != true) return;
             if (state is AuthLoginSuccess || state is AuthAuthenticated) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -246,6 +247,9 @@ class _LoginscreenState extends State<Loginscreen> {
                             label: 'login.google'.tr(),
                             icon: Icons.g_mobiledata,
                             color: Colors.black,
+                            onPressed: () {
+                              context.read<AuthBloc>().add(const GoogleSignInEvent());
+                            },
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -345,9 +349,10 @@ class _LoginscreenState extends State<Loginscreen> {
     required String label,
     required IconData icon,
     required Color color,
+    VoidCallback? onPressed,
   }) {
     return OutlinedButton.icon(
-      onPressed: () {},
+      onPressed: onPressed,
       icon: Icon(icon, color: color),
       label: Text(label, style: const TextStyle(color: Colors.black)),
       style: OutlinedButton.styleFrom(

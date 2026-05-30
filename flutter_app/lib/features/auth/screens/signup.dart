@@ -2,6 +2,10 @@ import 'package:bite_smart/features/auth/screens/loginScreen.dart';
 import 'package:bite_smart/features/profile/screens/chooseGoalScreen.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bite_smart/features/auth/data/bloc/auth_bloc.dart';
+import 'package:bite_smart/features/auth/data/bloc/auth_event.dart';
+import 'package:bite_smart/features/auth/data/bloc/auth_state.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -13,17 +17,38 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isObscured = true;
+  bool _isConfirmObscured = true;
   bool _isAgreed = false;
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
 
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (ModalRoute.of(context)?.isCurrent != true) return;
+        if (state is AuthSignupSuccess || state is AuthAuthenticated) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChooseGoalScreen(),
+            ),
+          );
+        } else if (state is AuthError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message.tr()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           // مضاف عشان الشاشة متعملش Error لو الكيبورد فتحت
@@ -70,6 +95,12 @@ class _SignupScreenState extends State<SignupScreen> {
                     hint: 'signup.name_hint'.tr(),
                     icon: Icons.person_outline,
                     controller: _nameController,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'signup.name_error'.tr();
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 10),
 
@@ -79,6 +110,15 @@ class _SignupScreenState extends State<SignupScreen> {
                     hint: 'signup.email_hint'.tr(),
                     icon: Icons.email_outlined,
                     controller: _emailController,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'signup.email_error'.tr();
+                      }
+                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
+                        return 'signup.email_invalid_error'.tr();
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 10),
 
@@ -90,6 +130,27 @@ class _SignupScreenState extends State<SignupScreen> {
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _isObscured,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'signup.password_required'.tr();
+                          }
+                          if (value.length < 8) {
+                            return 'signup.password_len_error'.tr();
+                          }
+                          if (!value.contains(RegExp(r'[A-Z]'))) {
+                            return 'signup.password_uppercase_error'.tr();
+                          }
+                          if (!value.contains(RegExp(r'[a-z]'))) {
+                            return 'signup.password_lowercase_error'.tr();
+                          }
+                          if (!value.contains(RegExp(r'[0-9]'))) {
+                            return 'signup.password_number_error'.tr();
+                          }
+                          if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+                            return 'signup.password_special_error'.tr();
+                          }
+                          return null;
+                        },
                         decoration: _inputDecoration(
                           Label: 'signup.password'.tr(),
                           hint: 'signup.password_hint'.tr(),
@@ -103,6 +164,44 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                             onPressed: () =>
                                 setState(() => _isObscured = !_isObscured),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // حقل تأكيد الباسورد
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: _isConfirmObscured,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'signup.confirm_password_required'.tr();
+                          }
+                          if (value != _passwordController.text) {
+                            return 'signup.passwords_dont_match'.tr();
+                          }
+                          return null;
+                        },
+                        decoration: _inputDecoration(
+                          Label: 'signup.confirm_password'.tr(),
+                          hint: 'signup.confirm_password_hint'.tr(),
+                          icon: Icons.lock_outline,
+                          suffix: IconButton(
+                            icon: Icon(
+                              _isConfirmObscured
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: Colors.black26,
+                            ),
+                            onPressed: () =>
+                                setState(() => _isConfirmObscured = !_isConfirmObscured),
                           ),
                         ),
                       ),
@@ -134,32 +233,62 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 10),
 
                   // زرار التسجيل
-                  SizedBox(
-                    width: .4 * MediaQuery.of(context).size.width,
-                    height: 46,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>ChooseGoalScreen(),
+                  BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, state) {
+                      if (state is AuthLoading) {
+                        return const Center(
+                          child: SizedBox(
+                            height: 46,
+                            width: 46,
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF43A047)),
+                            ),
+                          ),
+                        );
+                      }
+                      return SizedBox(
+                        width: .5 * MediaQuery.of(context).size.width,
+                        height: 46,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (_formKey.currentState!.validate()) {
+                              if (!_isAgreed) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('signup.agree_error'.tr()),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+                              context.read<AuthBloc>().add(
+                                    SignupEvent(
+                                      fullName: _nameController.text,
+                                      email: _emailController.text,
+                                      password: _passwordController.text,
+                                      agreeToTerms: _isAgreed,
+                                    ),
+                                  );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF43A047),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            'signup.create_btn'.tr(),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF43A047),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        'signup.create_btn'.tr(),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 10),
@@ -188,6 +317,9 @@ class _SignupScreenState extends State<SignupScreen> {
                           label: 'signup.google'.tr(),
                           icon: Icons.g_mobiledata,
                           color: Colors.black,
+                          onPressed: () {
+                            context.read<AuthBloc>().add(const GoogleSignInEvent());
+                          },
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -235,6 +367,7 @@ class _SignupScreenState extends State<SignupScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -273,9 +406,10 @@ class _SignupScreenState extends State<SignupScreen> {
     required String label,
     required IconData icon,
     required Color color,
+    VoidCallback? onPressed,
   }) {
     return OutlinedButton.icon(
-      onPressed: () {},
+      onPressed: onPressed,
       icon: Icon(icon, color: color),
       label: Text(label, style: const TextStyle(color: Colors.black)),
       style: OutlinedButton.styleFrom(
@@ -292,6 +426,7 @@ class _SignupScreenState extends State<SignupScreen> {
     required String hint,
     required IconData icon,
     required TextEditingController controller,
+    String? Function(String?)? validator,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,6 +434,7 @@ class _SignupScreenState extends State<SignupScreen> {
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
+          validator: validator,
           decoration: _inputDecoration(Label: label, hint: hint, icon: icon),
         ),
       ],

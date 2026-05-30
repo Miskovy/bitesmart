@@ -1,3 +1,4 @@
+import 'package:bite_smart/core/services/secure_storage_service.dart';
 import 'package:bite_smart/features/auth/data/bloc/auth_bloc.dart';
 import 'package:bite_smart/features/auth/data/bloc/auth_event.dart';
 import 'package:bite_smart/features/auth/data/repositories/auth_repository.dart';
@@ -9,6 +10,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
+  await SecureStorageService.instance.initialize();
 
   runApp(
     EasyLocalization(

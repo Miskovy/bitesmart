@@ -28,7 +28,14 @@ class ApiException implements Exception {
         if (responseData is Map<String, dynamic> && responseData.containsKey('message')) {
           message = responseData['message'] as String;
         } else if (responseData is Map<String, dynamic> && responseData.containsKey('error')) {
-          message = responseData['error'] as String;
+          final errorVal = responseData['error'];
+          if (errorVal is Map<String, dynamic> && errorVal.containsKey('message')) {
+            message = errorVal['message'] as String;
+          } else if (errorVal is String) {
+            message = errorVal;
+          } else {
+            message = 'Received invalid response (${dioException.response?.statusCode})';
+          }
         } else {
           message = 'Received invalid response (${dioException.response?.statusCode})';
         }

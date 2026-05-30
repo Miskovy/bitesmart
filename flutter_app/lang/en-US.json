@@ -1,8 +1,7 @@
 {
   "selectLanguage": "Select Language",
   "chooseLanguageSubtitle": "Choose your preferred language to start your journey.",
-  "continueBtn": "Continue"
-  ,
+  "continueBtn": "Continue",
   "welcome": {
     "app_name": "NUTRICOACH AI",
     "title_part1": "Your Personal\n",
@@ -11,10 +10,9 @@
     "description": "Smart weight management and AI\nnutrition tracking tailored just for \nyou.",
     "get_started": "Get Started",
     "have_account": "I already have an account",
-    "terms": "By continuing, you agree to our Terms & Privacy Policy." 
-}
-,
-"signup": {
+    "terms": "By continuing, you agree to our Terms & Privacy Policy."
+  },
+  "signup": {
     "title": "Start your journey",
     "subtitle": "Create an account to track your nutrition",
     "full_name": "Full Name",
@@ -23,6 +21,20 @@
     "email_hint": "jane@example.com",
     "password": "Password",
     "password_hint": "........",
+    "confirm_password": "Confirm Password",
+    "confirm_password_hint": "........",
+    "passwords_dont_match": "Passwords do not match",
+    "password_required": "Password is required",
+    "confirm_password_required": "Confirm password is required",
+    "name_error": "Name is required",
+    "email_error": "Email is required",
+    "email_invalid_error": "Please enter a valid email address",
+    "password_len_error": "Password must be at least 8 characters long",
+    "password_uppercase_error": "Password must contain at least one uppercase letter",
+    "password_lowercase_error": "Password must contain at least one lowercase letter",
+    "password_number_error": "Password must contain at least one number",
+    "password_special_error": "Password must contain at least one special character/symbol",
+    "email_already_registered": "This email is already registered",
     "agree": "I agree to the Terms & Conditions and Privacy Policy",
     "create_btn": "Create Account",
     "or_continue": "or continue with",
@@ -133,8 +145,10 @@
     "notifications_description": "Get timely reminders for hydration, meal logging, and daily motivation.",
     "health_title": "Health Data",
     "health_description": "Sync steps and workouts from Apple Health to adjust your daily calorie goals automatically.",
-    "allow_button": "Allow Access",
-    "not_now": "Not Now"
+    "next_button": "Next",
+    "not_now": "Not Now",
+    "disable_info": "To disable permissions, please open the device settings.",
+    "settings_btn": "Settings"
   },
   "premium": {
     "restore": "Restore Purchase",
@@ -292,5 +306,14 @@
     "height_cm": "Height (cm)",
     "primary_goal": "PRIMARY GOAL",
     "save_success": "Profile updated successfully!"
+  },
+  "profile": {
+    "title": "Profile",
+    "edit_profile": "Edit Profile",
+    "sign_out": "Sign Out",
+    "sign_out_confirm": "Are you sure you want to sign out?",
+    "cancel": "Cancel",
+    "confirm": "Sign Out",
+    "sign_out_sub": "Sign out from your account"
   }
 }
