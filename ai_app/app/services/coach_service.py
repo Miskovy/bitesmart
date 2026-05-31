@@ -327,10 +327,15 @@ async def _call_with_tools(
                 result = {"error": f"Unknown tool '{fc.name}'."}
 
             # Build function response, including id if available (Gemini 3+)
-            fr_kwargs: dict[str, Any] = {"name": fc.name, "response": {"result": result}}
-            if getattr(fc, "id", None):
-                fr_kwargs["id"] = fc.id
-            fn_response_parts.append(types.Part.from_function_response(**fr_kwargs))
+            fn_response_parts.append(
+                types.Part(
+                    function_response=types.FunctionResponse(
+                        name=fc.name,
+                        response={"result": result},
+                        id=getattr(fc, "id", None)
+                    )
+                )
+            )
 
         # Append model response + function results, then call Gemini again
         contents.append(response.candidates[0].content)
@@ -448,10 +453,15 @@ async def _resolve_tools_then_stream(
             else:
                 result = {"error": f"Unknown tool '{fc.name}'."}
 
-            fr_kwargs: dict[str, Any] = {"name": fc.name, "response": {"result": result}}
-            if getattr(fc, "id", None):
-                fr_kwargs["id"] = fc.id
-            fn_response_parts.append(types.Part.from_function_response(**fr_kwargs))
+            fn_response_parts.append(
+                types.Part(
+                    function_response=types.FunctionResponse(
+                        name=fc.name,
+                        response={"result": result},
+                        id=getattr(fc, "id", None)
+                    )
+                )
+            )
 
         contents.append(response.candidates[0].content)
         contents.append(types.Content(role="user", parts=fn_response_parts))
