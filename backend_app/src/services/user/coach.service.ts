@@ -3,6 +3,7 @@ import { db } from "../../db/connection";
 import { userTarget } from "../../models/user_target";
 import { eq } from "drizzle-orm";
 import { calculateUserTargets } from "./target.service";
+import { BadRequest } from "../../errors";
 
 const ensureUserTargets = async (userId: string) => {
     const existing = await db.query.userTarget.findFirst({
@@ -15,6 +16,7 @@ const ensureUserTargets = async (userId: string) => {
             // If we can't calculate targets (e.g. incomplete profile), the AI will still fail,
             // but we at least attempted to heal it. We let the original error bubble up or let the AI handle it.
             console.error("Failed to auto-calculate targets:", error);
+            throw new BadRequest("Failed to auto-calculate targets", { cause: error });
         }
     }
 };
