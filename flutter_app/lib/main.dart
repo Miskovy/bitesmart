@@ -6,6 +6,7 @@ import 'package:bite_smart/features/auth/screens/splashScreen.dart';
 import 'package:bite_smart/features/profile/data/repositories/profile_repository.dart';
 import 'package:bite_smart/features/profile/data/bloc/profile_setup_bloc.dart';
 import 'package:bite_smart/features/profile/data/bloc/profile_bloc.dart';
+import 'package:bite_smart/features/home/data/repositories/coach_repository.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -37,6 +38,9 @@ class MyApp extends StatelessWidget {
         ),
         RepositoryProvider<IProfileRepository>(
           create: (context) => ProfileRepository(),
+        ),
+        RepositoryProvider<ICoachRepository>(
+          create: (context) => CoachRepository(),
         ),
       ],
       child: MultiBlocProvider(
