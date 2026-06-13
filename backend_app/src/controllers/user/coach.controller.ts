@@ -53,10 +53,12 @@ export const deleteUserChat = async (req: Request, res: Response) => {
         throw new BadRequest("Invalid Chat ID");
     }
 
-    const deleted = await deleteChat(userId, chatId as string);
+    const response = await deleteChat(userId, chatId as string);
 
-    if (!deleted) {
-        throw new BadRequest("Failed to delete chat");
+    // The AI service returns an empty string "" on success, and throws an error on failure.
+    // In case a response object is returned, we check if it explicitly indicates failure.
+    if (response && response.success === false) {
+        throw new BadRequest(response.message || "Failed to delete chat");
     }
 
     SuccessResponse(res, { message: "Chat deleted successfully" }, 204);

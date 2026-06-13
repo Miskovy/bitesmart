@@ -35,6 +35,10 @@ export const errorHandler: ErrorRequestHandler = (
         statusCode = 413;
         message = "The uploaded image is too large. Please upload a smaller image.";
         details = "Max request size exceeded. Limit is 10MB.";
+    } else if (err instanceof SyntaxError && "status" in err && (err as any).status === 400) {
+        statusCode = 400;
+        message = "Invalid JSON payload";
+        details = err.message;
     }
 
     const response: IErrorResponse = {
