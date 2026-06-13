@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getAllChats, getChatMessages , deleteChat, sendMessage, sendMessageStream as sendMessageStreamService } from "../../services/user/coach.service";
+import { getAllChats, getChatMessages, deleteChat, sendMessage, sendMessageStream as sendMessageStreamService } from "../../services/user/coach.service";
 import { BadRequest, UnauthorizedError } from "../../errors";
 import { SuccessResponse } from "../../utils/Response";
 
@@ -45,18 +45,16 @@ export const deleteUserChat = async (req: Request, res: Response) => {
     const userId = req.user?.id;
     const { chatId } = req.params;
 
-    if(!userId) {
+    if (!userId) {
         throw new UnauthorizedError("Invalid User");
     }
 
-    if(!chatId) {
+    if (!chatId) {
         throw new BadRequest("Invalid Chat ID");
     }
 
     const response = await deleteChat(userId, chatId as string);
 
-    // The AI service returns an empty string "" on success, and throws an error on failure.
-    // In case a response object is returned, we check if it explicitly indicates failure.
     if (response && response.success === false) {
         throw new BadRequest(response.message || "Failed to delete chat");
     }
