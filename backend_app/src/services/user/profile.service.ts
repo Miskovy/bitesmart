@@ -4,11 +4,16 @@ import { users } from "../../models/user";
 import { userMedicalConditions } from "../../models/user_medical_conditions";
 import { userDietaryPreferences } from "../../models/user_dietary_preferences";
 import { userTarget } from "../../models/user_target";
+import { weightLogs } from "../../models/weight_logs";
 import { NotFound, BadRequest } from "../../errors";
 import { userModes } from "../../types/interfaces";
 import { UpdateProfileData } from "../../types/interfaces";
+import { updateLoginStreak } from "./streak.service";
 
-export const getMyProfile = async (userId: string) => {
+export const getMyProfile = async (userId: string, timezone?: string, offsetMinutes?: number) => {
+
+    // Automatically update login streak on profile fetch
+    const currentStreak = await updateLoginStreak(userId, timezone, offsetMinutes);
 
     const user = await db.query.users.findFirst({
         where: eq(users.id, userId),
@@ -37,6 +42,7 @@ export const getMyProfile = async (userId: string) => {
         medicalConditions: medicalConditions || null,
         dietaryPreferences: dietaryPreferences || null,
         targets: targets || null,
+        loginStreak: currentStreak,
     };
 };
 
@@ -62,6 +68,15 @@ export const updatemyProfile = async (userId: string, data: UpdateProfileData) =
                 .set(userCoreData)
                 .where(eq(users.id, userId))
         );
+
+        if (userCoreData.weight !== undefined) {
+            updatePromises.push(
+                db.insert(weightLogs).values({
+                    userId,
+                    weight: userCoreData.weight,
+                })
+            );
+        }
     }
 
     if (medicalConditions && Object.keys(medicalConditions).length > 0) {
