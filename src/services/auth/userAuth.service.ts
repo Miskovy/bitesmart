@@ -9,6 +9,7 @@ import { googleClientIds } from "../../constants/api.constants";
 import { sendEmail } from "../../utils/email";
 import { otpStore } from "./otpStore";
 import { getForgotEmailTemplate } from "../../utils/emailTemplate";
+import { updateLoginStreak } from "../user/streak.service";
 const client = new OAuth2Client();
 
 export type BaseUser = InferSelectModel<typeof users>;
@@ -41,7 +42,7 @@ const getMissingPreferences = (user: Partial<FullUser>) => {
   return missing;
 };
 
-export const login = async (email: string, password: string) => {
+export const login = async (email: string, password: string, timezone?: string, offsetMinutes?: number) => {
   const user = await db.query.users.findFirst({
     where: eq(users.email, email),
   });
@@ -56,6 +57,9 @@ export const login = async (email: string, password: string) => {
     throw new BadRequest("Invalid Credentials");
   }
 
+  // Update login streak
+  const streak = await updateLoginStreak(user.id, timezone, offsetMinutes);
+
   const token = generateToken({
     id: user.id,
     name: user.name,
@@ -66,10 +70,10 @@ export const login = async (email: string, password: string) => {
   const { password: _pw, ...safeUser } = user;
   const missingFields = getMissingPreferences(user);
   
-  return { user: { ...safeUser, missingFields }, token };
+  return { user: { ...safeUser, loginStreak: streak, missingFields }, token };
 };
 
-export const register = async (email: string, password: string, name: string) => {
+export const register = async (email: string, password: string, name: string, timezone?: string, offsetMinutes?: number) => {
 
   const existingUser = await db
     .select()
@@ -91,6 +95,9 @@ export const register = async (email: string, password: string, name: string) =>
     age: 0 // Provide a default age since it's required by the schema
   });
 
+  // Initialize login streak to 1
+  const streak = await updateLoginStreak(userId, timezone, offsetMinutes);
+
   const token = generateToken({
     id: userId,
     name,
@@ -102,6 +109,7 @@ export const register = async (email: string, password: string, name: string) =>
       id: userId,
       name,
       email,
+      loginStreak: streak,
       missingFields: ["gender", "age", "height", "weight", "userGoal", "activityLevel", "dietaryPreferences", "medicalConditions"]
     },
     token
@@ -174,7 +182,7 @@ export const resetPassword = async (token: string, newPassword: string) => {
   return { message: "Password reset successfully" };
 };
 
-export const loginWithGoogle = async (idToken: string) => {
+export const loginWithGoogle = async (idToken: string, timezone?: string, offsetMinutes?: number) => {
   const ticket = await client.verifyIdToken({
     idToken,
     audience: googleClientIds,
@@ -223,6 +231,9 @@ export const loginWithGoogle = async (idToken: string) => {
     throw new BadRequest("Failed to sign in with Google");
   }
 
+  // Update login streak
+  const streak = await updateLoginStreak(user.id, timezone, offsetMinutes);
+
   const token = generateToken({
     id: user.id,
     name: user.name,
@@ -231,5 +242,5 @@ export const loginWithGoogle = async (idToken: string) => {
 
   const { password: _pw, ...safeGoogleUser } = user;
   const missingFields = getMissingPreferences(user);
-  return { user: { ...safeGoogleUser, missingFields }, token };
+  return { user: { ...safeGoogleUser, loginStreak: streak, missingFields }, token };
 };

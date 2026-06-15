@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getChallenges, joinChallenge, leaveChallenge, updateChallengeProgress } from "../../services/user/challenge.service";
+import { getChallenges, joinChallenge, leaveChallenge, updateChallengeProgress, createChallenge } from "../../services/user/challenge.service";
 import { BadRequest, UnauthorizedError } from "../../errors";
 import { SuccessResponse } from "../../utils/Response";
 
@@ -69,4 +69,15 @@ export const updateChallengeProgressController = async (req: Request, res: Respo
 
     const result = await updateChallengeProgress(userId, challengeId as string, Number(progress));
     SuccessResponse(res, result, 200);
+};
+
+export const createChallengeController = async (req: Request, res: Response) => {
+    const { title, description, startDate, endDate } = req.body;
+
+    if (!title || !description) {
+        throw new BadRequest("Title and Description are required");
+    }
+
+    const result = await createChallenge(title, description, startDate, endDate);
+    SuccessResponse(res, result, 201);
 };

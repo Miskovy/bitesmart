@@ -10,7 +10,12 @@ export const getProfileData = async (req: Request, res: Response) => {
     if (!userId) {
       throw new BadRequest("User ID is missing or user is not authenticated");
     }
-    const profileData = await getMyProfile(userId);
+    
+    const timezone = req.headers["x-timezone"] as string | undefined;
+    const offsetHeader = req.headers["x-timezone-offset"];
+    const offsetMinutes = offsetHeader ? Number(offsetHeader) : undefined;
+
+    const profileData = await getMyProfile(userId, timezone, offsetMinutes);
 
     SuccessResponse(res, profileData, 200);
 

@@ -24,3 +24,4 @@ export * from "../models/water_logs";
 export * from "../models/health_sync";
 //! Created by Antigravity: Export completed days model
 export * from "../models/completed_days";
+export * from "../models/weight_logs";

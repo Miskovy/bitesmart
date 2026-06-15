@@ -154,3 +154,47 @@ export const updateChallengeProgress = async (userId: string, challengeId: strin
         status
     };
 };
+
+/**
+ * Creates a new community challenge.
+ * 
+ * @param title - Title of the challenge.
+ * @param description - Description of the challenge.
+ * @param startDate - Optional start date.
+ * @param endDate - Optional end date.
+ * @returns The created challenge object.
+ */
+export const createChallenge = async (
+    title: string,
+    description: string,
+    startDate?: string | Date,
+    endDate?: string | Date
+) => {
+    if (!title || !description) {
+        throw new BadRequest("Title and Description are required");
+    }
+
+    const start = startDate ? new Date(startDate) : new Date();
+    const end = endDate ? new Date(endDate) : null;
+
+    const challengeId = crypto.randomUUID();
+
+    await db.insert(communityChallenges).values({
+        id: challengeId,
+        title,
+        description,
+        startDate: start,
+        endDate: end,
+        participantsCount: 0
+    });
+
+    return {
+        id: challengeId,
+        title,
+        description,
+        startDate: start,
+        endDate: end,
+        participantsCount: 0
+    };
+};
+

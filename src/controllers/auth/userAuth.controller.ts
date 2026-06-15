@@ -17,7 +17,11 @@ export const userLogin = async (req: Request, res: Response) => {
         throw new BadRequest("Email and Password are required");
     }
 
-    const result = await login(email, password);
+    const timezone = req.headers["x-timezone"] as string | undefined;
+    const offsetHeader = req.headers["x-timezone-offset"];
+    const offsetMinutes = offsetHeader ? Number(offsetHeader) : undefined;
+
+    const result = await login(email, password, timezone, offsetMinutes);
 
     return SuccessResponse(res, result, 200);
 };
@@ -29,7 +33,11 @@ export const signup = async (req: Request, res: Response) => {
         throw new BadRequest("Email, Password, and Name are required");
     }
 
-    const result = await register(email, password, name);
+    const timezone = req.headers["x-timezone"] as string | undefined;
+    const offsetHeader = req.headers["x-timezone-offset"];
+    const offsetMinutes = offsetHeader ? Number(offsetHeader) : undefined;
+
+    const result = await register(email, password, name, timezone, offsetMinutes);
     return SuccessResponse(res, result, 201);
 };
 
@@ -40,7 +48,11 @@ export const googleAuth = async (req: Request, res: Response) => {
         throw new BadRequest("Google ID Token is required");
     }
 
-    const result = await loginWithGoogle(idToken);
+    const timezone = req.headers["x-timezone"] as string | undefined;
+    const offsetHeader = req.headers["x-timezone-offset"];
+    const offsetMinutes = offsetHeader ? Number(offsetHeader) : undefined;
+
+    const result = await loginWithGoogle(idToken, timezone, offsetMinutes);
 
     return SuccessResponse(res, result, 200);
 };
