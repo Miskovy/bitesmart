@@ -9,6 +9,7 @@ on:
       - 'AI/ML'
       - 'backend'
       - 'flutter'
+      - 'frontend'
   pull_request:
     branches:
       - 'main'
@@ -184,3 +185,79 @@ jobs:
       - name: Run tests
         working-directory: ${{ steps.project.outputs.dir }}
         run: flutter test
+
+  frontend-quality-gate:
+    if: |
+      (github.event_name == 'push' && github.ref_name == 'frontend') ||
+      (github.event_name == 'pull_request' && (
+        github.head_ref == 'frontend' ||
+        github.head_ref == 'promotion/frontend-to-main'
+      ))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Detect bite-smart directory
+        id: bite_smart_dir
+        shell: bash
+        run: |
+          if [ -d bite-smart ]; then
+            echo "dir=bite-smart" >> "$GITHUB_OUTPUT"
+          elif [ -d frontend_apps/bite-smart ]; then
+            echo "dir=frontend_apps/bite-smart" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unable to locate bite-smart directory."
+            exit 1
+          fi
+
+      - name: Detect biteweb directory
+        id: biteweb_dir
+        shell: bash
+        run: |
+          if [ -d biteweb ]; then
+            echo "dir=biteweb" >> "$GITHUB_OUTPUT"
+          elif [ -d frontend_apps/biteweb ]; then
+            echo "dir=frontend_apps/biteweb" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unable to locate biteweb directory."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            ${{ steps.bite_smart_dir.outputs.dir }}/package-lock.json
+            ${{ steps.biteweb_dir.outputs.dir }}/package-lock.json
+
+      - name: Install dependencies (bite-smart)
+        working-directory: ${{ steps.bite_smart_dir.outputs.dir }}
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: Lint bite-smart
+        working-directory: ${{ steps.bite_smart_dir.outputs.dir }}
+        run: npm run lint --if-present
+
+      - name: Build bite-smart
+        working-directory: ${{ steps.bite_smart_dir.outputs.dir }}
+        run: npm run build
+
+      - name: Install dependencies (biteweb)
+        working-directory: ${{ steps.biteweb_dir.outputs.dir }}
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: Lint biteweb
+        working-directory: ${{ steps.biteweb_dir.outputs.dir }}
+        run: npm run lint --if-present
+
+      - name: Build biteweb
+        working-directory: ${{ steps.biteweb_dir.outputs.dir }}
+        run: npm run build
