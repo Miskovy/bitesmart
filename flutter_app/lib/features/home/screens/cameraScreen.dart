@@ -1,11 +1,16 @@
+import 'dart:typed_data';
 import 'package:bite_smart/features/home/screens/aiAnalysizeScreen.dart';
+import 'package:bite_smart/features/home/data/repositories/home_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AiCameraScreen extends StatefulWidget {
-  const AiCameraScreen({super.key});
+  final bool isCalibrating;
+  final double foodWidthCm;
+  const AiCameraScreen({super.key, this.isCalibrating = false, this.foodWidthCm = 8.0});
 
   @override
   State<AiCameraScreen> createState() => _AiCameraScreenState();
@@ -15,8 +20,9 @@ class _AiCameraScreenState extends State<AiCameraScreen> {
   CameraController? _controller;
   List<CameraDescription>? _cameras;
   bool _isCameraInitialized = false;
-  // شلنا الـ FlashMode المعقد وخليناه رقم بسيط (0 = مقفول، 1 = كشاف، 2 = تلقائي)
-final ValueNotifier<int> flashState = ValueNotifier(0);
+  bool _isProcessing = false;
+  // flashState: (0 = off, 1 = torch, 2 = auto)
+  final ValueNotifier<int> flashState = ValueNotifier(0);
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -25,13 +31,13 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
     _initializeCamera();
   }
 
-  // تهيئة الكاميرا الخلفية للتطبيق
+  // Initialize camera
   Future<void> _initializeCamera() async {
     try {
       _cameras = await availableCameras();
       if (_cameras != null && _cameras!.isNotEmpty) {
         _controller = CameraController(
-          _cameras![0], // الكاميرا الخلفية الأساسية
+          _cameras![0], // Primary back camera
           ResolutionPreset.high,
           enableAudio: false,
         );
@@ -48,36 +54,47 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
     }
   }
 
-  // دالة فتح المعرض (Gallery) واختيار صورة
+  // Pick image from gallery
   Future<void> _pickImageFromGallery() async {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
         debugPrint("Image picked from gallery: ${image.path}");
-        // هنا يمكنك أخذ مسار الصورة وإرساله لشاشة التعديل أو التحليل بالـ AI
+        final bytes = await image.readAsBytes();
+        _processPickedImage(image.path, bytes: bytes);
       }
     } catch (e) {
       debugPrint("Error picking image: $e");
     }
   }
 
-  // دالة التقاط الصورة من الكاميرا
+  Future<void> _processPickedImage(String path, {Uint8List? bytes}) async {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AiAnalysizeScreen(
+          imagePath: path,
+          imageBytes: bytes,
+          foodWidthCm: widget.foodWidthCm,
+          isCalibration: widget.isCalibrating,
+        ),
+      ),
+    ).then((shouldRefresh) {
+      if (shouldRefresh == true && mounted) {
+        Navigator.pop(context, true);
+      }
+    });
+  }
+
+  // Take picture from camera
   Future<void> _takePicture() async {
-    if (_controller == null || !_controller!.value.isInitialized) return;
+    if (_controller == null || !_controller!.value.isInitialized || _isProcessing) return;
 
     try {
       final XFile picture = await _controller!.takePicture();
       debugPrint("Picture taken: ${picture.path}");
-      Navigator.pop(context); 
-      Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (_) => AiAnalysizeScreen(
-      imagePath: picture.path,
-    ),
-  ),
-);
-      // هنا تنقل المستخدم لصفحة مراجعة الوجبة أو الـ AI Log التي صممناها سابقاً
+      final bytes = await picture.readAsBytes();
+      await _processPickedImage(picture.path, bytes: bytes);
     } catch (e) {
       debugPrint("Error taking picture: $e");
     }
@@ -91,11 +108,21 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
 
   @override
   Widget build(BuildContext context) {
-    if (!_isCameraInitialized || _controller == null) {
-      return const Scaffold(
+    if (!_isCameraInitialized || _controller == null || _isProcessing) {
+      return Scaffold(
         backgroundColor: Colors.black,
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(color: Color(0xFF4CAF50)),
+              const SizedBox(height: 16),
+              Text(
+                _isProcessing ? "Calibrating smart scale..." : "Initializing camera...",
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -104,7 +131,7 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // 1. عرض الكاميرا المباشر ليمر بكامل الشاشة (Full Screen Preview)
+          // 1. Full Screen Preview
           Positioned.fill(
             child: AspectRatio(
               aspectRatio: _controller!.value.aspectRatio,
@@ -112,7 +139,7 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
             ),
           ),
 
-          // 2. الطبقة العلوية: الفلاش، حالة الـ AI، وزر الإلغاء (X)
+          // 2. Top Bar: Flash, state info, Close button
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(
@@ -122,45 +149,36 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // زر الفلاش (Flash)
+                  // Flash Button
                   GestureDetector(
-  onTap: () async {
-    if (_controller == null ||
-        !_controller!.value.isInitialized) {
-      return;
-    }
+                    onTap: () async {
+                      if (_controller == null || !_controller!.value.isInitialized) {
+                        return;
+                      }
 
-    flashState.value = (flashState.value + 1) % 3;
+                      flashState.value = (flashState.value + 1) % 3;
 
-    await _controller!.setFlashMode(
-      flashState.value == 0
-          ? FlashMode.off
-          : (flashState.value == 1
-              ? FlashMode.torch
-              : FlashMode.auto),
-    );
-  },
+                      await _controller!.setFlashMode(
+                        flashState.value == 0
+                            ? FlashMode.off
+                            : (flashState.value == 1 ? FlashMode.torch : FlashMode.auto),
+                      );
+                    },
+                    child: ValueListenableBuilder<int>(
+                      valueListenable: flashState,
+                      builder: (context, value, child) {
+                        return Icon(
+                          value == 0
+                              ? Icons.flash_off
+                              : value == 1 ? Icons.flash_on : Icons.flash_auto,
+                          color: value == 0 ? Colors.white : Colors.yellow,
+                          size: 28,
+                        );
+                      },
+                    ),
+                  ),
 
-  child: ValueListenableBuilder<int>(
-    valueListenable: flashState,
-    builder: (context, value, child) {
-      return Icon(
-        value == 0
-            ? Icons.flash_off
-            : value == 1
-                ? Icons.flash_on
-                : Icons.flash_auto,
-
-        color: value == 0
-            ? Colors.white
-            : Colors.yellow,
-
-        size: 28,
-      );
-    },
-  ),
-),
-                  // كبسولة حالة الـ AI (AI Looking for food...)
+                  // Capsule info
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -177,13 +195,13 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
                           width: 8,
                           height: 8,
                           decoration: const BoxDecoration(
-                            color: Color(0xFF4CAF50), // النقطة الخضراء النابضة
+                            color: Color(0xFF4CAF50),
                             shape: BoxShape.circle,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          "camera.ai_looking".tr(),
+                          widget.isCalibrating ? "Scale Calibration" : "camera.ai_looking".tr(),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 13,
@@ -194,7 +212,7 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
                     ),
                   ),
 
-                  // زر الإغلاق / إلغاء الأمر (X)
+                  // Close button
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: CircleAvatar(
@@ -212,19 +230,19 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
             ),
           ),
 
-          // 3. المنتصف: مربع إرشاد المسح الضوئي الأخضر (Scanner Frame)
+          // 3. Scan frame
           Center(
             child: Container(
               width: MediaQuery.of(context).size.width * 0.65,
               height: MediaQuery.of(context).size.width * 0.65,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.transparent), // شفاف من الداخل
+              decoration: const BoxDecoration(
+                color: Colors.transparent,
               ),
               child: Stack(children: [buildScannerOverlay(context)]),
             ),
           ),
 
-          // 4. الجزء السفلي: التحكم بالوضع (Single/Multi) وأزرار التقاط الصور والمعرض
+          // 4. Bottom controls
           Positioned(
             bottom: 0,
             left: 0,
@@ -243,7 +261,7 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // أ) زر فتح الاستوديو / المعرض (Gallery)
+                    // Gallery Button
                     GestureDetector(
                       onTap: _pickImageFromGallery,
                       child: Container(
@@ -253,21 +271,12 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.white, width: 2),
-                          image: const DecorationImage(
-                            image: AssetImage(
-                              'assets/images/food_placeholder.png',
-                            ), // صورة مصغرة تلميحية
-                            fit: BoxFit.cover,
-                            onError:
-                                _handleImageError, // لتجنب الكراش إذا لم تتوفر صورة
-                          ),
                         ),
-                        // أيقونة احتياطية في حال لم تكن الصورة موجودة بالـ Assets بعد
                         child: const Icon(Icons.photo, color: Colors.grey),
                       ),
                     ),
 
-                    // ب) زر تصوير اللقطة الكبير بالمنتصف (Shutter Button)
+                    // Shutter Button
                     GestureDetector(
                       onTap: _takePicture,
                       child: Container(
@@ -289,16 +298,8 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
                       ),
                     ),
 
-                    // ج) زر السجل / التوقيت (History Icon) يمين
-                    CircleAvatar(
-                      backgroundColor: Colors.black.withOpacity(0.5),
-                      radius: 25,
-                      child: const Icon(
-                        Icons.history,
-                        color: Colors.white,
-                        size: 26,
-                      ),
-                    ),
+                    // Spacer/History placeholder
+                    const SizedBox(width: 50),
                   ],
                 ),
               ),
@@ -309,7 +310,6 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
     );
   }
 
-  // ويدجت فرعي لبناء زوايا مربع المسح المخصص (Scanner Corner)
   Widget _buildCorner({
     double? top,
     double? bottom,
@@ -328,18 +328,10 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
         height: 30,
         decoration: BoxDecoration(
           border: Border(
-            top: isTop
-                ? const BorderSide(color: Color(0xFF4CAF50), width: 4)
-                : BorderSide.none,
-            bottom: !isTop
-                ? const BorderSide(color: Color(0xFF4CAF50), width: 4)
-                : BorderSide.none,
-            left: isLeft
-                ? const BorderSide(color: Color(0xFF4CAF50), width: 4)
-                : BorderSide.none,
-            right: !isLeft
-                ? const BorderSide(color: Color(0xFF4CAF50), width: 4)
-                : BorderSide.none,
+            top: isTop ? const BorderSide(color: Color(0xFF4CAF50), width: 4) : BorderSide.none,
+            bottom: !isTop ? const BorderSide(color: Color(0xFF4CAF50), width: 4) : BorderSide.none,
+            left: isLeft ? const BorderSide(color: Color(0xFF4CAF50), width: 4) : BorderSide.none,
+            right: !isLeft ? const BorderSide(color: Color(0xFF4CAF50), width: 4) : BorderSide.none,
           ),
         ),
       ),
@@ -361,11 +353,8 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
             child: Stack(
               children: [
                 _buildCorner(top: 0, left: 0, isTop: true, isLeft: true),
-
                 _buildCorner(top: 0, right: 0, isTop: true, isLeft: false),
-
                 _buildCorner(bottom: 0, left: 0, isTop: false, isLeft: true),
-
                 _buildCorner(bottom: 0, right: 0, isTop: false, isLeft: false),
               ],
             ),
@@ -374,6 +363,4 @@ final ValueNotifier<int> flashState = ValueNotifier(0);
       },
     );
   }
-
-  static void _handleImageError(Object exception, StackTrace? stackTrace) {}
 }

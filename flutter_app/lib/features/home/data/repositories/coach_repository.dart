@@ -73,8 +73,15 @@ class CoachRepository implements ICoachRepository {
       final response = await ApiService.instance.delete('/coach/sessions/$chatId');
       debugPrint("Delete response: $response");
       
-      bool isSuccess = response['success'] == true;
-      String? message = response['message']?.toString();
+      bool isSuccess = true;
+      String? message;
+      
+      if (response.containsKey('success')) {
+        isSuccess = response['success'] == true;
+      }
+      if (response.containsKey('message')) {
+        message = response['message']?.toString();
+      }
       
       if (response.containsKey('data') && response['data'] is Map) {
         final innerData = response['data'] as Map;
@@ -91,6 +98,11 @@ class CoachRepository implements ICoachRepository {
       }
     } catch (e) {
       debugPrint("Error in deleteCoachSession: $e");
+      final errStr = e.toString().toLowerCase();
+      if (errStr.contains('invalid json') || errStr.contains('format') || errStr.contains('unexpected character')) {
+        debugPrint("Treating JSON parse error as success for DELETE request.");
+        return;
+      }
       rethrow;
     }
   }

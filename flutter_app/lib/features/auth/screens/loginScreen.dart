@@ -198,7 +198,7 @@ class _LoginscreenState extends State<Loginscreen> {
                           );
                         }
                         return SizedBox(
-                          width: .5 * MediaQuery.of(context).size.width,
+                          width: .6 * MediaQuery.of(context).size.width,
                           height: 46,
                           child: ElevatedButton(
                             onPressed: _submitData,

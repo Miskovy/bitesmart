@@ -254,7 +254,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         );
                       }
                       return SizedBox(
-                        width: .4 * MediaQuery.of(context).size.width,
+                        width: .6 * MediaQuery.of(context).size.width,
                         height: 46,
                         child: ElevatedButton(
                           onPressed: () {

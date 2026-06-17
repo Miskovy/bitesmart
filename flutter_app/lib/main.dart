@@ -4,13 +4,18 @@ import 'package:bite_smart/features/auth/data/bloc/auth_event.dart';
 import 'package:bite_smart/features/auth/data/repositories/auth_repository.dart';
 import 'package:bite_smart/features/auth/screens/splashScreen.dart';
 import 'package:bite_smart/features/profile/data/repositories/profile_repository.dart';
+import 'package:bite_smart/features/profile/data/repositories/settings_repository.dart';
 import 'package:bite_smart/features/profile/data/bloc/profile_setup_bloc.dart';
 import 'package:bite_smart/features/profile/data/bloc/profile_bloc.dart';
 import 'package:bite_smart/features/home/data/repositories/coach_repository.dart';
+import 'package:bite_smart/features/home/data/repositories/symptom_repository.dart';
+import 'package:bite_smart/features/home/data/repositories/engagement_repository.dart';
+import 'package:bite_smart/features/home/data/repositories/food_repository.dart';
+import 'package:bite_smart/features/home/data/repositories/home_repository.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
+    
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
@@ -42,6 +47,21 @@ class MyApp extends StatelessWidget {
         RepositoryProvider<ICoachRepository>(
           create: (context) => CoachRepository(),
         ),
+        RepositoryProvider<ISettingsRepository>(
+          create: (context) => SettingsRepository(),
+        ),
+        RepositoryProvider<ISymptomRepository>(
+          create: (context) => SymptomRepository(),
+        ),
+        RepositoryProvider<IEngagementRepository>(
+          create: (context) => EngagementRepository(),
+        ),
+        RepositoryProvider<IFoodRepository>(
+          create: (context) => FoodRepository(),
+        ),
+        RepositoryProvider<IHomeRepository>(
+          create: (context) => HomeRepository(),
+        ),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -72,4 +92,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-

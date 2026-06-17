@@ -20,7 +20,7 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   // 🟢 1. المتغيرات الخاصة بالبيانات الشخصية (Variables لربط الداتا بيز)
-  String imageUrl = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200';
+  String imageUrl = '';
   String currentPhase = "Maintenance Phase";
   String currentGoalDescription = "Maintain current composition";
 
@@ -36,7 +36,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // Listen to controller changes to trigger rebuild (so save button status is dynamic)
     _nameController.addListener(_onTextChanged);
     _phoneController.addListener(_onTextChanged);
@@ -49,7 +49,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } else {
       final authState = context.read<AuthBloc>().state;
       if (authState is AuthAuthenticated) {
-        context.read<ProfileBloc>().add(LoadProfileEvent(userId: authState.userId));
+        context.read<ProfileBloc>().add(
+          LoadProfileEvent(userId: authState.userId),
+        );
       }
     }
   }
@@ -62,9 +64,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController.text = state.displayName ?? "";
     _emailController.text = state.email ?? "";
     _phoneController.text = state.phone ?? "";
-    _weightController.text = state.weight != null ? state.weight!.round().toString() : "";
-    _heightController.text = state.height != null ? state.height!.round().toString() : "";
-    
+    _weightController.text = state.weight != null
+        ? state.weight!.round().toString()
+        : "";
+    _heightController.text = state.height != null
+        ? state.height!.round().toString()
+        : "";
+
     if (state.profileImageUrl != null && state.profileImageUrl!.isNotEmpty) {
       imageUrl = state.profileImageUrl!;
     }
@@ -86,8 +92,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (_lastLoadedProfile == null) return false;
     final originalName = _lastLoadedProfile!.displayName ?? "";
     final originalPhone = _lastLoadedProfile!.phone ?? "";
-    final originalWeight = _lastLoadedProfile!.weight != null ? _lastLoadedProfile!.weight!.round().toString() : "";
-    final originalHeight = _lastLoadedProfile!.height != null ? _lastLoadedProfile!.height!.round().toString() : "";
+    final originalWeight = _lastLoadedProfile!.weight != null
+        ? _lastLoadedProfile!.weight!.round().toString()
+        : "";
+    final originalHeight = _lastLoadedProfile!.height != null
+        ? _lastLoadedProfile!.height!.round().toString()
+        : "";
 
     return _nameController.text != originalName ||
         _phoneController.text != originalPhone ||
@@ -113,7 +123,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   // دالة الحفظ
   void _saveProfileData() {
     if (_lastLoadedProfile == null) return;
-    
+
     final authState = context.read<AuthBloc>().state;
     if (authState is AuthAuthenticated) {
       final double? weight = double.tryParse(_weightController.text);
@@ -142,18 +152,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final XFile? image = await picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
+        maxWidth: MediaQuery.of(context).size.width,
+        maxHeight: MediaQuery.of(context).size.height,
         imageQuality: 85,
       );
       if (image != null) {
         final authState = context.read<AuthBloc>().state;
         if (authState is AuthAuthenticated) {
           context.read<ProfileBloc>().add(
-            UploadAvatarEvent(
-              userId: authState.userId,
-              filePath: image.path,
-            ),
+            UploadAvatarEvent(userId: authState.userId, filePath: image.path),
           );
         }
       }
@@ -161,7 +168,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       debugPrint("Error picking image: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Error picking image: $e", style: const TextStyle(color: Colors.white)),
+          content: Text(
+            "Error picking image: $e",
+            style: const TextStyle(color: Colors.white),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -173,25 +183,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return BlocConsumer<ProfileBloc, ProfileState>(
       listener: (context, state) {
         if (state is ProfileLoaded) {
-          if (_lastLoadedProfile == null) {
-            _populateControllers(state);
-          } else {
-            _lastLoadedProfile = state;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text("editProfile.save_success".tr(), style: const TextStyle(color: Colors.white)),
-                backgroundColor: const Color(0xFF4CAF50),
-              ),
-            );
-          }
-          setState(() {});
-        } else if (state is ProfileError) {
+          _populateControllers(state);
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message, style: const TextStyle(color: Colors.white)),
-              backgroundColor: Colors.red,
+              content: Text(
+                "editProfile.save_success".tr(),
+                style: const TextStyle(color: Colors.white),
+              ),
+              backgroundColor: const Color(0xFF4CAF50),
             ),
           );
+
+          setState(() {});
         }
       },
       builder: (context, state) {
@@ -199,7 +203,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         final isSaveEnabled = _hasChanges() && !isLoading;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF4F6F2), // لون الخلفية العاجي المائل للخضار الخفيف جداً
+          backgroundColor: const Color(
+            0xFFF4F6F2,
+          ), // لون الخلفية العاجي المائل للخضار الخفيف جداً
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
@@ -209,7 +215,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             title: Text(
               "editProfile.title".tr(),
-              style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold, fontSize: 18),
+              style: const TextStyle(
+                color: Color(0xFF2E7D32),
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
             ),
             centerTitle: true,
             actions: [
@@ -219,12 +229,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(color: Color(0xFF4CAF50), strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF4CAF50),
+                          strokeWidth: 2,
+                        ),
                       )
                     : Text(
                         "editProfile.save".tr(),
                         style: TextStyle(
-                          color: isSaveEnabled ? const Color(0xFF4CAF50) : Colors.grey,
+                          color: isSaveEnabled
+                              ? const Color(0xFF4CAF50)
+                              : Colors.grey,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
@@ -233,9 +248,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ],
           ),
           body: isLoading && _lastLoadedProfile == null
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)))
+              ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
+                )
               : SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 8.0,
+                  ),
                   child: Column(
                     children: [
                       // 2. بروفايل الصورة الشخصية مع زر التعديل الأخضر
@@ -243,10 +263,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         children: [
                           Container(
                             padding: const EdgeInsets.all(3),
-                            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
                             child: CircleAvatar(
                               radius: 46,
-                              backgroundImage: NetworkImage(imageUrl),
+                              backgroundColor: const Color(0xFFE8D5C4),
+                              backgroundImage: imageUrl.isNotEmpty
+                                  ? NetworkImage(imageUrl)
+                                  : null,
+                              child: imageUrl.isEmpty
+                                  ? const Icon(
+                                      Icons.person,
+                                      size: 50,
+                                      color: Color(0xFFB09080),
+                                    )
+                                  : null,
                             ),
                           ),
                           Positioned(
@@ -266,22 +299,36 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                           strokeWidth: 2,
                                         ),
                                       )
-                                    : const Icon(Icons.edit, color: Colors.white, size: 14),
+                                    : const Icon(
+                                        Icons.edit,
+                                        color: Colors.white,
+                                        size: 14,
+                                      ),
                               ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      
+
                       // الاسم والـ Goal أسفل الصورة
                       Text(
-                        _nameController.text.isNotEmpty ? _nameController.text : "user name",
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF111827)),
+                        _nameController.text.isNotEmpty
+                            ? _nameController.text
+                            : "user name",
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF111827),
+                        ),
                       ),
                       Text(
                         currentPhase,
-                        style: const TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.w500),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       const SizedBox(height: 24),
 
@@ -290,20 +337,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         title: "editProfile.personal_details".tr(),
                         children: [
                           // الاسم هيفضل مفتوح للتعديل عادي
-                          _buildInputField(label: "editProfile.full_name".tr(), controller: _nameController),
-                          
+                          _buildInputField(
+                            label: "editProfile.full_name".tr(),
+                            controller: _nameController,
+                          ),
+
                           // 🔒 الإيميل مقفول
                           _buildInputField(
                             label: "editProfile.email_address".tr(),
-                            controller: _emailController, 
+                            controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
                             isEditable: false, // 👈 قفلنا التعديل
                           ),
-                          
+
                           // 🔓 رقم الهاتف مفتوح للتعديل
                           _buildInputField(
                             label: "editProfile.phone_number".tr(),
-                            controller: _phoneController, 
+                            controller: _phoneController,
                             keyboardType: TextInputType.phone,
                             isEditable: true, // 👈 فتحنا التعديل
                           ),
@@ -317,9 +367,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         children: [
                           Row(
                             children: [
-                              Expanded(child: _buildInputField(label: "editProfile.weight_kg".tr(), controller: _weightController, keyboardType: TextInputType.number)),
+                              Expanded(
+                                child: _buildInputField(
+                                  label: "editProfile.weight_kg".tr(),
+                                  controller: _weightController,
+                                  keyboardType: TextInputType.number,
+                                ),
+                              ),
                               const SizedBox(width: 16),
-                              Expanded(child: _buildInputField(label: "editProfile.height_cm".tr(), controller: _heightController, keyboardType: TextInputType.number)),
+                              Expanded(
+                                child: _buildInputField(
+                                  label: "editProfile.height_cm".tr(),
+                                  controller: _heightController,
+                                  keyboardType: TextInputType.number,
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -334,19 +396,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             contentPadding: EdgeInsets.zero,
                             leading: const CircleAvatar(
                               backgroundColor: Color(0xFFE8F5E9),
-                              child: Icon(Icons.swap_horizontal_circle_outlined, color: Color(0xFF2E7D32)),
+                              child: Icon(
+                                Icons.swap_horizontal_circle_outlined,
+                                color: Color(0xFF2E7D32),
+                              ),
                             ),
                             title: Text(
                               currentPhase,
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF111827)),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF111827),
+                              ),
                             ),
                             subtitle: Text(
                               currentGoalDescription,
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             ),
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                            trailing: const Icon(
+                              Icons.arrow_forward_ios,
+                              size: 14,
+                              color: Colors.grey,
+                            ),
                             onTap: () => debugPrint("Change Goal Action"),
-                          )
+                          ),
                         ],
                       ),
                       const SizedBox(height: 24),
@@ -355,7 +431,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         height: 50,
                         child: OutlinedButton(
                           onPressed: () {
-                            context.read<ProfileSetupBloc>().add(const ResetProfileSetupEvent());
+                            context.read<ProfileSetupBloc>().add(
+                              const ResetProfileSetupEvent(),
+                            );
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -364,7 +442,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             );
                           },
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF2E7D32), width: 1.5),
+                            side: const BorderSide(
+                              color: Color(0xFF2E7D32),
+                              width: 1.5,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -389,7 +470,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   // ويدجت لبناء بطاقات الأقسام المستقلة بخلفية بيضاء وحواف دائرية ناعمة
-  Widget _buildSectionCard({required String title, required List<Widget> children}) {
+  Widget _buildSectionCard({
+    required String title,
+    required List<Widget> children,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -397,7 +481,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.01), blurRadius: 10, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.01),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Column(
@@ -405,7 +493,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+              letterSpacing: 0.5,
+            ),
           ),
           const SizedBox(height: 12),
           ...children,
@@ -428,13 +521,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 6),
           Container(
             decoration: BoxDecoration(
               // لو الحقل مقفول بنخليه شفاف أكتر شوية عشان يبان إنه Disabled
-              color: isEditable ? const Color(0xFFEDF2EC) : const Color(0xFFEDF2EC).withOpacity(0.6),
+              color: isEditable
+                  ? const Color(0xFFEDF2EC)
+                  : const Color(0xFFEDF2EC).withOpacity(0.6),
               borderRadius: BorderRadius.circular(8),
             ),
             child: TextField(
@@ -442,13 +541,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               keyboardType: keyboardType,
               enabled: isEditable, // 👈 هنا بنقفل الإدخال تماماً لو false
               style: TextStyle(
-                fontSize: 14, 
+                fontSize: 14,
                 // تغيير لون الخط لرمادي هادئ لو الحقل غير قابل للتعديل
-                color: isEditable ? const Color(0xFF111827) : Colors.grey.shade600, 
+                color: isEditable
+                    ? const Color(0xFF111827)
+                    : Colors.grey.shade600,
                 fontWeight: FontWeight.w500,
               ),
               decoration: const InputDecoration(
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
                 border: InputBorder.none,
               ),
             ),

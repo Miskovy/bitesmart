@@ -1,8 +1,11 @@
-import 'package:bite_smart/core/network/api_service.dart';
 import 'package:bite_smart/features/profile/data/models/dietary_preference_model.dart';
 import 'package:bite_smart/features/profile/data/models/macro_targets_model.dart';
 import 'package:bite_smart/features/profile/data/models/user_profile_model.dart';
 import 'package:bite_smart/features/profile/data/models/profile_setup_model.dart';
+import 'package:bite_smart/features/profile/data/models/user_insights_model.dart';
+import 'package:bite_smart/core/network/api_client.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:dio/dio.dart';
 
 abstract class IProfileRepository {
   Future<UserProfileModel> getUserProfile({required String userId});
@@ -22,29 +25,35 @@ abstract class IProfileRepository {
   });
   Future<void> submitProfileSetup(ProfileSetupModel data);
   Future<String> uploadAvatar({required String userId, required String filePath});
+  Future<MacroTargetsModel> calculateTargets({required String userId});
+  Future<UserInsightsModel> getUserInsights({required String range});
 }
 
 class ProfileRepository implements IProfileRepository {
   @override
   Future<void> submitProfileSetup(ProfileSetupModel data) async {
-    final responseData = await ApiService.instance.put('/profile', data.toJson());
-    if (responseData['success'] != true) {
-      throw Exception(responseData['message'] ?? 'Failed to submit profile setup');
+    final response = await ApiClient.instance.put('/profile', data: data.toJson());
+    final resBody = response.data;
+    if (resBody['success'] != true) {
+      throw Exception(resBody['message'] ?? 'Failed to submit profile setup');
     }
   }
 
   @override
   Future<UserProfileModel> getUserProfile({required String userId}) async {
     try {
-      final responseData = await ApiService.instance.get('/profile');
-      if (responseData['success'] == true) {
-        final profileMap = responseData['data'] as Map<String, dynamic>;
+      final response = await ApiClient.instance.get('/profile');
+      final resBody = response.data;
+      if (resBody['success'] == true) {
+        final rawData = resBody['data'];
+        final profileMap = (rawData is Map && rawData.containsKey('data')) 
+            ? rawData['data'] as Map<String, dynamic>
+            : rawData as Map<String, dynamic>;
         return UserProfileModel.fromJson(profileMap);
       } else {
-        throw Exception(responseData['message'] ?? 'Failed to load profile');
+        throw Exception(resBody['message'] ?? 'Failed to load profile');
       }
     } catch (e) {
-      // Fallback if endpoint is not fully ready or returns 404
       return UserProfileModel(
         id: userId,
         email: 'user@example.com',
@@ -65,17 +74,43 @@ class ProfileRepository implements IProfileRepository {
       if (profile.gender != null) data['gender'] = profile.gender;
       if (profile.height != null) data['height'] = profile.height;
       if (profile.weight != null) data['weight'] = profile.weight;
-      if (profile.profileImageUrl != null) data['avatar'] = profile.profileImageUrl;
+      if (profile.bmi != null) {
+        data['bmi'] = profile.bmi;
+        data['BMI'] = profile.bmi;
+      }
+      if (profile.profileImageUrl != null) {
+        String avatarToSend = profile.profileImageUrl!;
+        if (avatarToSend.startsWith('https://bitesmart-production.up.railway.app')) {
+          avatarToSend = avatarToSend.replaceFirst('https://bitesmart-production.up.railway.app', '');
+        } else if (avatarToSend.contains('localhost:3000')) {
+          avatarToSend = avatarToSend.replaceFirst('http://localhost:3000', '');
+        }
+        data['avatar'] = avatarToSend;
+      }
       if (profile.phone != null) data['phone'] = profile.phone;
       if (profile.userGoal != null) data['userGoal'] = profile.userGoal;
       if (profile.activityLevel != null) data['activityLevel'] = profile.activityLevel;
 
-      final responseData = await ApiService.instance.put('/profile', data);
-      if (responseData['success'] == true) {
-        final profileMap = responseData['data'] as Map<String, dynamic>;
+      if (profile.medicalConditions != null) {
+        data['medicalConditions'] = profile.medicalConditions!.toJson();
+      }
+      if (profile.dietaryPreferences != null) {
+        data['dietaryPreferences'] = profile.dietaryPreferences!.toJson();
+      }
+      if (profile.targets != null) {
+        data['targets'] = profile.targets!.toJson();
+      }
+
+      final response = await ApiClient.instance.put('/profile', data: data);
+      final resBody = response.data;
+      if (resBody['success'] == true) {
+        final rawData = resBody['data'];
+        final profileMap = (rawData is Map && rawData.containsKey('data')) 
+            ? rawData['data'] as Map<String, dynamic>
+            : rawData as Map<String, dynamic>;
         return UserProfileModel.fromJson(profileMap);
       } else {
-        throw Exception(responseData['message'] ?? 'Failed to update profile');
+        throw Exception(resBody['message'] ?? 'Failed to update profile');
       }
     } catch (e) {
       return profile;
@@ -87,12 +122,32 @@ class ProfileRepository implements IProfileRepository {
     required String userId,
   }) async {
     try {
-      final responseData = await ApiService.instance.get('/profile/dietary');
-      if (responseData['success'] == true) {
-        final data = responseData['data'] as Map<String, dynamic>;
-        return DietaryPreferenceModel.fromJson(data);
+      final response = await ApiClient.instance.get('/profile');
+      final resBody = response.data;
+      if (resBody['success'] == true) {
+        final rawData = resBody['data'];
+        final profileMap = (rawData is Map && rawData.containsKey('data')) 
+            ? rawData['data'] as Map<String, dynamic>
+            : rawData as Map<String, dynamic>;
+        final dietaryPrefs = profileMap['dietaryPreferences'] as Map<String, dynamic>? ?? {};
+
+        final List<String> dietTypes = [];
+        if (dietaryPrefs['isVegetarian'] == true) dietTypes.add('vegetarian');
+        if (dietaryPrefs['isVegan'] == true) dietTypes.add('vegan');
+        if (dietaryPrefs['isKeto'] == true) dietTypes.add('keto');
+        if (dietaryPrefs['isPaleo'] == true) dietTypes.add('paleo');
+        if (dietaryPrefs['isGlutenFree'] == true) dietTypes.add('gluten_free');
+        if (dietaryPrefs['isHalal'] == true) dietTypes.add('halal');
+        if (dietaryPrefs['isPescatarian'] == true) dietTypes.add('pescatarian');
+
+        return DietaryPreferenceModel(
+          id: dietaryPrefs['id'] ?? 'dietary_$userId',
+          userId: userId,
+          dietTypes: dietTypes,
+          allergens: const [],
+        );
       } else {
-        throw Exception(responseData['message'] ?? 'Failed to load dietary preferences');
+        throw Exception(resBody['message'] ?? 'Failed to load dietary preferences');
       }
     } catch (e) {
       return DietaryPreferenceModel(
@@ -110,15 +165,24 @@ class ProfileRepository implements IProfileRepository {
     required DietaryPreferenceModel preferences,
   }) async {
     try {
-      final responseData = await ApiService.instance.put(
-        '/profile/dietary',
-        preferences.toJson(),
-      );
-      if (responseData['success'] == true) {
-        final data = responseData['data'] as Map<String, dynamic>;
-        return DietaryPreferenceModel.fromJson(data);
+      final payload = {
+        "dietaryPreferences": {
+          "isVegetarian": preferences.dietTypes.contains("vegetarian"),
+          "isVegan": preferences.dietTypes.contains("vegan"),
+          "isKeto": preferences.dietTypes.contains("keto"),
+          "isPaleo": preferences.dietTypes.contains("paleo"),
+          "isGlutenFree": preferences.dietTypes.contains("gluten_free"),
+          "isHalal": preferences.dietTypes.contains("halal"),
+          "isPescatarian": preferences.dietTypes.contains("pescatarian"),
+        }
+      };
+
+      final response = await ApiClient.instance.put('/profile', data: payload);
+      final resBody = response.data;
+      if (resBody['success'] == true) {
+        return preferences;
       } else {
-        throw Exception(responseData['message'] ?? 'Failed to update dietary preferences');
+        throw Exception(resBody['message'] ?? 'Failed to update dietary preferences');
       }
     } catch (e) {
       return preferences;
@@ -128,12 +192,21 @@ class ProfileRepository implements IProfileRepository {
   @override
   Future<MacroTargetsModel> getMacroTargets({required String userId}) async {
     try {
-      final responseData = await ApiService.instance.get('/profile/macros');
-      if (responseData['success'] == true) {
-        final data = responseData['data'] as Map<String, dynamic>;
-        return MacroTargetsModel.fromJson(data);
+      final response = await ApiClient.instance.get('/profile');
+      final resBody = response.data;
+      if (resBody['success'] == true) {
+        final rawData = resBody['data'];
+        final profileMap = (rawData is Map && rawData.containsKey('data')) 
+            ? rawData['data'] as Map<String, dynamic>
+            : rawData as Map<String, dynamic>;
+        final targets = Map<String, dynamic>.from(profileMap['targets'] as Map? ?? {});
+        if (!targets.containsKey('userId')) {
+          targets['userId'] = userId;
+        }
+
+        return MacroTargetsModel.fromJson(targets);
       } else {
-        throw Exception(responseData['message'] ?? 'Failed to load macro targets');
+        throw Exception(resBody['message'] ?? 'Failed to load macro targets');
       }
     } catch (e) {
       return MacroTargetsModel(
@@ -143,6 +216,7 @@ class ProfileRepository implements IProfileRepository {
         carbsTarget: 225,
         fatTarget: 75,
         calorieTarget: 2000,
+        waterMl: 2000,
       );
     }
   }
@@ -153,15 +227,23 @@ class ProfileRepository implements IProfileRepository {
     required MacroTargetsModel targets,
   }) async {
     try {
-      final responseData = await ApiService.instance.put(
-        '/profile/macros',
-        targets.toJson(),
-      );
-      if (responseData['success'] == true) {
-        final data = responseData['data'] as Map<String, dynamic>;
-        return MacroTargetsModel.fromJson(data);
+      final payload = {
+        "targets": {
+          "calTotal": targets.calorieTarget,
+          "proteins": targets.proteinTarget,
+          "carbs": targets.carbsTarget,
+          "fats": targets.fatTarget,
+          "water_ml": targets.waterMl,
+          "autoCalculateWithAi": false,
+        }
+      };
+
+      final response = await ApiClient.instance.put('/profile', data: payload);
+      final resBody = response.data;
+      if (resBody['success'] == true) {
+        return targets;
       } else {
-        throw Exception(responseData['message'] ?? 'Failed to update macro targets');
+        throw Exception(resBody['message'] ?? 'Failed to update macro targets');
       }
     } catch (e) {
       return targets;
@@ -170,20 +252,68 @@ class ProfileRepository implements IProfileRepository {
 
   @override
   Future<String> uploadAvatar({required String userId, required String filePath}) async {
-    final responseData = await ApiService.instance.postMultipart(
-      '/profile/avatar',
-      fileKey: 'avatar',
-      filePath: filePath,
-    );
-    if (responseData['success'] == true) {
-      final data = responseData['data'] as Map<String, dynamic>;
+    final formData = FormData.fromMap({
+      'avatar': MultipartFile.fromBytes(
+        await XFile(filePath).readAsBytes(),
+        filename: filePath.split('/').last,
+      ),
+    });
+
+    final response = await ApiClient.instance.post('/profile/avatar', data: formData);
+    final resBody = response.data;
+
+    if (resBody['success'] == true) {
+      final rawData = resBody['data'];
+      final data = (rawData is Map && rawData.containsKey('data')) 
+          ? rawData['data'] as Map<String, dynamic>
+          : rawData as Map<String, dynamic>;
       final avatarUrl = data['avatarUrl'] as String;
       if (avatarUrl.startsWith('/uploads')) {
         return 'https://bitesmart-production.up.railway.app$avatarUrl';
       }
       return avatarUrl;
     } else {
-      throw Exception(responseData['message'] ?? 'Failed to upload avatar');
+      throw Exception(resBody['message'] ?? 'Failed to upload avatar');
     }
+  }
+
+  @override
+  Future<MacroTargetsModel> calculateTargets({required String userId}) async {
+    final response = await ApiClient.instance.post('/profile/targets/calculate');
+    final resBody = response.data;
+
+    if (resBody['success'] == true) {
+      final rawData = resBody['data'];
+      final targets = Map<String, dynamic>.from(
+        (rawData is Map && rawData.containsKey('data')) 
+            ? rawData['data'] as Map
+            : rawData as Map
+      );
+      if (!targets.containsKey('userId')) {
+        targets['userId'] = userId;
+      }
+
+      return MacroTargetsModel.fromJson(targets);
+    } else {
+      throw Exception(resBody['message'] ?? 'Failed to calculate targets');
+    }
+  }
+
+  @override
+  Future<UserInsightsModel> getUserInsights({required String range}) async {
+    final String trimmed = range.trim().toLowerCase();
+    final String periodValue = trimmed.isEmpty
+        ? 'Weekly'
+        : '${trimmed[0].toUpperCase()}${trimmed.substring(1)}';
+    final response = await ApiClient.instance.get('/insights?period=$periodValue');
+    final resBody = response.data;
+    if (resBody['success'] == true) {
+      final rawData = resBody['data'];
+      final dataMap = (rawData is Map && rawData.containsKey('data'))
+          ? rawData['data'] as Map<String, dynamic>
+          : rawData as Map<String, dynamic>;
+      return UserInsightsModel.fromJson(dataMap);
+    }
+    throw Exception(resBody['message'] ?? 'Failed to load insights');
   }
 }

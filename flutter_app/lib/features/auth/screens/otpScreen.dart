@@ -313,7 +313,7 @@ class _otpScreenState extends State<otpScreen> {
                       );
                     }
                     return SizedBox(
-                      width: .5 * MediaQuery.of(context).size.width,
+                      width: .6 * MediaQuery.of(context).size.width,
                       height: 46,
                       child: ElevatedButton(
                         onPressed: () {

@@ -1,4 +1,6 @@
 import 'package:equatable/equatable.dart';
+import 'macro_targets_model.dart';
+import 'profile_setup_model.dart';
 
 class UserProfileModel extends Equatable {
   final String id;
@@ -12,8 +14,14 @@ class UserProfileModel extends Equatable {
   final String? gender;
   final double? height;
   final double? weight;
+  final double? bmi;
+  final int? loginStreak;
+  final int? xp;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final MedicalConditionsData? medicalConditions;
+  final DietaryPreferencesData? dietaryPreferences;
+  final MacroTargetsModel? targets;
 
   const UserProfileModel({
     required this.id,
@@ -27,8 +35,14 @@ class UserProfileModel extends Equatable {
     this.gender,
     this.height,
     this.weight,
+    this.bmi,
+    this.loginStreak,
+    this.xp,
     this.createdAt,
     this.updatedAt,
+    this.medicalConditions,
+    this.dietaryPreferences,
+    this.targets,
   });
 
   // Copy with method
@@ -44,8 +58,14 @@ class UserProfileModel extends Equatable {
     String? gender,
     double? height,
     double? weight,
+    double? bmi,
+    int? loginStreak,
+    int? xp,
     DateTime? createdAt,
     DateTime? updatedAt,
+    MedicalConditionsData? medicalConditions,
+    DietaryPreferencesData? dietaryPreferences,
+    MacroTargetsModel? targets,
   }) {
     return UserProfileModel(
       id: id ?? this.id,
@@ -59,14 +79,20 @@ class UserProfileModel extends Equatable {
       gender: gender ?? this.gender,
       height: height ?? this.height,
       weight: weight ?? this.weight,
+      bmi: bmi ?? this.bmi,
+      loginStreak: loginStreak ?? this.loginStreak,
+      xp: xp ?? this.xp,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      medicalConditions: medicalConditions ?? this.medicalConditions,
+      dietaryPreferences: dietaryPreferences ?? this.dietaryPreferences,
+      targets: targets ?? this.targets,
     );
   }
 
   // Convert to JSON
   Map<String, dynamic> toJson() {
-    return {
+    final Map<String, dynamic> jsonMap = {
       'id': id,
       'displayName': displayName,
       'name': displayName,
@@ -80,9 +106,34 @@ class UserProfileModel extends Equatable {
       'gender': gender,
       'height': height,
       'weight': weight,
+      'loginStreak': loginStreak,
+      'xp': xp,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      'targets': targets?.toJson(),
     };
+    if (bmi != null) {
+      jsonMap['bmi'] = bmi;
+      jsonMap['BMI'] = bmi;
+    }
+    if (medicalConditions != null) {
+      jsonMap['medicalConditions'] = medicalConditions!.toJson();
+    }
+    if (dietaryPreferences != null) {
+      jsonMap['dietaryPreferences'] = dietaryPreferences!.toJson();
+    }
+    return jsonMap;
+  }
+
+  static String? _resolveAvatarUrl(dynamic avatar) {
+    if (avatar == null || avatar is! String || avatar.isEmpty) return null;
+    if (avatar.startsWith('/uploads')) {
+      return 'https://bitesmart-production.up.railway.app$avatar';
+    }
+    if (avatar.contains('localhost:3000')) {
+      return avatar.replaceFirst('http://localhost:3000', 'https://bitesmart-production.up.railway.app');
+    }
+    return avatar;
   }
 
   // Convert from JSON
@@ -91,7 +142,7 @@ class UserProfileModel extends Equatable {
       id: json['id'] as String,
       email: json['email'] as String,
       displayName: (json['displayName'] ?? json['name']) as String?,
-      profileImageUrl: (json['profileImageUrl'] ?? json['avatar']) as String?,
+      profileImageUrl: _resolveAvatarUrl(json['profileImageUrl'] ?? json['avatar']),
       phone: json['phone'] as String?,
       userGoal: json['userGoal'] as String?,
       activityLevel: json['activityLevel'] as String?,
@@ -99,11 +150,23 @@ class UserProfileModel extends Equatable {
       gender: json['gender'] as String?,
       height: (json['height'] as num?)?.toDouble(),
       weight: (json['weight'] as num?)?.toDouble(),
+      bmi: (json['bmi'] ?? json['BMI'] as num?)?.toDouble(),
+      loginStreak: (json['loginStreak'] ?? json['login_streak']) as int?,
+      xp: json['xp'] as int?,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : null,
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
+          : null,
+      medicalConditions: json['medicalConditions'] != null
+          ? MedicalConditionsData.fromJson(json['medicalConditions'] as Map<String, dynamic>)
+          : null,
+      dietaryPreferences: json['dietaryPreferences'] != null
+          ? DietaryPreferencesData.fromJson(json['dietaryPreferences'] as Map<String, dynamic>)
+          : null,
+      targets: json['targets'] != null
+          ? MacroTargetsModel.fromJson(json['targets'] as Map<String, dynamic>)
           : null,
     );
   }
@@ -121,7 +184,13 @@ class UserProfileModel extends Equatable {
         gender,
         height,
         weight,
+        bmi,
+        loginStreak,
+        xp,
         createdAt,
         updatedAt,
+        medicalConditions,
+        dietaryPreferences,
+        targets,
       ];
 }
