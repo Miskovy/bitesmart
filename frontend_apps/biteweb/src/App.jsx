@@ -114,15 +114,12 @@ const CoachAPI = {
 
 /* ─── AI Vision (Snap & Log) ─── */
 const PredictionAPI = {
-  // 1. Add widthCm as a parameter here
-  predict: (file, widthCm) => {
+  predict: (file, plateDiameterCm) => {
     const formData = new FormData();
     formData.append("file", file); 
-    
-    // 2. Append the width to the request so the backend is happy
-    formData.append("food_width_cm", widthCm); 
+    formData.append("plate_diameter_cm", plateDiameterCm); 
 
-    return api(EP.PREDICT, { method: "POST", body: formData });
+    return api(EP.CALIBRATE, { method: "POST", body: formData });
   },
   calibrate: (trainingDataId, value) =>
     api(EP.CALIBRATE, { method: "POST", body: JSON.stringify({ trainingDataId, value }) }),
@@ -833,7 +830,7 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
   const [snapMode, setSnapMode] = useState(false);
   const [snapImg, setSnapImg] = useState(null);
   const [snapFile, setSnapFile] = useState(null); 
-  const [foodWidth, setFoodWidth] = useState(""); 
+  const [plateDiameter, setPlateDiameter] = useState(""); 
   const [analyzing, setAnalyzing] = useState(false);
   const [snapRes, setSnapRes] = useState(null);
   
@@ -907,7 +904,7 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
       // Clear forms
       setNewMeal({ name: "", cal: "", protein: "", carbs: "", fat: "", time: "" });
       setShowForm(false);
-      setSnapMode(false); setSnapImg(null); setSnapFile(null); setSnapRes(null); setFoodWidth("");
+      setSnapMode(false); setSnapImg(null); setSnapFile(null); setSnapRes(null); setPlateDiameter("");
       setShowCorrect(false); setShowCalibrate(false);
       
       addToast(`${payload.name} added to your logs!`);
@@ -946,15 +943,15 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
   const runVision = async () => {
     if (!snapFile) return;
     
-    if (!foodWidth) {
-      addToast("Please enter the food/plate width in cm first!", "error");
+    if (!plateDiameter) {
+      addToast("Please enter the plate diameter in cm first!", "error");
       return;
     }
 
     setAnalyzing(true); setSnapRes(null);
     
     try {
-      const rawData = await PredictionAPI.predict(snapFile, foodWidth); 
+      const rawData = await PredictionAPI.predict(snapFile, plateDiameter); 
       const actualResult = rawData?.data?.data || rawData?.data || rawData;
       const getNum = (val1, val2, val3) => Math.round(Number(val1 || val2 || val3 || 0));
 
@@ -1103,13 +1100,13 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
             <>
               <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
                 <label style={{ color: t.t2, fontSize: 13, fontWeight: 500 }}>
-                  Plate/Food Width (cm):
+                  Plate Diameter (cm):
                 </label>
                 <input 
                   type="number" 
                   placeholder="e.g. 20"
-                  value={foodWidth} 
-                  onChange={(e) => setFoodWidth(e.target.value)}
+                  value={plateDiameter} 
+                  onChange={(e) => setPlateDiameter(e.target.value)}
                   className={t.inp}
                   style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `1px solid ${t.bdr}`, background: "transparent", color: t.t }}
                 />
