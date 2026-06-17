@@ -1,116 +1,125 @@
-import jwt, { JsonWebTokenError, TokenExpiredError, SignOptions } from 'jsonwebtoken';
-import { UnauthorizedError } from '../errors';
-import { TokenPayload } from '../types/custom';
-import 'dotenv/config';
+import jwt, {
+  JsonWebTokenError,
+  TokenExpiredError,
+  SignOptions,
+} from "jsonwebtoken";
+import { UnauthorizedError } from "../errors";
+import { Role, TokenPayload } from "../types/custom";
+import "dotenv/config";
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
-//! Created by Antigravity: Fail fast if JWT_SECRET is not configured (prevents signing with 'undefined')
 if (!JWT_SECRET) {
-    throw new Error("FATAL: JWT_SECRET environment variable is not set. Server cannot start.");
+  throw new Error(
+    "FATAL: JWT_SECRET environment variable is not set. Server cannot start.",
+  );
 }
 
-const TOKEN_EXPIRY: SignOptions['expiresIn'] = '7d';
+const TOKEN_EXPIRY: SignOptions["expiresIn"] = "7d";
 
 interface GenerateTokenInput {
-    id: string;
-    name: string;
-    email: string;
+  id: string;
+  name: string;
+  email: string;
+  role?: Role;
 }
 
 // Generate JWT token
 export const generateToken = (data: GenerateTokenInput): string => {
-    const payload: TokenPayload = {
-        id: data.id,
-        name: data.name,
-    };
+  const payload: TokenPayload = {
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    role: data.role,
+  };
 
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 };
 
 // Verify JWT token
 export const verifyToken = (token: string): TokenPayload => {
-    try {
-        return jwt.verify(token, JWT_SECRET) as TokenPayload;
-    } catch (error) {
-        if (error instanceof TokenExpiredError) {
-            throw new UnauthorizedError('Token expired');
-        }
-        if (error instanceof JsonWebTokenError) {
-            throw new UnauthorizedError('Invalid token');
-        }
-        throw new UnauthorizedError('Error while verifying token');
+  try {
+    return jwt.verify(token, JWT_SECRET) as TokenPayload;
+  } catch (error) {
+    if (error instanceof TokenExpiredError) {
+      throw new UnauthorizedError("Token expired");
     }
+    if (error instanceof JsonWebTokenError) {
+      throw new UnauthorizedError("Invalid token");
+    }
+    throw new UnauthorizedError("Error while verifying token");
+  }
 };
 
 // Extract token from request headers
 export const extractTokenFromHeader = (
-    authHeader: string | undefined
+  authHeader: string | undefined,
 ): string => {
-    if (!authHeader) {
-        throw new UnauthorizedError('No token provided');
-    }
+  if (!authHeader) {
+    throw new UnauthorizedError("No token provided");
+  }
 
-    const [bearer, token] = authHeader.split(' ');
+  const [bearer, token] = authHeader.split(" ");
 
-    if (bearer !== 'Bearer' || !token) {
-        throw new UnauthorizedError('Invalid token format');
-    }
+  if (bearer !== "Bearer" || !token) {
+    throw new UnauthorizedError("Invalid token format");
+  }
 
-    return token;
+  return token;
 };
 
 // Refresh token
 export const refreshToken = (oldToken: string): string => {
-    const decoded = verifyToken(oldToken);
+  const decoded = verifyToken(oldToken);
 
-    const payload: TokenPayload = {
-        id: decoded.id,
-        name: decoded.name,
-    };
+  const payload: TokenPayload = {
+    id: decoded.id,
+    name: decoded.name,
+    email: decoded.email,
+    role: decoded.role,
+  };
 
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 };
 
 // Decode token without verification
 export const decodeToken = (token: string): TokenPayload | null => {
-    try {
-        return jwt.decode(token) as TokenPayload | null;
-    } catch {
-        return null;
-    }
+  try {
+    return jwt.decode(token) as TokenPayload | null;
+  } catch {
+    return null;
+  }
 };
 
 // Check if token is expiring soon
 export const isTokenExpiringSoon = (
-    token: string,
-    thresholdHours: number = 24
+  token: string,
+  thresholdHours: number = 24,
 ): boolean => {
-    try {
-        const decoded = jwt.decode(token) as TokenPayload & { exp?: number };
+  try {
+    const decoded = jwt.decode(token) as TokenPayload & { exp?: number };
 
-        if (!decoded?.exp) return false;
+    if (!decoded?.exp) return false;
 
-        const expirationTime = decoded.exp * 1000; // Convert to milliseconds
-        const currentTime = Date.now();
-        const thresholdMs = thresholdHours * 60 * 60 * 1000;
+    const expirationTime = decoded.exp * 1000; // Convert to milliseconds
+    const currentTime = Date.now();
+    const thresholdMs = thresholdHours * 60 * 60 * 1000;
 
-        return expirationTime - currentTime < thresholdMs;
-    } catch {
-        return false;
-    }
+    return expirationTime - currentTime < thresholdMs;
+  } catch {
+    return false;
+  }
 };
-
 
 // Get token expiration time
 export const getTokenExpiration = (token: string): Date | null => {
-    try {
-        const decoded = jwt.decode(token) as TokenPayload & { exp?: number };
+  try {
+    const decoded = jwt.decode(token) as TokenPayload & { exp?: number };
 
-        if (!decoded?.exp) return null;
+    if (!decoded?.exp) return null;
 
-        return new Date(decoded.exp * 1000);
-    } catch {
-        return null;
-    }
+    return new Date(decoded.exp * 1000);
+  } catch {
+    return null;
+  }
 };

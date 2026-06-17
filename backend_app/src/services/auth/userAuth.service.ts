@@ -1,7 +1,7 @@
 import { db } from "../../db/connection";
 import { BadRequest } from "../../errors";
 import { users } from "../../models/user";
-import { eq, InferSelectModel } from "drizzle-orm";
+import { and, eq, InferSelectModel } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { generateToken } from "../../utils/Auth";
 import { OAuth2Client } from "google-auth-library";
@@ -10,17 +10,8 @@ import { sendEmail } from "../../utils/email";
 import { otpStore } from "./otpStore";
 import { getForgotEmailTemplate } from "../../utils/emailTemplate";
 import { updateLoginStreak } from "../user/streak.service";
+import { FullUser } from "../../interfaces/interfaces";
 const client = new OAuth2Client();
-
-export type BaseUser = InferSelectModel<typeof users>;
-
-export interface FullUser extends BaseUser {
-  dietaryPreferences?: any[];
-  medicalConditions?: any[];
-  targets?: any[];
-  cameraPermission?: boolean;
-  notifications?: boolean;
-}
 
 const getMissingPreferences = (user: Partial<FullUser>) => {
   const missing: string[] = [];
@@ -30,11 +21,13 @@ const getMissingPreferences = (user: Partial<FullUser>) => {
   if (!user.weight) missing.push("weight");
   if (!user.userGoal) missing.push("userGoal");
   if (!user.activityLevel) missing.push("activityLevel");
-  
+
   // Relations or extended properties
-  if (!user.dietaryPreferences || user.dietaryPreferences.length === 0) missing.push("dietaryPreferences");
-  if (!user.medicalConditions || user.medicalConditions.length === 0) missing.push("medicalConditions");
-  
+  if (!user.dietaryPreferences || user.dietaryPreferences.length === 0)
+    missing.push("dietaryPreferences");
+  if (!user.medicalConditions || user.medicalConditions.length === 0)
+    missing.push("medicalConditions");
+
   // Other flags you're tracking
   if (user.cameraPermission === undefined) missing.push("cameraPermission");
   if (user.notifications === undefined) missing.push("notifications");
@@ -42,9 +35,14 @@ const getMissingPreferences = (user: Partial<FullUser>) => {
   return missing;
 };
 
-export const login = async (email: string, password: string, timezone?: string, offsetMinutes?: number) => {
+export const login = async (
+  email: string,
+  password: string,
+  timezone?: string,
+  offsetMinutes?: number,
+) => {
   const user = await db.query.users.findFirst({
-    where: eq(users.email, email),
+    where: and(eq(users.email, email), eq(users.role, "User")),
   });
 
   if (!user) {
@@ -65,23 +63,26 @@ export const login = async (email: string, password: string, timezone?: string, 
     name: user.name,
     email: user.email,
   });
-
-  //! Created by Antigravity: Strip password hash from login response to prevent credential leak
   const { password: _pw, ...safeUser } = user;
   const missingFields = getMissingPreferences(user);
-  
+
   return { user: { ...safeUser, loginStreak: streak, missingFields }, token };
 };
 
-export const register = async (email: string, password: string, name: string, timezone?: string, offsetMinutes?: number) => {
-
+export const register = async (
+  email: string,
+  password: string,
+  name: string,
+  timezone?: string,
+  offsetMinutes?: number,
+) => {
   const existingUser = await db
     .select()
     .from(users)
     .where(eq(users.email, email));
 
   if (existingUser.length > 0) {
-    throw new BadRequest('User with this email already exists');
+    throw new BadRequest("User with this email already exists");
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -92,7 +93,7 @@ export const register = async (email: string, password: string, name: string, ti
     email,
     password: hashedPassword,
     name,
-    age: 0 // Provide a default age since it's required by the schema
+    age: 0, // Provide a default age since it's required by the schema
   });
 
   // Initialize login streak to 1
@@ -110,12 +111,20 @@ export const register = async (email: string, password: string, name: string, ti
       name,
       email,
       loginStreak: streak,
-      missingFields: ["gender", "age", "height", "weight", "userGoal", "activityLevel", "dietaryPreferences", "medicalConditions"]
+      missingFields: [
+        "gender",
+        "age",
+        "height",
+        "weight",
+        "userGoal",
+        "activityLevel",
+        "dietaryPreferences",
+        "medicalConditions",
+      ],
     },
-    token
+    token,
   };
 };
-
 
 export const forgetPassword = async (email: string) => {
   const user = await db.query.users.findFirst({
@@ -123,7 +132,10 @@ export const forgetPassword = async (email: string) => {
   });
 
   if (!user) {
-    return { message: "If an account exists with this email, a password reset code has been sent" };
+    return {
+      message:
+        "If an account exists with this email, a password reset code has been sent",
+    };
   }
   const randomBytes = new Uint32Array(1);
   crypto.getRandomValues(randomBytes);
@@ -133,14 +145,12 @@ export const forgetPassword = async (email: string) => {
   const textBody = `Your password reset code is: ${code}. It will expire in 15 minutes.`;
   const htmlBody = getForgotEmailTemplate(code);
 
-  await sendEmail(
-    user.email,
-    "Password Reset Code",
-    textBody,
-    htmlBody
-  );
+  await sendEmail(user.email, "Password Reset Code", textBody, htmlBody);
 
-  return { message: "If an account exists with this email, a password reset code has been sent" };
+  return {
+    message:
+      "If an account exists with this email, a password reset code has been sent",
+  };
 };
 
 export const verifyResetPasswordCode = async (code: string) => {
@@ -170,7 +180,8 @@ export const resetPassword = async (token: string, newPassword: string) => {
 
   const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-  await db.update(users)
+  await db
+    .update(users)
     .set({
       password: hashedPassword,
     })
@@ -182,7 +193,11 @@ export const resetPassword = async (token: string, newPassword: string) => {
   return { message: "Password reset successfully" };
 };
 
-export const loginWithGoogle = async (idToken: string, timezone?: string, offsetMinutes?: number) => {
+export const loginWithGoogle = async (
+  idToken: string,
+  timezone?: string,
+  offsetMinutes?: number,
+) => {
   const ticket = await client.verifyIdToken({
     idToken,
     audience: googleClientIds,
@@ -217,7 +232,8 @@ export const loginWithGoogle = async (idToken: string, timezone?: string, offset
     });
   } else if (!user.googleId) {
     // Link existing user to Google ID
-    await db.update(users)
+    await db
+      .update(users)
       .set({ googleId, avatar: user.avatar || avatar })
       .where(eq(users.email, email));
 
@@ -242,5 +258,33 @@ export const loginWithGoogle = async (idToken: string, timezone?: string, offset
 
   const { password: _pw, ...safeGoogleUser } = user;
   const missingFields = getMissingPreferences(user);
-  return { user: { ...safeGoogleUser, loginStreak: streak, missingFields }, token };
+  return {
+    user: { ...safeGoogleUser, loginStreak: streak, missingFields },
+    token,
+  };
+};
+
+export const adminLogin = async (email: string, password: string) => {
+  const admin = await db.query.users.findFirst({
+    where: and(eq(users.email, email), eq(users.role, "Admin")),
+  });
+
+  if (!admin) {
+    throw new BadRequest("Invalid admin credentials");
+  }
+
+  const hashedPassword = await bcrypt.compare(password, admin.password);
+  if (!hashedPassword) {
+    throw new BadRequest("Invalid admin credentials");
+  }
+
+  const token = generateToken({
+    id: admin.id,
+    name: admin.name,
+    email: admin.email,
+  });
+
+  const { password: _pw, ...safeAdmin } = admin;
+
+  return { token, admin: safeAdmin };
 };
