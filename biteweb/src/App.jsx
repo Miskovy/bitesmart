@@ -19,13 +19,26 @@ const BASE = "https://bitesmart-production.up.railway.app/api";
 const EP = {
   SIGN_UP: `${BASE}/auth/signup`,
   SIGN_IN: `${BASE}/auth/login`,
-  MEALS: `${BASE}/meal-logs`,
-  MEAL: (id) => `${BASE}/meal-logs/${id}`,
+  
+  // Meals & Daily Logs
+  MEALS: `${BASE}/logs`,
+  MEAL: (id) => `${BASE}/logs/${id}`,
+  GET_SUMMARY: `${BASE}/logs/summary`,
+  LOG_WATER: `${BASE}/logs/water`,
+  GET_WATER: `${BASE}/logs/water`,
+  GET_COMPLETION: `${BASE}/logs/complete`,
+  
+  // Coach Chat
   CHAT_SESSIONS: `${BASE}/coach/sessions`,
   CHAT_SESSION: (id) => `${BASE}/coach/sessions/${id}`,
   CHAT_HISTORY: (id) => `${BASE}/coach/sessions/${id}/history`,
   CHAT_SEND: `${BASE}/coach/chat`,
   CHAT_STREAM: `${BASE}/coach/chat/stream`,
+  
+  // AI Vision
+  PREDICT: `${BASE}/prediction/ar`,
+  CALIBRATE: `${BASE}/prediction/callibration`,
+  CORRECT: (id) => `${BASE}/prediction/correct/${id}`,
 };
 
 /* ─── Token ─── */
@@ -39,14 +52,26 @@ const Token = {
 async function api(url, opts = {}) {
   const tok = Token.get();
   console.log(`[API Request] URL: ${url} | Token retrieved:`, tok);
+  
+  // Check if the body is FormData (needed for image uploads)
+  const isFormData = opts.body instanceof FormData;
+  
+  const headers = {
+    ...(tok ? { Authorization: `Bearer ${tok}` } : {}),
+    ...(opts.headers || {}),
+  };
+
+  // Only set content-type to JSON if it's not FormData. 
+  // For FormData, the browser must automatically set the boundary.
+  if (!isFormData && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const res = await fetch(url, {
     ...opts,
-    headers: {
-      "Content-Type": "application/json",
-      ...(tok ? { Authorization: `Bearer ${tok}` } : {}),
-      ...(opts.headers || {}),
-    },
+    headers,
   });
+  
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.message || data.error || `Error ${res.status}`);
   return data;
@@ -60,10 +85,19 @@ const AuthAPI = {
     api(EP.SIGN_IN, { method: "POST", body: JSON.stringify({ email, password }) }),
 };
 
+/* ─── Date Helper ─── */
+const getTodayDate = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 /* ─── Meals ─── */
 const MealsAPI = {
-  list: () => api(EP.MEALS),
-  create: (meal) => api(EP.MEALS, { method: "POST", body: JSON.stringify(meal) }),
+  list: () => api(`${EP.MEALS}?date=${getTodayDate()}`),
+  create: (meal) => api(`${EP.MEALS}?date=${getTodayDate()}`, { method: "POST", body: JSON.stringify(meal) }),
   remove: (id) => api(EP.MEAL(id), { method: "DELETE" }),
 };
 
@@ -78,28 +112,23 @@ const CoachAPI = {
   }),
 };
 
-/* ─── AI Vision (Snap & Log) — direct Anthropic ─── */
-async function analyzeFood(b64) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 512,
-      messages: [{
-        role: "user",
-        content: [
-          { type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } },
-          { type: "text", text: 'Analyze this food image. Respond ONLY with a JSON object (no markdown): {"name":"...","cal":0,"protein":0,"carbs":0,"fat":0,"emoji":"🍽️"}. If no food: {"error":"No food detected"}' },
-        ],
-      }],
-    }),
-  });
-  if (!res.ok) throw new Error("Vision error " + res.status);
-  const d = await res.json();
-  const txt = d.content?.map(b => b.text || "").join("") || "{}";
-  return JSON.parse(txt.replace(/```json|```/g, "").trim());
-}
+/* ─── AI Vision (Snap & Log) ─── */
+const PredictionAPI = {
+  // 1. Add widthCm as a parameter here
+  predict: (file, widthCm) => {
+    const formData = new FormData();
+    formData.append("file", file); 
+    
+    // 2. Append the width to the request so the backend is happy
+    formData.append("food_width_cm", widthCm); 
+
+    return api(EP.PREDICT, { method: "POST", body: formData });
+  },
+  calibrate: (trainingDataId, value) =>
+    api(EP.CALIBRATE, { method: "POST", body: JSON.stringify({ trainingDataId, value }) }),
+  correct: (trainingDataId, correctLabel) =>
+    api(EP.CORRECT(trainingDataId), { method: "PUT", body: JSON.stringify({ correct_label: correctLabel }) }),
+};
 
 /* ─── Helpers ─── */
 function extractAuth(data) {
@@ -113,33 +142,40 @@ function extractAuth(data) {
 function extractArray(response, keys = []) {
   if (Array.isArray(response)) return response;
   if (!response) return [];
-  for (const k of keys) {
-    if (Array.isArray(response[k])) return response[k];
-  }
-  if (Array.isArray(response.data)) return response.data;
   
-  const nested = response.data || {};
+  // Handle basic axios/fetch extraction
+  const data = response.data || response;
+  if (Array.isArray(data)) return data;
+
+  for (const k of keys) {
+    if (Array.isArray(data[k])) return data[k];
+  }
+  
+  const nested = data.data || {};
+  if (Array.isArray(nested)) return nested;
   for (const k of keys) {
     if (Array.isArray(nested[k])) return nested[k];
-  }
-  if (Array.isArray(nested.data)) return nested.data;
-
-  const doubleNested = nested.data || {};
-  for (const k of keys) {
-    if (Array.isArray(doubleNested[k])) return doubleNested[k];
   }
   return [];
 }
 
 function normalizeMeal(r) {
+  if (!r) return null;
+  
+  // Dig deep to catch relations like r.foodItem
+  const nestedFood = r.foodItem || {};
+
   return {
-    id: r.id || r._id || Date.now(),
-    name: r.name || r.food || r.meal_name || "Meal",
-    cal: r.cal || r.calories || 0,
-    protein: r.protein || r.protein_g || 0,
-    carbs: r.carbs || r.carbs_g || 0,
-    fat: r.fat || r.fat_g || r.fats || 0,
-    time: r.time || r.logged_at || r.created_at || "—",
+    id: r.id || r._id || r.logId || Math.random().toString(36).substring(7),
+    name: r.name || r.food || r.meal_name || nestedFood.name || "Logged Meal",
+    
+    // Using explicit Number parsing to block NaN from breaking Recharts component loops
+    cal: Math.round(Number(r.cal || r.calories || nestedFood.calories || 0)),
+    protein: Math.round(Number(r.protein || r.protein_g || nestedFood.protein || 0)),
+    carbs: Math.round(Number(r.carbs || r.carbs_g || nestedFood.carbs || 0)),
+    fat: Math.round(Number(r.fat || r.fat_g || r.fats || nestedFood.fat || 0)),
+    
+    time: r.time || r.logged_at || r.createdAt || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     emoji: r.emoji || "🍽️",
   };
 }
@@ -721,23 +757,98 @@ function Dashboard({ darkMode, currentUser }) {
     </div>
   );
 }
+/* ══════════════════════════════════════════════
+   BMI CALCULATOR
+══════════════════════════════════════════════ */
+function BMICalculator({ darkMode }) {
+  const t = darkMode ? T.d : T.l;
+  const [weight, setWeight] = useState(70);
+  const [height, setHeight] = useState(175);
+
+  // Calculate BMI: weight (kg) / (height (m) * height (m))
+  const bmi = (weight / Math.pow(height / 100, 2)).toFixed(1);
+  const cat = getBMICat(bmi); // This uses the helper function already in your file!
+
+  return (
+    <div style={{ flex: 1, padding: "32px 28px", background: t.bg, minHeight: "100vh" }}>
+      <div className="afu" style={{ marginBottom: 24 }}>
+        <h1 className="fs" style={{ fontSize: 26, fontWeight: 800, color: t.t, margin: "0 0 4px" }}>BMI Calculator</h1>
+        <p style={{ color: t.t2, fontSize: 15, margin: 0 }}>Check your Body Mass Index and health category</p>
+      </div>
+
+      <div className={`asc ${t.gl}`} style={{ borderRadius: 16, padding: "32px", maxWidth: 500, margin: "0 auto", marginTop: 40 }}>
+        
+        {/* Weight Slider */}
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+            <label style={{ color: t.t2, fontSize: 15, fontWeight: 500 }}>Weight (kg)</label>
+            <span className="fs" style={{ color: t.t, fontWeight: 700, fontSize: 18 }}>{weight} kg</span>
+          </div>
+          <input type="range" min="30" max="150" value={weight} onChange={e => setWeight(e.target.value)} 
+            style={{ width: "100%", accentColor: "#10b981", cursor: "pointer" }} />
+        </div>
+
+        {/* Height Slider */}
+        <div style={{ marginBottom: 40 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+            <label style={{ color: t.t2, fontSize: 15, fontWeight: 500 }}>Height (cm)</label>
+            <span className="fs" style={{ color: t.t, fontWeight: 700, fontSize: 18 }}>{height} cm</span>
+          </div>
+          <input type="range" min="120" max="220" value={height} onChange={e => setHeight(e.target.value)} 
+            style={{ width: "100%", accentColor: "#10b981", cursor: "pointer" }} />
+        </div>
+
+        {/* Results Card */}
+        <div style={{ textAlign: "center", padding: "32px 24px", borderRadius: 16, background: darkMode ? "rgba(0,0,0,.2)" : "rgba(0,0,0,.03)", border: `1px solid ${t.bdr}` }}>
+          <div style={{ fontSize: 13, color: t.t2, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Your BMI is</div>
+          <div className="fs" style={{ fontSize: 56, fontWeight: 800, color: cat.color, lineHeight: 1 }}>{bmi}</div>
+          
+          <div style={{ display: "inline-block", padding: "6px 16px", borderRadius: 20, background: `${cat.color}22`, color: cat.color, fontSize: 14, fontWeight: 700, marginTop: 16, marginBottom: 12 }}>
+            {cat.label}
+          </div>
+          
+          <p style={{ fontSize: 14, color: t.t3, margin: 0, lineHeight: 1.6 }}>{cat.tip}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+/* ══════════════════════════════════════════════
+   CALORIE TRACKER + SNAP & LOG (USING PREDICTION API)
+══════════════════════════════════════════════ */
+
 
 /* ══════════════════════════════════════════════
    CALORIE TRACKER + SNAP & LOG
 ══════════════════════════════════════════════ */
-function CalorieTracker({ darkMode, addToast }) {
+function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractArray, normalizeMeal, T }) {
   const t = darkMode ? T.d : T.l;
   const [meals, setMeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newMeal, setNewMeal] = useState({ name: "", cal: "", protein: "", carbs: "", fat: "", time: "" });
+  
+  // Snap & Log State
   const [snapMode, setSnapMode] = useState(false);
   const [snapImg, setSnapImg] = useState(null);
-  const [snapB64, setSnapB64] = useState(null);
+  const [snapFile, setSnapFile] = useState(null); 
+  const [foodWidth, setFoodWidth] = useState(""); 
   const [analyzing, setAnalyzing] = useState(false);
   const [snapRes, setSnapRes] = useState(null);
-  const fileRef = useRef(null);
+  
+  // Replace fileRef with two separate refs for Camera and Gallery
+  const cameraRef = useRef(null);
+  const galleryRef = useRef(null);
+  
+  const [mealType, setMealType] = useState("Lunch"); 
+  const [quantity, setQuantity] = useState(1);       
+
+  // Correction & Calibration State
+  const [showCorrect, setShowCorrect] = useState(false);
+  const [correctLabel, setCorrectLabel] = useState("");
+  const [showCalibrate, setShowCalibrate] = useState(false);
+  const [calibData, setCalibData] = useState("");
 
   const GOAL = 2000;
   const totals = {
@@ -752,7 +863,10 @@ function CalorieTracker({ darkMode, addToast }) {
       try {
         const data = await MealsAPI.list();
         const raw = extractArray(data, ["meals", "items", "logs", "mealLogs"]);
-        setMeals(raw.map(normalizeMeal));
+        
+        // Safely parse values and drop anything that returns undefined or null references
+        const validatedMeals = raw.map(normalizeMeal).filter(m => m !== null && !!m.id);
+        setMeals(validatedMeals);
       } catch (err) {
         addToast("Couldn't load meals — " + err.message, "error");
       } finally {
@@ -762,24 +876,41 @@ function CalorieTracker({ darkMode, addToast }) {
   }, []);
 
   const doAdd = async (src) => {
-    if (!src.name || !src.cal) { addToast("Please fill in meal name and calories", "error"); return; }
+    if (!src.mealType || !src.quantity) {
+      addToast("Please select meal type and quantity!", "error");
+      return;
+    }
+
+    // 🚨 PASTE THE VALID ID YOU COPIED FROM APIDOG BETWEEN THESE QUOTES 🚨
+    const VALID_DB_FOOD_ID = "PASTE_YOUR_VALID_FOOD_ID_HERE";
+
     setSaving(true);
     try {
       const payload = {
-        name: src.name,
-        cal: +src.cal,
+        // We force it to use a real ID that exists in your food items table
+        foodItemId: VALID_DB_FOOD_ID,
+        
+        mealType: src.mealType, 
+        quantity: parseFloat(src.quantity), 
+        name: src.name, // The UI will still show the AI's name (e.g., Falafel)
+        cal: +src.cal,  // The UI will still track the AI's calories
         protein: +(src.protein || 0),
         carbs: +(src.carbs || 0),
         fat: +(src.fat || 0),
         time: src.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         emoji: src.emoji || "🍽️",
       };
+      
       const created = await MealsAPI.create(payload);
       setMeals(p => [...p, normalizeMeal(created)]);
+      
+      // Clear forms
       setNewMeal({ name: "", cal: "", protein: "", carbs: "", fat: "", time: "" });
       setShowForm(false);
-      setSnapMode(false); setSnapImg(null); setSnapRes(null);
-      addToast(`${payload.name} added — ${payload.cal} kcal`);
+      setSnapMode(false); setSnapImg(null); setSnapFile(null); setSnapRes(null); setFoodWidth("");
+      setShowCorrect(false); setShowCalibrate(false);
+      
+      addToast(`${payload.name} added to your logs!`);
     } catch (err) {
       addToast("Failed to add meal — " + err.message, "error");
     } finally {
@@ -802,26 +933,67 @@ function CalorieTracker({ darkMode, addToast }) {
   const onPick = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setSnapRes(null);
+    setSnapRes(null); setShowCorrect(false); setShowCalibrate(false);
+    setSnapFile(file); 
+    
     const reader = new FileReader();
     reader.onload = ev => {
-      setSnapImg(ev.target.result);
-      setSnapB64(ev.target.result.split(",")[1]);
+      setSnapImg(ev.target.result); 
     };
     reader.readAsDataURL(file);
   };
 
   const runVision = async () => {
-    if (!snapB64) return;
+    if (!snapFile) return;
+    
+    if (!foodWidth) {
+      addToast("Please enter the food/plate width in cm first!", "error");
+      return;
+    }
+
     setAnalyzing(true); setSnapRes(null);
+    
     try {
-      const r = await analyzeFood(snapB64);
-      if (r.error) { addToast(r.error, "error"); return; }
-      setSnapRes(r);
+      const rawData = await PredictionAPI.predict(snapFile, foodWidth); 
+      const actualResult = rawData?.data?.data || rawData?.data || rawData;
+      const getNum = (val1, val2, val3) => Math.round(Number(val1 || val2 || val3 || 0));
+
+     setSnapRes({
+        name: actualResult?.food_detected || actualResult?.meal_name || "Detected Meal",
+        cal: getNum(actualResult?.macros?.calories, actualResult?.calories, actualResult?.cal),
+        protein: getNum(actualResult?.macros?.protein_g, actualResult?.protein_g, actualResult?.protein),
+        carbs: getNum(actualResult?.macros?.carbs_g, actualResult?.carbs_g, actualResult?.carbs),
+        fat: getNum(actualResult?.macros?.fats_g, actualResult?.fats_g, actualResult?.fat),
+        emoji: "🍽️", 
+        // 👇 ADDED: actualResult?.training_data_id is now first in line!
+        trainingDataId: actualResult?.training_data_id || actualResult?.trainingDataId || actualResult?.id 
+      });
     } catch (err) {
       addToast("Analysis failed — " + err.message, "error");
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const submitCorrection = async () => {
+    if (!correctLabel || !snapRes?.trainingDataId) return;
+    try {
+      await PredictionAPI.correct(snapRes.trainingDataId, correctLabel);
+      addToast("Correction submitted. Thank you!");
+      setShowCorrect(false); setCorrectLabel("");
+    } catch (err) {
+      addToast("Correction failed — " + err.message, "error");
+    }
+  };
+
+  const submitCalibration = async () => {
+    if (!calibData || !snapRes?.trainingDataId) return;
+    try {
+      await PredictionAPI.calibrate(snapRes.trainingDataId, calibData);
+      addToast("Calibration submitted.");
+      setShowCalibrate(false); setCalibData("");
+    } catch (err) {
+      addToast("Calibration failed — " + err.message, "error");
     }
   };
 
@@ -848,7 +1020,7 @@ function CalorieTracker({ darkMode, addToast }) {
           <p style={{ color: t.t2, fontSize: 15, margin: 0 }}>Log meals and track your daily nutrition</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => { setSnapMode(p => !p); setShowForm(false); setSnapImg(null); setSnapRes(null); }}
+          <button onClick={() => { setSnapMode(p => !p); setShowForm(false); setSnapImg(null); setSnapRes(null); setSnapFile(null); }}
             className="btn-o"
             style={{
               padding: "10px 16px", borderRadius: 10, fontSize: 14, display: "flex", alignItems: "center", gap: 8,
@@ -878,14 +1050,14 @@ function CalorieTracker({ darkMode, addToast }) {
             <div className="fs" style={{ fontSize: 22, fontWeight: 700, color: c, marginBottom: 2 }}>
               {v}<span style={{ fontSize: 12, color: t.t3, fontWeight: 400 }}>/{goal}{u}</span>
             </div>
-            <div className="pbar" style={{ background: darkMode ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.08)", marginTop: 8 }}>
-              <div className="pfill" style={{ width: `${Math.min(v / goal * 100, 100)}%`, background: c }} />
+            <div className="pbar" style={{ background: darkMode ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.08)", marginTop: 8, height: 6, borderRadius: 3 }}>
+              <div className="pfill" style={{ width: `${Math.min(v / goal * 100, 100)}%`, background: c, height: "100%", borderRadius: 3 }} />
             </div>
           </div>
         ))}
       </div>
 
-      {/* Snap & Log */}
+      {/* Snap & Log Area */}
       {snapMode && (
         <div className={`asc ${t.gl}`} style={{ borderRadius: 16, padding: "24px", marginBottom: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
@@ -898,32 +1070,58 @@ function CalorieTracker({ darkMode, addToast }) {
             </div>
           </div>
 
-          <div onClick={() => fileRef.current?.click()}
-            style={{
-              border: `2px dashed ${snapImg ? "#10b981" : t.bdr}`, borderRadius: 14, cursor: "pointer",
-              minHeight: snapImg ? 0 : 160, display: "flex", alignItems: "center", justifyContent: "center",
-              marginBottom: 16, transition: "border-color .2s", overflow: "hidden"
+          <div style={{
+              border: `2px dashed ${snapImg ? "#10b981" : t.bdr}`, borderRadius: 14, 
+              minHeight: snapImg ? 0 : 160, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              marginBottom: 16, transition: "border-color .2s", overflow: "hidden", padding: snapImg ? 0 : 24
             }}>
-            {snapImg
-              ? <img src={snapImg} alt="Food" style={{ width: "100%", maxHeight: 280, objectFit: "cover", borderRadius: 12, display: "block" }} />
-              : (
-                <div style={{ textAlign: "center", padding: 32 }}>
-                  <Camera size={32} color={t.t3} style={{ marginBottom: 10 }} />
-                  <p style={{ color: t.t3, fontSize: 14, margin: 0 }}>Click to upload a food photo</p>
-                  <p style={{ color: t.t3, fontSize: 12, margin: "4px 0 0" }}>JPG, PNG, WEBP</p>
+            {snapImg ? (
+              <img src={snapImg} alt="Food" style={{ width: "100%", maxHeight: 280, objectFit: "cover", borderRadius: 12, display: "block" }} />
+            ) : (
+              <>
+                <Camera size={32} color={t.t3} style={{ marginBottom: 10 }} />
+                <p style={{ color: t.t3, fontSize: 14, margin: "0 0 16px" }}>Upload or take a photo of your food</p>
+                
+                {/* Two explicit buttons for Camera and Gallery */}
+                <div style={{ display: "flex", gap: 12 }}>
+                  <button onClick={() => cameraRef.current?.click()} className="btn-o" style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, border: `1px solid ${t.bdr}`, color: t.t, background: "transparent" }}>
+                    Take Photo
+                  </button>
+                  <button onClick={() => galleryRef.current?.click()} className="btn-o" style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, border: `1px solid ${t.bdr}`, color: t.t, background: "transparent" }}>
+                    Upload File
+                  </button>
                 </div>
-              )
-            }
+              </>
+            )}
           </div>
-          <input ref={fileRef} type="file" accept="image/*" onChange={onPick} style={{ display: "none" }} />
+          
+          {/* Two hidden inputs: One forces camera, one allows file picking */}
+          <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={onPick} style={{ display: "none" }} />
+          <input ref={galleryRef} type="file" accept="image/*" onChange={onPick} style={{ display: "none" }} />
 
           {snapImg && !snapRes && (
-            <button onClick={runVision} disabled={analyzing} className="btn-g"
-              style={{ width: "100%", padding: "12px", borderRadius: 10, fontSize: 15, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 16, opacity: analyzing ? .7 : 1 }}>
-              {analyzing
-                ? <><Spinner /><span className="analyzing">Analyzing food…</span></>
-                : <><Sparkles size={17} />Identify &amp; Get Calories</>}
-            </button>
+            <>
+              <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+                <label style={{ color: t.t2, fontSize: 13, fontWeight: 500 }}>
+                  Plate/Food Width (cm):
+                </label>
+                <input 
+                  type="number" 
+                  placeholder="e.g. 20"
+                  value={foodWidth} 
+                  onChange={(e) => setFoodWidth(e.target.value)}
+                  className={t.inp}
+                  style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `1px solid ${t.bdr}`, background: "transparent", color: t.t }}
+                />
+              </div>
+
+              <button onClick={runVision} disabled={analyzing} className="btn-g"
+                style={{ width: "100%", padding: "12px", borderRadius: 10, fontSize: 15, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 16, opacity: analyzing ? .7 : 1 }}>
+                {analyzing
+                  ? <span>Analyzing food...</span>
+                  : <><Sparkles size={17} />Identify & Get Calories</>}
+              </button>
+            </>
           )}
 
           {snapRes && (
@@ -933,14 +1131,15 @@ function CalorieTracker({ darkMode, addToast }) {
                   <span style={{ fontSize: 32 }}>{snapRes.emoji}</span>
                   <div>
                     <div style={{ fontWeight: 700, color: t.t, fontSize: 16 }}>{snapRes.name}</div>
-                    <div style={{ fontSize: 12, color: t.t3 }}>AI estimated — adjust if needed</div>
+                    <div style={{ fontSize: 12, color: t.t3 }}>AI estimated</div>
                   </div>
                 </div>
                 <div className="fs" style={{ fontSize: 28, fontWeight: 800, color: "#10b981" }}>
                   {snapRes.cal}<span style={{ fontSize: 13, fontWeight: 400, color: t.t3 }}> kcal</span>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+              
+              <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
                 {[{ l: "Protein", v: snapRes.protein, c: "#22d3ee" }, { l: "Carbs", v: snapRes.carbs, c: "#f59e0b" }, { l: "Fat", v: snapRes.fat, c: "#a855f7" }].map(m => (
                   <div key={m.l} style={{ flex: 1, borderRadius: 8, padding: "10px", background: darkMode ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", textAlign: "center" }}>
                     <div style={{ fontSize: 18, fontWeight: 700, color: m.c }}>{m.v}g</div>
@@ -948,16 +1147,70 @@ function CalorieTracker({ darkMode, addToast }) {
                   </div>
                 ))}
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => doAdd(snapRes)} disabled={saving} className="btn-g"
-                  style={{ flex: 1, padding: "11px", borderRadius: 9, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                  {saving ? <Spinner /> : <><Check size={15} />Add to Log</>}
+
+              {/* NEW: Meal Type & Quantity selectors before saving */}
+              <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+                          <select 
+                            className={t.inp} 
+                            value={mealType} 
+                            onChange={e => setMealType(e.target.value)} 
+                            style={{flex: 1, padding: "10px 12px", borderRadius: 8, border: `1px solid ${t.bdr}`, background: darkMode ? "rgba(0,0,0,0.2)" : "#fff", color: t.t}}
+                          >
+                            <option value="Breakfast">Breakfast</option>
+                            <option value="Lunch">Lunch</option>
+                            <option value="Dinner">Dinner</option>
+                            <option value="Snack">Snack</option>
+                          </select>
+                <input 
+                  type="number" 
+                  value={quantity} 
+                  onChange={e => setQuantity(e.target.value)} 
+                  min="0.1" step="0.1" placeholder="Qty"
+                  className={t.inp} 
+                  style={{width: 70, padding: "10px", borderRadius: 8, border: `1px solid ${t.bdr}`, background: darkMode ? "rgba(0,0,0,0.2)" : "#fff", color: t.t}} 
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                {/* Note how we inject mealType and quantity into the doAdd function here! */}
+                <button onClick={() => doAdd({ ...snapRes, mealType, quantity })} disabled={saving} className="btn-g"
+                  style={{ flex: 2, padding: "11px", borderRadius: 9, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                  {saving ? <span>Saving...</span> : <><Check size={15} />Add to Log</>}
                 </button>
-                <button onClick={() => { setSnapImg(null); setSnapRes(null); }} className="btn-o"
-                  style={{ padding: "11px 16px", borderRadius: 9, border: `1px solid ${t.bdr}`, color: t.t2, fontSize: 14 }}>
+                <button onClick={() => { setSnapImg(null); setSnapRes(null); setSnapFile(null); setShowCorrect(false); setShowCalibrate(false); }} className="btn-o"
+                  style={{ flex: 1, padding: "11px 16px", borderRadius: 9, border: `1px solid ${t.bdr}`, color: t.t2, fontSize: 14 }}>
                   Retake
                 </button>
               </div>
+
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button onClick={() => { setShowCorrect(!showCorrect); setShowCalibrate(false); }} className="btn-o" style={{ flex: 1, padding: "8px", borderRadius: 6, fontSize: 12, color: t.t3, background: "transparent", border: `1px dashed ${t.bdr}` }}>
+                  Wrong food? Correct it
+                </button>
+                <button onClick={() => { setShowCalibrate(!showCalibrate); setShowCorrect(false); }} className="btn-o" style={{ flex: 1, padding: "8px", borderRadius: 6, fontSize: 12, color: t.t3, background: "transparent", border: `1px dashed ${t.bdr}` }}>
+                  Adjust Portion / Calibrate
+                </button>
+              </div>
+
+              {showCorrect && (
+                <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: darkMode ? "rgba(0,0,0,.2)" : "#fff", border: `1px solid ${t.bdr}` }}>
+                  <p style={{ fontSize: 12, margin: "0 0 8px", color: t.t2 }}>Enter the correct food name to train the AI:</p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input className={t.inp} value={correctLabel} onChange={e => setCorrectLabel(e.target.value)} placeholder="e.g. Chicken Salad" style={{ flex: 1, padding: "8px 12px", borderRadius: 6, fontSize: 13, border: `1px solid ${t.bdr}`, background: "transparent", color: t.t }} />
+                    <button onClick={submitCorrection} className="btn-g" style={{ padding: "0 14px", borderRadius: 6, fontSize: 13, fontWeight: 600 }}>Submit</button>
+                  </div>
+                </div>
+              )}
+
+              {showCalibrate && (
+                <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: darkMode ? "rgba(0,0,0,.2)" : "#fff", border: `1px solid ${t.bdr}` }}>
+                  <p style={{ fontSize: 12, margin: "0 0 8px", color: t.t2 }}>Enter actual weight/volume to calibrate:</p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input className={t.inp} value={calibData} onChange={e => setCalibData(e.target.value)} placeholder="e.g. 200g" style={{ flex: 1, padding: "8px 12px", borderRadius: 6, fontSize: 13, border: `1px solid ${t.bdr}`, background: "transparent", color: t.t }} />
+                    <button onClick={submitCalibration} className="btn-g" style={{ padding: "0 14px", borderRadius: 6, fontSize: 13, fontWeight: 600 }}>Calibrate</button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -974,7 +1227,7 @@ function CalorieTracker({ darkMode, addToast }) {
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <button onClick={() => doAdd(newMeal)} disabled={saving} className="btn-g"
               style={{ padding: "10px 24px", borderRadius: 8, fontSize: 14, display: "flex", alignItems: "center", gap: 8, opacity: saving ? .7 : 1 }}>
-              {saving && <Spinner size={14} />}Add Meal
+              Add Meal
             </button>
           </div>
         </div>
@@ -1014,113 +1267,7 @@ function CalorieTracker({ darkMode, addToast }) {
   );
 }
 
-/* ══════════════════════════════════════════════
-   BMI CALCULATOR
-══════════════════════════════════════════════ */
-function BMICalculator({ darkMode }) {
-  const t = darkMode ? T.d : T.l;
-  const [h, setH] = useState(170);
-  const [w, setW] = useState(70);
-  const [unit, setUnit] = useState("metric");
-  const bmi = +((w / ((h / 100) ** 2)).toFixed(1));
-  const cat = getBMICat(bmi);
-  const pct = Math.min(Math.max((bmi - 10) / 30 * 100, 0), 100);
-  const scale = [
-    { label: "Underweight", color: "#3b82f6", range: "<18.5" },
-    { label: "Normal", color: "#10b981", range: "18.5–24.9" },
-    { label: "Overweight", color: "#f59e0b", range: "25–29.9" },
-    { label: "Obese", color: "#ef4444", range: "≥30" },
-  ];
-  const tips = [
-    "Eat a balanced diet rich in whole foods",
-    "Stay hydrated with 8+ glasses of water daily",
-    "Aim for 150+ minutes of exercise per week",
-    "Prioritize quality sleep (7–9 hours)",
-    "Track your meals for better awareness",
-  ];
-  return (
-    <div style={{ flex: 1, padding: "32px 28px", background: t.bg, minHeight: "100vh" }}>
-      <div className="afu" style={{ marginBottom: 28 }}>
-        <h1 className="fs" style={{ fontSize: 26, fontWeight: 800, color: t.t, margin: "0 0 4px" }}>BMI Calculator</h1>
-        <p style={{ color: t.t2, fontSize: 15, margin: 0 }}>Know your Body Mass Index and get health insights</p>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 900 }}>
-        <div className={`afu s2 ${t.gl}`} style={{ borderRadius: 18, padding: "28px" }}>
-          <div style={{ display: "flex", background: darkMode ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.05)", borderRadius: 10, padding: 4, marginBottom: 28 }}>
-            {["metric", "imperial"].map(u => (
-              <button key={u} onClick={() => setUnit(u)} className="btn-o"
-                style={{
-                  flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, border: "none", fontFamily: "'DM Sans',sans-serif",
-                  background: unit === u ? (darkMode ? "rgba(255,255,255,.08)" : "#fff") : "transparent",
-                  color: unit === u ? t.t : t.t3, fontWeight: unit === u ? 600 : 400,
-                  boxShadow: unit === u ? "0 1px 4px rgba(0,0,0,.1)" : "none", transition: "all .2s"
-                }}>
-                {u === "metric" ? "Metric (cm/kg)" : "Imperial (in/lbs)"}
-              </button>
-            ))}
-          </div>
-          <div style={{ marginBottom: 28 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 600, color: t.t }}>Height</label>
-              <span className="fs" style={{ fontSize: 18, fontWeight: 700, color: "#22d3ee" }}>{h} {unit === "metric" ? "cm" : "in"}</span>
-            </div>
-            <input type="range" min={unit === "metric" ? 130 : 51} max={unit === "metric" ? 220 : 87} value={h} onChange={e => setH(+e.target.value)} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: t.t3, marginTop: 4 }}>
-              <span>{unit === "metric" ? "130 cm" : "51 in"}</span><span>{unit === "metric" ? "220 cm" : "87 in"}</span>
-            </div>
-          </div>
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 600, color: t.t }}>Weight</label>
-              <span className="fs" style={{ fontSize: 18, fontWeight: 700, color: "#10b981" }}>{w} {unit === "metric" ? "kg" : "lbs"}</span>
-            </div>
-            <input type="range" min={unit === "metric" ? 30 : 66} max={unit === "metric" ? 200 : 440} value={w} onChange={e => setW(+e.target.value)} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: t.t3, marginTop: 4 }}>
-              <span>{unit === "metric" ? "30 kg" : "66 lbs"}</span><span>{unit === "metric" ? "200 kg" : "440 lbs"}</span>
-            </div>
-          </div>
-        </div>
 
-        <div className={`afu s3 ${t.gl}`} style={{ borderRadius: 18, padding: "28px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-          <p style={{ fontSize: 13, color: t.t3, margin: "0 0 8px" }}>Your BMI</p>
-          <div className="fs" style={{ fontSize: 72, fontWeight: 800, color: cat.color, lineHeight: 1, marginBottom: 8, transition: "all .3s" }}>{bmi}</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: cat.color, marginBottom: 20, background: `${cat.color}18`, padding: "6px 18px", borderRadius: 20 }}>{cat.label}</div>
-          <div style={{ width: "100%", marginBottom: 20 }}>
-            <div style={{ height: 8, borderRadius: 4, background: "linear-gradient(to right,#3b82f6,#10b981,#f59e0b,#ef4444)", position: "relative", marginBottom: 10 }}>
-              <div style={{ position: "absolute", top: "50%", left: `${pct}%`, transform: "translate(-50%,-50%)", width: 16, height: 16, borderRadius: "50%", background: cat.color, border: "3px solid white", boxShadow: "0 2px 8px rgba(0,0,0,.3)", transition: "left .4s ease" }} />
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              {scale.map(s => (
-                <div key={s.label} style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 10, color: s.color, fontWeight: 600 }}>{s.label}</div>
-                  <div style={{ fontSize: 10, color: t.t3 }}>{s.range}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{ background: `${cat.color}10`, border: `1px solid ${cat.color}30`, borderRadius: 12, padding: "14px 16px", textAlign: "left", width: "100%" }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: cat.color, marginBottom: 6 }}>💡 Health Tip</div>
-            <div style={{ fontSize: 13, color: t.t2, lineHeight: 1.6 }}>{cat.tip}</div>
-          </div>
-        </div>
-
-        <div className={`afu s4 ${t.gl}`} style={{ borderRadius: 18, padding: "24px", gridColumn: "1/-1" }}>
-          <h3 className="fs" style={{ fontSize: 16, fontWeight: 700, color: t.t, marginBottom: 16 }}>General Health Recommendations</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12 }}>
-            {tips.map((tip, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "12px", borderRadius: 10, background: darkMode ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.03)" }}>
-                <div style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(16,185,129,.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                  <Check size={11} color="#10b981" />
-                </div>
-                <span style={{ fontSize: 13, color: t.t2, lineHeight: 1.5 }}>{tip}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ══════════════════════════════════════════════
    AI CHAT — wired to /coach/sessions + /coach/chat
@@ -1406,7 +1553,20 @@ function AppLayout({ page, setPage, setAuthed, darkMode, setDarkMode, addToast, 
       <Sidebar page={page} setPage={setPage} setAuthed={setAuthed} darkMode={darkMode} setDarkMode={setDarkMode} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         {page === "dashboard" && <Dashboard darkMode={darkMode} currentUser={currentUser} />}
-        {page === "tracker" && <CalorieTracker darkMode={darkMode} addToast={addToast} />}
+        
+        {/* Updated Tracker Line Here */}
+        {page === "tracker" && (
+          <CalorieTracker 
+            darkMode={darkMode} 
+            addToast={addToast} 
+            MealsAPI={MealsAPI} 
+            PredictionAPI={PredictionAPI} 
+            extractArray={extractArray} 
+            normalizeMeal={normalizeMeal} 
+            T={T} 
+          />
+        )}
+        
         {page === "bmi" && <BMICalculator darkMode={darkMode} />}
         {page === "chat" && <AIChat darkMode={darkMode} />}
       </div>
