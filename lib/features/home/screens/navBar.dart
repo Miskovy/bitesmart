@@ -1,7 +1,7 @@
 import 'package:bite_smart/features/home/screens/aiChatScreen.dart';
-import 'package:bite_smart/features/home/screens/caliprateScaleScreen.dart';
 import 'package:bite_smart/features/home/screens/communityChallenge.dart';
 import 'package:bite_smart/features/home/screens/homeScreen.dart';
+import 'package:bite_smart/features/home/screens/scanModeSelectionScreen.dart';
 import 'package:bite_smart/features/profile/screens/profileScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart'; // عشان الـ .tr() اللي في كودك
@@ -143,7 +143,7 @@ class _MainHomeState extends State<MainHome> {
       shape: const CircleBorder(),
       onPressed: () => Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const CalibrateScaleDialog()),
+        MaterialPageRoute(builder: (context) => const ScanModeSelectionScreen()),
       ),
       child: const Icon(
         Icons.qr_code_scanner_outlined,

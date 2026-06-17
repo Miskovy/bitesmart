@@ -34,8 +34,14 @@ class ApiService {
 
     Map<String, dynamic> responseData;
     try {
+      if (body.trim().isEmpty && statusCode >= 200 && statusCode < 300) {
+        return {'success': true, 'message': 'Request succeeded'};
+      }
       responseData = json.decode(body) as Map<String, dynamic>;
     } catch (_) {
+      if (statusCode >= 200 && statusCode < 300) {
+        return {'success': true, 'message': 'Request succeeded', 'data': body};
+      }
       throw Exception('Server returned invalid JSON format (Status Code: $statusCode)');
     }
 

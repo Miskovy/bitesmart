@@ -12,6 +12,7 @@ import 'package:bite_smart/features/auth/screens/language.dart';
 import 'package:bite_smart/features/profile/data/bloc/profile_bloc.dart';
 import 'package:bite_smart/features/profile/data/bloc/profile_event.dart';
 import 'package:bite_smart/features/profile/data/bloc/profile_state.dart';
+import 'package:bite_smart/features/profile/data/repositories/profile_repository.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -21,6 +22,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  double _weightChange = 0.0;
+
   @override
   void initState() {
     super.initState();
@@ -30,6 +33,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (authState is AuthAuthenticated) {
         context.read<ProfileBloc>().add(LoadProfileEvent(userId: authState.userId));
       }
+    }
+    _loadInsights();
+  }
+
+  Future<void> _loadInsights() async {
+    try {
+      final repo = context.read<IProfileRepository>();
+      final insights = await repo.getUserInsights(range: 'weekly');
+      if (mounted) {
+        setState(() {
+          _weightChange = insights.weightChange;
+        });
+      }
+    } catch (_) {
+      // Fallback if network is not available
     }
   }
 
@@ -168,14 +186,68 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 24),
 
                 // ── Stats row ───────────────────────────────────────────────
-                Row(
-                  children: [
-                    _statCard('14', 'STREAK'),
-                    const SizedBox(width: 10),
-                    _statCard('-12', 'LBS LOST'),
-                    const SizedBox(width: 10),
-                    _statCard('88', 'HEALTH\nSCORE'),
-                  ],
+                BlocBuilder<ProfileBloc, ProfileState>(
+                  builder: (context, state) {
+                    String streak = '0';
+                    String lbsLost = '0.0';
+                    String healthScore = '0';
+
+                    if (state is ProfileLoaded) {
+                      streak = '${state.loginStreak ?? 0}';
+                      lbsLost = _weightChange >= 0
+                          ? '+${_weightChange.toStringAsFixed(1)}'
+                          : _weightChange.toStringAsFixed(1);
+                      
+                      // Calculate personalized Health Score
+                      double bmiScore = 90.0;
+                      if (state.weight != null && state.height != null && state.weight! > 0 && state.height! > 0) {
+                        final heightInMeters = state.height! / 100.0;
+                        final bmi = state.weight! / (heightInMeters * heightInMeters);
+                        if (bmi >= 18.5 && bmi <= 24.9) {
+                          bmiScore = 100.0;
+                        } else if ((bmi >= 17.0 && bmi < 18.5) || (bmi > 24.9 && bmi <= 29.9)) {
+                          bmiScore = 85.0;
+                        } else {
+                          bmiScore = 70.0;
+                        }
+                      }
+
+                      double activityScore = 75.0;
+                      if (state.activityLevel != null) {
+                        switch (state.activityLevel) {
+                          case 'Sedentary':
+                            activityScore = 70.0;
+                            break;
+                          case 'LightlyActive':
+                            activityScore = 85.0;
+                            break;
+                          case 'ModeratelyActive':
+                            activityScore = 95.0;
+                            break;
+                          case 'VeryActive':
+                          case 'ExtraActive':
+                            activityScore = 100.0;
+                            break;
+                          default:
+                            activityScore = 80.0;
+                        }
+                      }
+
+                      final streakBonus = ((state.loginStreak ?? 0) * 1.5).clamp(0.0, 10.0);
+                      final calculatedScore = ((bmiScore * 0.55) + (activityScore * 0.35) + streakBonus).round().clamp(50, 100);
+                      healthScore = '$calculatedScore';
+                    }
+
+                    return Row(
+                      children: [
+                        _statCard(streak, 'STREAK'),
+                        const SizedBox(width: 10),
+                        _statCard(lbsLost, 'LBS LOST'),
+                        const SizedBox(width: 10),
+                        _statCard(healthScore, 'HEALTH\nSCORE'),
+                      ],
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 20),

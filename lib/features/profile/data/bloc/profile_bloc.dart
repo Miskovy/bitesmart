@@ -1,3 +1,4 @@
+import 'package:bite_smart/features/profile/data/models/profile_setup_model.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:bite_smart/features/profile/data/bloc/profile_event.dart';
 import 'package:bite_smart/features/profile/data/bloc/profile_state.dart';
@@ -42,6 +43,12 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         gender: profile.gender,
         height: profile.height,
         weight: profile.weight,
+        bmi: profile.bmi,
+        loginStreak: profile.loginStreak,
+        xp: profile.xp,
+        medicalConditions: profile.medicalConditions,
+        dietaryPreferences: profile.dietaryPreferences,
+        targets: profile.targets,
       ));
     } catch (e) {
       emit(ProfileError(message: e.toString()));
@@ -53,8 +60,23 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     UpdateProfileEvent event,
     Emitter<ProfileState> emit,
   ) async {
+    final currentState = state;
     emit(const ProfileLoading());
     try {
+      MedicalConditionsData? currentMedicalConditions;
+      DietaryPreferencesData? currentDietaryPreferences;
+      MacroTargetsModel? currentTargets;
+      int? currentStreak;
+      int? currentXp;
+
+      if (currentState is ProfileLoaded) {
+        currentStreak = currentState.loginStreak;
+        currentXp = currentState.xp;
+        currentMedicalConditions = currentState.medicalConditions;
+        currentDietaryPreferences = currentState.dietaryPreferences;
+        currentTargets = currentState.targets;
+      }
+
       final updatedProfile = UserProfileModel(
         id: event.userId,
         email: event.email ?? '',
@@ -67,28 +89,41 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         gender: event.gender,
         height: event.height,
         weight: event.weight,
+        bmi: event.bmi,
+        medicalConditions: currentMedicalConditions,
+        dietaryPreferences: currentDietaryPreferences,
+        targets: currentTargets,
       );
 
-      await profileRepository.updateUserProfile(
+      final resultProfile = await profileRepository.updateUserProfile(
         userId: event.userId,
         profile: updatedProfile,
       );
 
       emit(ProfileLoaded(
         userId: event.userId,
-        displayName: event.displayName,
-        email: event.email,
-        profileImageUrl: event.profileImageUrl,
-        phone: event.phone,
-        userGoal: event.userGoal,
-        activityLevel: event.activityLevel,
-        age: event.age,
-        gender: event.gender,
-        height: event.height,
-        weight: event.weight,
+        displayName: resultProfile.displayName ?? event.displayName,
+        email: resultProfile.email,
+        profileImageUrl: resultProfile.profileImageUrl ?? event.profileImageUrl,
+        phone: resultProfile.phone ?? event.phone,
+        userGoal: resultProfile.userGoal ?? event.userGoal,
+        activityLevel: resultProfile.activityLevel ?? event.activityLevel,
+        age: resultProfile.age ?? event.age,
+        gender: resultProfile.gender ?? event.gender,
+        height: resultProfile.height ?? event.height,
+        weight: resultProfile.weight ?? event.weight,
+        bmi: resultProfile.bmi ?? event.bmi,
+        loginStreak: resultProfile.loginStreak ?? currentStreak,
+        xp: resultProfile.xp ?? currentXp,
+        medicalConditions: resultProfile.medicalConditions ?? currentMedicalConditions,
+        dietaryPreferences: resultProfile.dietaryPreferences ?? currentDietaryPreferences,
+        targets: resultProfile.targets ?? currentTargets,
       ));
     } catch (e) {
       emit(ProfileError(message: e.toString()));
+      if (currentState is ProfileLoaded) {
+        emit(currentState);
+      }
     }
   }
 
@@ -255,6 +290,12 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
           gender: currentState.gender,
           height: currentState.height,
           weight: currentState.weight,
+          bmi: currentState.bmi,
+          loginStreak: currentState.loginStreak,
+          xp: currentState.xp,
+          medicalConditions: currentState.medicalConditions,
+          dietaryPreferences: currentState.dietaryPreferences,
+          targets: currentState.targets,
         ));
       } else {
         final profile = await profileRepository.getUserProfile(userId: event.userId);
@@ -270,6 +311,12 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
           gender: profile.gender,
           height: profile.height,
           weight: profile.weight,
+          bmi: profile.bmi,
+          loginStreak: profile.loginStreak,
+          xp: profile.xp,
+          medicalConditions: profile.medicalConditions,
+          dietaryPreferences: profile.dietaryPreferences,
+          targets: profile.targets,
         ));
       }
     } catch (e) {

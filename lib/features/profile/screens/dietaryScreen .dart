@@ -107,7 +107,7 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
           child: FractionallySizedBox(
             widthFactor: 0.5,
             child: SizedBox(
-              width: .4 * MediaQuery.of(context).size.width,
+              width: .6 * MediaQuery.of(context).size.width,
               height: 46,
               child: ElevatedButton(
                 onPressed: () {

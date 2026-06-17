@@ -125,7 +125,7 @@ class AICoachScreen extends StatelessWidget {
 
               // زرار Next
               SizedBox(
-                width: .4*MediaQuery.of(context).size.width,
+                width: .6*MediaQuery.of(context).size.width,
                 height: 46,
                 child: ElevatedButton(
                   onPressed: () => Navigator.push(context,

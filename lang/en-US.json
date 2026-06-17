@@ -150,37 +150,6 @@
     "disable_info": "To disable permissions, please open the device settings.",
     "settings_btn": "Settings"
   },
-  "premium": {
-    "restore": "Restore Purchase",
-    "title": "Unlock Your Full Potential",
-    "subtitle": "Get the AI advantage. Accelerate your weight loss with advanced nutrition tracking and human coaching.",
-    "monthly": "Monthly",
-    "yearly": "Yearly",
-    "save": "SAVE 40%",
-    "features": "Features",
-    "free": "Free",
-    "pro": "PRO",
-    "calorie_track": "Calorie Tracking",
-    "basic_log": "Basic Logging",
-    "ai_meal": "AI Meal Suggestions",
-    "instant_scan": "Instant AI Scan",
-    "total": "Total",
-    "start_btn": "Start Free Trial",
-    "footer": "Cancel anytime. Your subscription automatically renews until you cancel in your app settings.",
-    "restore_purchase": "Restore Purchase",
-    "save_40": "SAVE 40%",
-    "calorie_tracking": "Calorie Tracking",
-    "macro_tracking": "Macro Tracking",
-    "meal_suggestions": "AI Meal Suggestions",
-    "ai_coaching": "24/7 AI Coaching",
-    "health_sync": "Health Data Sync",
-    "progress_analytics": "Advanced Analytics",
-    "priority_support": "Priority Support",
-    "monthly_billing": "Billed monthly",
-    "yearly_billing": "Billed yearly",
-    "subscribe_now": "Subscribe Now",
-    "terms": "Cancel anytime. Your subscription automatically renews until you cancel in your app settings."
-  },
   "medical": {
     "title": "Your Medical Conditions",
     "subtitle": "Select any medical conditions that apply to you to get personalized nutrition recommendations",
@@ -257,7 +226,8 @@
     "snacks": "Snacks",
     "not_logged": "Not logged yet",
     "remaining": "REMAINING",
-    "of_kcal": "of 2,450 kcal",
+    "of": "of",
+    "kcal": "kcal",
     "protein": "Protein",
     "carbs": "Carbs",
     "fats": "Fats",
@@ -293,7 +263,13 @@
     "ingredients": "Ingredients",
     "ingredients_example": "Sourdough, Avocado, Egg...",
     "add_to_log": "Add to Food Log",
-    "kcal_unit": "kcal"
+    "kcal_unit": "kcal",
+    "ai_prediction": "AI Prediction",
+    "plate_diameter": "Plate Diameter",
+    "est_weight": "Est. Weight",
+    "est_volume": "Est. Volume",
+    "measurements": "AI Measurements",
+    "add_success": "Meal logged successfully!"
   },
   "camera": {
     "ai_looking": "AI Looking for food..."
@@ -329,7 +305,27 @@
     "sign_out": "Sign Out",
     "sign_out_confirm": "Are you sure you want to sign out?",
     "cancel": "Cancel",
-    "confirm": "Sign Out",
+    "confirm": "Confirm",
     "sign_out_sub": "Sign out from your account"
+  },
+  "scan_mode": {
+    "title": "Choose Scanning Mode",
+    "subtitle": "Select the mode to start analyzing your food",
+    "ar_title": "AR Food Analysis",
+    "ar_desc": "Identify food portions and nutrients using AR prediction.",
+    "enter_diameter": "Enter Plate Diameter (cm):",
+    "start_scanning": "Start Scanning",
+    "calib_title": "Scale Calibration",
+    "calib_desc": "Calibrate your device scale factor for accurate weight calculations."
+  },
+  "ar_measure": {
+    "title": "AR Measurement",
+    "tap_left": "Tap the left edge of the food",
+    "tap_right": "Now tap the right edge of the food",
+    "width_label": "Measured Width",
+    "confirm": "Confirm & Capture",
+    "reset": "Reset",
+    "capture_title": "Capture Food Image",
+    "capture_subtitle": "Take a photo or pick from gallery"
   }
 }

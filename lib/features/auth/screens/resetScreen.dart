@@ -297,7 +297,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             );
                           }
                           return SizedBox(
-                            width: .4 * MediaQuery.of(context).size.width,
+                            width: .6 * MediaQuery.of(context).size.width,
                             height: 46,
                             child: ElevatedButton(
                               onPressed: _strengthCount == 4 &&

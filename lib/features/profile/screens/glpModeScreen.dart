@@ -1,4 +1,7 @@
+import 'package:bite_smart/features/profile/data/repositories/settings_repository.dart';
+import 'package:bite_smart/features/home/data/repositories/symptom_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class Glp1SettingsScreen extends StatefulWidget {
   const Glp1SettingsScreen({super.key});
@@ -8,7 +11,9 @@ class Glp1SettingsScreen extends StatefulWidget {
 }
 
 class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
-  // 🟢 المتغيرات (Variables) الخاصة بالإعدادات لربط الداتا بيز
+  bool isLoading = true;
+  bool isSaving = false;
+
   bool isGlpModeEnabled = true;
   bool isHighProteinEnabled = true;
   int selectedNauseaIndex = 1; // 0: None, 1: Mild, 2: Mod, 3: Severe
@@ -24,7 +29,97 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final settingsRepo = context.read<ISettingsRepository>();
+      final settings = await settingsRepo.getGlp1Settings();
+      setState(() {
+        isGlpModeEnabled = settings.isGlp1User;
+        isHighProteinEnabled = settings.highProteinGoal;
+        reminderHours = settings.hydrationReminderHours;
+        smartRemindersEnabled = reminderHours > 0;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    setState(() {
+      isSaving = true;
+    });
+
+    try {
+      final settingsRepo = context.read<ISettingsRepository>();
+      final symptomRepo = context.read<ISymptomRepository>();
+
+      // 1. Enable/Disable mode in profile
+      await settingsRepo.enableGlp1Mode(isGlpModeEnabled);
+
+      // 2. Save settings
+      await settingsRepo.saveGlp1Settings(
+        Glp1Settings(
+          isGlp1User: isGlpModeEnabled,
+          highProteinGoal: isHighProteinEnabled,
+          hydrationReminderHours: smartRemindersEnabled ? reminderHours : 0,
+        ),
+      );
+
+      // 3. Log daily check-in (Nausea + Appetite)
+      if (isGlpModeEnabled) {
+        await symptomRepo.logDailyCheckIn(
+          nauseaLevel: selectedNauseaIndex,
+          appetiteLevel: appetiteLevel.toInt(),
+          notes: 'Log from GLP-1 Settings check-in',
+        );
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('GLP-1 settings saved successfully!'),
+            backgroundColor: Color(0xFF4CAF50),
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving settings: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isSaving = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF8FAF8),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAF8),
       appBar: AppBar(
@@ -48,14 +143,14 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. أيقونة الهيدر والنصوص التعريفية
+                  // 1. Header icon and description
                   Center(
                     child: Column(
                       children: [
-                        CircleAvatar(
+                        const CircleAvatar(
                           radius: 24,
-                          backgroundColor: const Color(0xFFE8F5E9),
-                          child: const Icon(Icons.medication_liquid_rounded, color: Color(0xFF4CAF50), size: 28),
+                          backgroundColor: Color(0xFFE8F5E9),
+                          child: Icon(Icons.medication_liquid_rounded, color: Color(0xFF4CAF50), size: 28),
                         ),
                         const SizedBox(height: 16),
                         const Text(
@@ -73,7 +168,7 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // 2. سويتش تفعيل وضع GLP-1 (المطلوب إضافته)
+                  // 2. Enable GLP-1 Mode toggle tile
                   _buildToggleTile(
                     "Enable GLP-1 Mode",
                     isGlpModeEnabled,
@@ -82,7 +177,7 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // تعتيم باقي الإعدادات إذا كان الوضع غير مفعل
+                  // Dim elements if GLP-1 Mode is disabled
                   Opacity(
                     opacity: isGlpModeEnabled ? 1.0 : 0.5,
                     child: IgnorePointer(
@@ -93,31 +188,31 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
                           const Text("NUTRITION TARGETS", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
                           const SizedBox(height: 10),
 
-                          // 3. كارت High-Protein Goal
+                          // 3. High-Protein Goal card
                           _buildProteinCard(),
 
                           const SizedBox(height: 24),
                           const Text("DAILY CHECK-IN", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
                           const SizedBox(height: 12),
 
-                          // 4. كارت اختيار مستوى الغثيان
+                          // 4. Nausea level selector card
                           _buildNauseaSelector(),
 
                           const SizedBox(height: 16),
 
-                          // 5. كارت مستوى الشهية
+                          // 5. Appetite level slider card
                           _buildAppetiteSlider(),
 
                           const SizedBox(height: 24),
                           const Text("HYDRATION", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
                           const SizedBox(height: 12),
 
-                          // 6. كارت تذكيرات شرب الماء
+                          // 6. Water hydration reminders card
                           _buildHydrationCard(),
 
                           const SizedBox(height: 20),
 
-                          // 7. التنبيه الطبي (Disclaimer)
+                          // 7. Medical disclaimer
                           _buildMedicalDisclaimer(),
                         ],
                       ),
@@ -128,14 +223,12 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
             ),
           ),
 
-          // 8. زر الحفظ السفلي
+          // 8. Save button
           _buildSaveButton(),
         ],
       ),
     );
   }
-
-  // --- ويدجت بناء العناصر الفرعية ---
 
   Widget _buildToggleTile(String title, bool value, Function(bool) onChanged, {bool isMainSwitch = false}) {
     return Container(
@@ -260,7 +353,8 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
           ),
           Slider(
             value: appetiteLevel,
-            min: 1, max: 5,
+            min: 1,
+            max: 5,
             activeColor: const Color(0xFF4CAF50),
             inactiveColor: const Color(0xFFE0E0E0),
             onChanged: (val) => setState(() => appetiteLevel = val),
@@ -285,16 +379,20 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
         children: [
           const CircleAvatar(backgroundColor: Color(0xFFE1F5FE), child: Icon(Icons.water_drop, color: Colors.blue)),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Smart Reminders", style: TextStyle(fontWeight: FontWeight.bold)),
-                Text("Every 2 hours", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                const Text("Smart Reminders", style: TextStyle(fontWeight: FontWeight.bold)),
+                Text("Every $reminderHours hours", style: const TextStyle(color: Colors.grey, fontSize: 12)),
               ],
             ),
           ),
-          Switch(value: smartRemindersEnabled, onChanged: (v) => setState(() => smartRemindersEnabled = v), activeColor: const Color(0xFF4CAF50)),
+          Switch(
+            value: smartRemindersEnabled,
+            onChanged: (v) => setState(() => smartRemindersEnabled = v),
+            activeColor: const Color(0xFF4CAF50),
+          ),
         ],
       ),
     );
@@ -330,19 +428,26 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
           minimumSize: const Size(double.infinity, 54),
           shape: RoundedRectangle_circular(16),
         ),
-        onPressed: () {},
+        onPressed: isSaving ? null : _saveSettings,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Text("Save Settings", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-            SizedBox(width: 8),
-            Icon(Icons.check, color: Colors.white, size: 20),
+          children: [
+            if (isSaving)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+              )
+            else ...[
+              const Text("Save Settings", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 8),
+              const Icon(Icons.check, color: Colors.white, size: 20),
+            ]
           ],
         ),
       ),
     );
   }
 
-  // دالة مساعدة لتصحيح خطأ بسيط في الكتابة (RoundedRectangleBorder)
   RoundedRectangleBorder RoundedRectangle_circular(double radius) => RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius));
 }
