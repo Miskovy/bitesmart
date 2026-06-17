@@ -1339,7 +1339,7 @@ function AIChat({ darkMode }) {
     e.stopPropagation();
     setSessions(p => p.filter(s => (s.id || s._id) !== sid));
     if (activeId === sid) newSession();
-    try { await CoachAPI.deleteSession(sid); } catch { }
+    try { await CoachAPI.deleteSession(sid); } catch (err) { console.error(err); }
   };
 
   /* Send message */
@@ -1374,6 +1374,7 @@ function AIChat({ darkMode }) {
         setSessions(p => [newSess, ...p]);
       }
     } catch (err) {
+      console.error(err);
       setMsgs(p => [...p, { role: "assistant", content: "Sorry, I ran into an issue. Please try again." }]);
     } finally {
       setTyping(false);
@@ -1578,8 +1579,8 @@ function AppLayout({ page, setPage, setAuthed, darkMode, setDarkMode, addToast, 
    ROOT
 ══════════════════════════════════════════════ */
 export default function App() {
-  const [page, setPage] = useState("landing");
-  const [authed, setAuthed] = useState(false);
+  const [page, setPage] = useState(() => Token.get() ? "dashboard" : "landing");
+  const [authed, setAuthed] = useState(() => !!Token.get());
   const [currentUser, setCurrentUser] = useState(null);
   const [dark, setDark] = useState(true);
   const [toasts, setToasts] = useState([]);
@@ -1589,10 +1590,6 @@ export default function App() {
     el.textContent = CSS;
     document.head.appendChild(el);
     return () => document.head.removeChild(el);
-  }, []);
-
-  useEffect(() => {
-    if (Token.get()) { setAuthed(true); setPage("dashboard"); }
   }, []);
 
   const addToast = (msg, type = "success") => {

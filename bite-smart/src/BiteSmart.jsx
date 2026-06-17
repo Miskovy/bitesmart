@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line,
@@ -9,7 +9,7 @@ import {
   Server, DollarSign, ChevronRight, Edit, Trash2, Eye,
   LogOut, AlertTriangle, Leaf, RefreshCw, Menu,
   X, Check, Download, TrendingUp, TrendingDown, Globe,
-  MoreVertical, CheckCircle, XCircle, MessageSquare,
+  CheckCircle, XCircle,
 } from "lucide-react";
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
@@ -251,6 +251,116 @@ function Textarea({ value, onChange, placeholder, rows=3 }) {
   );
 }
 
+function UserForm({ form, setForm, onSave, saving, onCancel }) {
+  return (
+    <>
+      <FieldRow label="Full name"><Input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Amira Hassan" /></FieldRow>
+      <FieldRow label="Email"><Input type="email" value={form.email} onChange={e=>setForm(p=>({...p,email:e.target.value}))} placeholder="user@email.com" /></FieldRow>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+        <FieldRow label="Plan">
+          <Select value={form.plan} onChange={e=>setForm(p=>({...p,plan:e.target.value}))}>
+            <option>Free</option><option>Pro</option><option>Family</option>
+          </Select>
+        </FieldRow>
+        <FieldRow label="Status">
+          <Select value={form.status} onChange={e=>setForm(p=>({...p,status:e.target.value}))}>
+            <option>Active</option><option>Inactive</option>
+          </Select>
+        </FieldRow>
+      </div>
+      <FieldRow label="Country"><Input value={form.country} onChange={e=>setForm(p=>({...p,country:e.target.value}))} placeholder="e.g. Egypt" /></FieldRow>
+      <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:8 }}>
+        <Btn variant="ghost" onClick={onCancel}>Cancel</Btn>
+        <Btn onClick={onSave}><Check size={13}/>{saving ? 'Add user' : 'Save changes'}</Btn>
+      </div>
+    </>
+  );
+}
+
+function FoodForm({ form, setForm, onSave, onCancel, cats }) {
+  return (
+    <>
+      <FieldRow label="Food name"><Input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Grilled Chicken Breast" /></FieldRow>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+        <FieldRow label="Category">
+          <Select value={form.cat} onChange={e=>setForm(p=>({...p,cat:e.target.value}))}>
+            {cats.filter(c=>c!=='All').map(c=><option key={c}>{c}</option>)}
+          </Select>
+        </FieldRow>
+        <FieldRow label="Status">
+          <Select value={form.status} onChange={e=>setForm(p=>({...p,status:e.target.value}))}>
+            <option>Pending</option><option>Approved</option>
+          </Select>
+        </FieldRow>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10 }}>
+        {[['Calories (kcal)','cal'],['Protein (g)','protein'],['Carbs (g)','carbs'],['Fat (g)','fat']].map(([label,key]) => (
+          <FieldRow key={key} label={label}><Input type="number" value={form[key]} onChange={e=>setForm(p=>({...p,[key]:e.target.value}))} placeholder="0" /></FieldRow>
+        ))}
+      </div>
+      <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:8 }}>
+        <Btn variant="ghost" onClick={onCancel}>Cancel</Btn>
+        <Btn onClick={onSave}><Check size={13}/>Save</Btn>
+      </div>
+    </>
+  );
+}
+
+function PlanForm({ form, setForm, onSave, onCancel, goals, colors }) {
+  return (
+    <>
+      <FieldRow label="Plan name"><Input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Mediterranean Cut" /></FieldRow>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+        <FieldRow label="Goal">
+          <Select value={form.goal} onChange={e=>setForm(p=>({...p,goal:e.target.value}))}>
+            {goals.map(g=><option key={g}>{g}</option>)}
+          </Select>
+        </FieldRow>
+        <FieldRow label="Daily kcal target"><Input type="number" value={form.kcal} onChange={e=>setForm(p=>({...p,kcal:e.target.value}))} placeholder="e.g. 2000" /></FieldRow>
+      </div>
+      <FieldRow label="Tag (e.g. Popular, New)"><Input value={form.tag} onChange={e=>setForm(p=>({...p,tag:e.target.value}))} placeholder="e.g. Best Seller" /></FieldRow>
+      <FieldRow label="Color accent">
+        <div style={{ display:'flex', gap:8 }}>
+          {colors.map(c => (
+            <div key={c} onClick={()=>setForm(p=>({...p,color:c}))} style={{ width:24, height:24, borderRadius:'50%', background:c, cursor:'pointer', border:form.color===c?`3px solid ${T.text}`:`3px solid transparent` }} />
+          ))}
+        </div>
+      </FieldRow>
+      <FieldRow label="Description"><Textarea value={form.desc} onChange={e=>setForm(p=>({...p,desc:e.target.value}))} placeholder="Describe this meal plan…" rows={3} /></FieldRow>
+      <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:8 }}>
+        <Btn variant="ghost" onClick={onCancel}>Cancel</Btn>
+        <Btn onClick={onSave}><Check size={13}/>Save</Btn>
+      </div>
+    </>
+  );
+}
+
+function ContentForm({ form, setForm, onSave, onCancel }) {
+  return (
+    <>
+      <FieldRow label="Title"><Input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="Article title…" /></FieldRow>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+        <FieldRow label="Type">
+          <Select value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value}))}>
+            <option>Article</option><option>Guide</option><option>Recipe</option>
+          </Select>
+        </FieldRow>
+        <FieldRow label="Status">
+          <Select value={form.status} onChange={e=>setForm(p=>({...p,status:e.target.value}))}>
+            <option>Draft</option><option>Review</option><option>Published</option>
+          </Select>
+        </FieldRow>
+      </div>
+      <FieldRow label="Author"><Input value={form.author} onChange={e=>setForm(p=>({...p,author:e.target.value}))} placeholder="Author name" /></FieldRow>
+      <FieldRow label="Tags (comma-separated)"><Input value={form.tags} onChange={e=>setForm(p=>({...p,tags:e.target.value}))} placeholder="nutrition, protein, diet" /></FieldRow>
+      <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:8 }}>
+        <Btn variant="ghost" onClick={onCancel}>Cancel</Btn>
+        <Btn onClick={onSave}><Check size={13}/>Save</Btn>
+      </div>
+    </>
+  );
+}
+
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 function KpiCard({ Icon, label, value, change, up=true, color }) {
   return (
@@ -412,30 +522,6 @@ function UsersPage() {
     setUsers(prev => prev.filter(u => u.id !== deleteId));
   }
 
-  const UserForm = ({ onSave, saving }) => (
-    <>
-      <FieldRow label="Full name"><Input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Amira Hassan" /></FieldRow>
-      <FieldRow label="Email"><Input type="email" value={form.email} onChange={e=>setForm(p=>({...p,email:e.target.value}))} placeholder="user@email.com" /></FieldRow>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-        <FieldRow label="Plan">
-          <Select value={form.plan} onChange={e=>setForm(p=>({...p,plan:e.target.value}))}>
-            <option>Free</option><option>Pro</option><option>Family</option>
-          </Select>
-        </FieldRow>
-        <FieldRow label="Status">
-          <Select value={form.status} onChange={e=>setForm(p=>({...p,status:e.target.value}))}>
-            <option>Active</option><option>Inactive</option>
-          </Select>
-        </FieldRow>
-      </div>
-      <FieldRow label="Country"><Input value={form.country} onChange={e=>setForm(p=>({...p,country:e.target.value}))} placeholder="e.g. Egypt" /></FieldRow>
-      <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:8 }}>
-        <Btn variant="ghost" onClick={() => saving ? setShowAdd(false) : setEditUser(null)}>Cancel</Btn>
-        <Btn onClick={onSave}><Check size={13}/>{saving ? 'Add user' : 'Save changes'}</Btn>
-      </div>
-    </>
-  );
-
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
@@ -505,12 +591,12 @@ function UsersPage() {
 
       {/* Add Modal */}
       <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add new user">
-        <UserForm onSave={saveAdd} saving={true} />
+        <UserForm form={form} setForm={setForm} onSave={saveAdd} saving={true} onCancel={() => setShowAdd(false)} />
       </Modal>
 
       {/* Edit Modal */}
       <Modal open={!!editUser} onClose={()=>setEditUser(null)} title={`Edit — ${editUser?.name}`}>
-        <UserForm onSave={saveEdit} saving={false} />
+        <UserForm form={form} setForm={setForm} onSave={saveEdit} saving={false} onCancel={() => setEditUser(null)} />
       </Modal>
 
       {/* View Modal */}
@@ -582,33 +668,6 @@ function FoodPage() {
   function approveFood(id) { setFoods(prev => prev.map(f => f.id === id ? { ...f, status:'Approved' } : f)); }
   function doDelete() { setFoods(prev => prev.filter(f => f.id !== deleteId)); }
 
-  const FoodForm = ({ onSave, onCancel }) => (
-    <>
-      <FieldRow label="Food name"><Input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Grilled Chicken Breast" /></FieldRow>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-        <FieldRow label="Category">
-          <Select value={form.cat} onChange={e=>setForm(p=>({...p,cat:e.target.value}))}>
-            {cats.filter(c=>c!=='All').map(c=><option key={c}>{c}</option>)}
-          </Select>
-        </FieldRow>
-        <FieldRow label="Status">
-          <Select value={form.status} onChange={e=>setForm(p=>({...p,status:e.target.value}))}>
-            <option>Pending</option><option>Approved</option>
-          </Select>
-        </FieldRow>
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10 }}>
-        {[['Calories (kcal)','cal'],['Protein (g)','protein'],['Carbs (g)','carbs'],['Fat (g)','fat']].map(([label,key]) => (
-          <FieldRow key={key} label={label}><Input type="number" value={form[key]} onChange={e=>setForm(p=>({...p,[key]:e.target.value}))} placeholder="0" /></FieldRow>
-        ))}
-      </div>
-      <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:8 }}>
-        <Btn variant="ghost" onClick={onCancel}>Cancel</Btn>
-        <Btn onClick={onSave}><Check size={13}/>Save</Btn>
-      </div>
-    </>
-  );
-
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -655,10 +714,10 @@ function FoodPage() {
       </div>
 
       <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add food item" width={520}>
-        <FoodForm onSave={saveAdd} onCancel={()=>setShowAdd(false)} />
+        <FoodForm form={form} setForm={setForm} onSave={saveAdd} onCancel={()=>setShowAdd(false)} cats={cats} />
       </Modal>
       <Modal open={!!editFood} onClose={()=>setEditFood(null)} title={`Edit — ${editFood?.name}`} width={520}>
-        <FoodForm onSave={saveEdit} onCancel={()=>setEditFood(null)} />
+        <FoodForm form={form} setForm={setForm} onSave={saveEdit} onCancel={()=>setEditFood(null)} cats={cats} />
       </Modal>
       <ConfirmModal open={!!deleteId} onClose={()=>setDeleteId(null)} onConfirm={doDelete}
         title="Delete food item" message="Remove this food item from the database permanently?" danger />
@@ -690,33 +749,6 @@ function PlansPage() {
   }
   function toggleActive(id) { setPlans(prev => prev.map(p => p.id === id ? { ...p, active:!p.active } : p)); }
   function doDelete() { setPlans(prev => prev.filter(p => p.id !== deleteId)); }
-
-  const PlanForm = ({ onSave, onCancel }) => (
-    <>
-      <FieldRow label="Plan name"><Input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Mediterranean Cut" /></FieldRow>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-        <FieldRow label="Goal">
-          <Select value={form.goal} onChange={e=>setForm(p=>({...p,goal:e.target.value}))}>
-            {goals.map(g=><option key={g}>{g}</option>)}
-          </Select>
-        </FieldRow>
-        <FieldRow label="Daily kcal target"><Input type="number" value={form.kcal} onChange={e=>setForm(p=>({...p,kcal:e.target.value}))} placeholder="e.g. 2000" /></FieldRow>
-      </div>
-      <FieldRow label="Tag (e.g. Popular, New)"><Input value={form.tag} onChange={e=>setForm(p=>({...p,tag:e.target.value}))} placeholder="e.g. Best Seller" /></FieldRow>
-      <FieldRow label="Color accent">
-        <div style={{ display:'flex', gap:8 }}>
-          {colors.map(c => (
-            <div key={c} onClick={()=>setForm(p=>({...p,color:c}))} style={{ width:24, height:24, borderRadius:'50%', background:c, cursor:'pointer', border:form.color===c?`3px solid ${T.text}`:`3px solid transparent` }} />
-          ))}
-        </div>
-      </FieldRow>
-      <FieldRow label="Description"><Textarea value={form.desc} onChange={e=>setForm(p=>({...p,desc:e.target.value}))} placeholder="Describe this meal plan…" rows={3} /></FieldRow>
-      <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:8 }}>
-        <Btn variant="ghost" onClick={onCancel}>Cancel</Btn>
-        <Btn onClick={onSave}><Check size={13}/>Save</Btn>
-      </div>
-    </>
-  );
 
   return (
     <div>
@@ -751,10 +783,10 @@ function PlansPage() {
       </div>
 
       <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="New meal plan" width={500}>
-        <PlanForm onSave={saveAdd} onCancel={()=>setShowAdd(false)} />
+        <PlanForm form={form} setForm={setForm} onSave={saveAdd} onCancel={()=>setShowAdd(false)} goals={goals} colors={colors} />
       </Modal>
       <Modal open={!!editPlan} onClose={()=>setEditPlan(null)} title={`Edit — ${editPlan?.name}`} width={500}>
-        <PlanForm onSave={saveEdit} onCancel={()=>setEditPlan(null)} />
+        <PlanForm form={form} setForm={setForm} onSave={saveEdit} onCancel={()=>setEditPlan(null)} goals={goals} colors={colors} />
       </Modal>
       <ConfirmModal open={!!deleteId} onClose={()=>setDeleteId(null)} onConfirm={doDelete}
         title="Delete plan" message="This will remove the meal plan and unassign all users from it." danger />
@@ -904,7 +936,6 @@ function NotificationsPage() {
   const [filter, setFilter] = useState('All');
   const typeIcon = { user:Users, food:Apple, security:Shield, billing:DollarSign, alert:AlertTriangle, content:FileText };
   const typeColor = { user:T.green, food:T.amber, security:T.blue, billing:T.green, alert:T.red, content:T.muted };
-  const priorityColor = { high:T.red, normal:T.muted, low:T.dim };
 
   const unread = notifs.filter(n=>!n.read).length;
 
@@ -1004,30 +1035,6 @@ function ContentPage() {
   function publishItem(id) { setContent(prev => prev.map(c => c.id===id ? {...c, status:'Published'} : c)); }
   function doDelete() { setContent(prev => prev.filter(c => c.id !== deleteId)); }
 
-  const ContentForm = ({ onSave, onCancel }) => (
-    <>
-      <FieldRow label="Title"><Input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="Article title…" /></FieldRow>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-        <FieldRow label="Type">
-          <Select value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value}))}>
-            <option>Article</option><option>Guide</option><option>Recipe</option>
-          </Select>
-        </FieldRow>
-        <FieldRow label="Status">
-          <Select value={form.status} onChange={e=>setForm(p=>({...p,status:e.target.value}))}>
-            <option>Draft</option><option>Review</option><option>Published</option>
-          </Select>
-        </FieldRow>
-      </div>
-      <FieldRow label="Author"><Input value={form.author} onChange={e=>setForm(p=>({...p,author:e.target.value}))} placeholder="Author name" /></FieldRow>
-      <FieldRow label="Tags (comma-separated)"><Input value={form.tags} onChange={e=>setForm(p=>({...p,tags:e.target.value}))} placeholder="nutrition, protein, diet" /></FieldRow>
-      <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:8 }}>
-        <Btn variant="ghost" onClick={onCancel}>Cancel</Btn>
-        <Btn onClick={onSave}><Check size={13}/>Save</Btn>
-      </div>
-    </>
-  );
-
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
@@ -1086,10 +1093,10 @@ function ContentPage() {
       </Card>
 
       <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="New content" width={500}>
-        <ContentForm onSave={saveAdd} onCancel={()=>setShowAdd(false)} />
+        <ContentForm form={form} setForm={setForm} onSave={saveAdd} onCancel={()=>setShowAdd(false)} />
       </Modal>
       <Modal open={!!editItem} onClose={()=>setEditItem(null)} title={`Edit — ${editItem?.title}`} width={500}>
-        <ContentForm onSave={saveEdit} onCancel={()=>setEditItem(null)} />
+        <ContentForm form={form} setForm={setForm} onSave={saveEdit} onCancel={()=>setEditItem(null)} />
       </Modal>
       <ConfirmModal open={!!deleteId} onClose={()=>setDeleteId(null)} onConfirm={doDelete}
         title="Delete content" message="This will permanently delete this article or guide." danger />
