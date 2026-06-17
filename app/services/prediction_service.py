@@ -112,7 +112,6 @@ def predict_food_volume_fallback(
     training_id = _save_training_data(db, predicted_class, user_id)
 
     return FallbackPredictionData(
-        food_detected_id=food_record.id,
         food_detected=predicted_class,
         measurements=FallbackMeasurements(
             plate_diameter_cm=plate_diameter_cm,
@@ -161,7 +160,6 @@ def predict_food_volume_ar(
     training_id = _save_training_data(db, predicted_class, user_id)
 
     return ArPredictionData(
-        food_detected_id=food_record.id,
         food_detected=predicted_class,
         measurements=ArMeasurements(
             ar_width_cm=food_width_cm,
