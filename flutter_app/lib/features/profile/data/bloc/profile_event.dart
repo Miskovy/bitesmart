@@ -30,6 +30,7 @@ class UpdateProfileEvent extends ProfileEvent {
   final String? gender;
   final double? height;
   final double? weight;
+  final double? bmi;
 
   const UpdateProfileEvent({
     required this.userId,
@@ -43,6 +44,7 @@ class UpdateProfileEvent extends ProfileEvent {
     this.gender,
     this.height,
     this.weight,
+    this.bmi,
   });
 
   @override
@@ -58,6 +60,7 @@ class UpdateProfileEvent extends ProfileEvent {
         gender,
         height,
         weight,
+        bmi,
       ];
 }
 

@@ -80,10 +80,11 @@ class MacrosTargetScreen extends StatefulWidget {
 class _MacrosTargetScreenState extends State<MacrosTargetScreen>
     with SingleTickerProviderStateMixin {
   bool _isAiEnabled = false;
-  double _proteinPer = 40.0;
-  double _carbsPer = 35.0;
-  double _fatsPer = 25.0;
-  final int _totalCalories = 2450;
+  double _proteinPer = 0.0;
+  double _carbsPer = 0.0;
+  double _fatsPer = 0.0;
+  int _totalCalories = 0;
+  int _waterMl = 2000;
 
   late AnimationController _saveController;
   late Animation<double> _saveScale;
@@ -107,6 +108,8 @@ class _MacrosTargetScreenState extends State<MacrosTargetScreen>
     final currentTargets = context.read<ProfileSetupBloc>().state.data.targets;
     if (currentTargets != null) {
       _isAiEnabled = currentTargets.autoCalculateWithAi;
+      _totalCalories = currentTargets.calTotal;
+      _waterMl = currentTargets.waterMl ?? 2000;
       final double proteinCals = currentTargets.proteins * 4;
       final double carbsCals = currentTargets.carbs * 4;
       final double fatsCals = currentTargets.fats * 9;
@@ -116,7 +119,109 @@ class _MacrosTargetScreenState extends State<MacrosTargetScreen>
         _carbsPer = (carbsCals / sum) * 100;
         _fatsPer = (fatsCals / sum) * 100;
       }
+    } else {
+      _isAiEnabled = true;
     }
+
+    if (_isAiEnabled) {
+      _calculateAiTargets();
+    }
+  }
+
+  void _calculateAiTargets() {
+    final data = context.read<ProfileSetupBloc>().state.data;
+
+    // 1. Get user profile data with safe fallbacks
+    final double weight = data.weight ?? 70.0;
+    final double height = data.height ?? 170.0;
+    final int age = data.age ?? 25;
+    final String gender = (data.gender ?? 'male').toLowerCase();
+
+    // 2. Calculate BMR using Mifflin-St Jeor equation
+    double bmr;
+    if (gender == 'male' || gender == 'm') {
+      bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
+    } else {
+      bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
+    }
+
+    // 3. Apply Activity Multiplier (TDEE)
+    final String activity = data.activityLevel ?? 'ModeratelyActive';
+    double multiplier = 1.375;
+    if (activity == 'Sedentary') {
+      multiplier = 1.2;
+    } else if (activity == 'LightlyActive') {
+      multiplier = 1.375;
+    } else if (activity == 'ModeratelyActive') {
+      multiplier = 1.55;
+    } else if (activity == 'VeryActive') {
+      multiplier = 1.725;
+    }
+
+    double tdee = bmr * multiplier;
+
+    // 4. Adjust calorie target based on goal
+    final String goal = data.userGoal ?? 'Maintenance';
+    double targetCals = tdee;
+    if (goal == 'WeightLoss') {
+      targetCals = tdee - 500;
+      if (targetCals < 1200) targetCals = 1200; // safe minimum
+    } else if (goal == 'MuscleGain') {
+      targetCals = tdee + 300;
+    }
+
+    // 5. Macro ratio adjustments based on Dietary Preferences & Medical Conditions
+    double proteinPercentage = 25.0;
+    double carbsPercentage = 50.0;
+    double fatsPercentage = 25.0;
+
+    final med = data.medicalConditions;
+    final diet = data.dietaryPreferences;
+
+    if (diet.isKeto) {
+      proteinPercentage = 20.0;
+      carbsPercentage = 5.0;
+      fatsPercentage = 75.0;
+    } else if (diet.isGlp1User) {
+      proteinPercentage = 35.0;
+      carbsPercentage = 35.0;
+      fatsPercentage = 30.0;
+    } else if (med.isDiabetesType1 || med.isDiabetesType2) {
+      proteinPercentage = 30.0;
+      carbsPercentage = 35.0;
+      fatsPercentage = 35.0;
+    } else if (med.isPCOS) {
+      proteinPercentage = 25.0;
+      carbsPercentage = 35.0;
+      fatsPercentage = 40.0;
+    } else if (diet.isVegan || diet.isVegetarian) {
+      proteinPercentage = 20.0;
+      carbsPercentage = 55.0;
+      fatsPercentage = 25.0;
+    } else if (goal == 'MuscleGain') {
+      proteinPercentage = 30.0;
+      carbsPercentage = 45.0;
+      fatsPercentage = 25.0;
+    }
+
+    // 6. Calculate Water target with AI (35ml per kg + activity adjustments)
+    double calculatedWaterMl = weight * 35;
+    if (activity == 'LightlyActive') {
+      calculatedWaterMl += 250;
+    } else if (activity == 'ModeratelyActive') {
+      calculatedWaterMl += 500;
+    } else if (activity == 'VeryActive') {
+      calculatedWaterMl += 750;
+    }
+    int finalWaterMl = ((calculatedWaterMl / 250).round() * 250).clamp(1500, 4500);
+
+    setState(() {
+      _totalCalories = targetCals.round();
+      _proteinPer = proteinPercentage;
+      _carbsPer = carbsPercentage;
+      _fatsPer = fatsPercentage;
+      _waterMl = finalWaterMl;
+    });
   }
 
   @override
@@ -134,6 +239,7 @@ class _MacrosTargetScreenState extends State<MacrosTargetScreen>
       proteins: _proteinGrams,
       carbs: _carbsGrams,
       fats: _fatsGrams,
+      waterMl: _waterMl,
       autoCalculateWithAi: _isAiEnabled,
     );
 
@@ -199,6 +305,7 @@ class _MacrosTargetScreenState extends State<MacrosTargetScreen>
           child: Column(
             children: [
               _buildAiToggleCard(),
+              _buildAiExplanationCard(),
               const SizedBox(height: 10),
               _buildCalorieChart(),
               const SizedBox(height: 10),
@@ -233,6 +340,8 @@ class _MacrosTargetScreenState extends State<MacrosTargetScreen>
                 icon: Icons.local_fire_department_rounded,
                 onChanged: (val) => setState(() => _fatsPer = val),
               ),
+              const SizedBox(height: 10),
+              _buildWaterCard(),
               const SizedBox(height: 20),
               _buildSaveButton(),
               const SizedBox(height: 10),
@@ -319,7 +428,150 @@ class _MacrosTargetScreenState extends State<MacrosTargetScreen>
             activeTrackColor: const Color(0xFF4CAF50),
             inactiveThumbColor: Colors.grey.shade300,
             inactiveTrackColor: Colors.grey.shade200,
-            onChanged: (val) => setState(() => _isAiEnabled = val),
+            onChanged: (val) {
+              setState(() {
+                _isAiEnabled = val;
+                if (_isAiEnabled) {
+                  _calculateAiTargets();
+                }
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── AI Explanation Card ────────────────────
+  Widget _buildAiExplanationCard() {
+    if (!_isAiEnabled) return const SizedBox.shrink();
+
+    final data = context.read<ProfileSetupBloc>().state.data;
+    final isArabic = EasyLocalization.of(context)?.locale.languageCode == 'ar';
+
+    // Format Goal
+    String goalText = isArabic ? 'غير محدد' : 'Not specified';
+    if (data.userGoal == 'WeightLoss') {
+      goalText = isArabic ? 'إنقاص الوزن' : 'Weight Loss';
+    } else if (data.userGoal == 'Maintenance') {
+      goalText = isArabic ? 'المحافظة على الوزن' : 'Weight Maintenance';
+    } else if (data.userGoal == 'MuscleGain') {
+      goalText = isArabic ? 'زيادة الكتلة العضلية' : 'Muscle Gain';
+    }
+
+    // Format Activity
+    String activityText = isArabic ? 'غير محدد' : 'Not specified';
+    if (data.activityLevel == 'Sedentary') {
+      activityText = isArabic ? 'خامل' : 'Sedentary';
+    } else if (data.activityLevel == 'LightlyActive') {
+      activityText = isArabic ? 'نشط قليلاً' : 'Lightly Active';
+    } else if (data.activityLevel == 'ModeratelyActive') {
+      activityText = isArabic ? 'نشط متوسطاً' : 'Moderately Active';
+    } else if (data.activityLevel == 'VeryActive') {
+      activityText = isArabic ? 'نشط جداً' : 'Very Active';
+    }
+
+    // Special diet or medical tags
+    final List<String> tags = [];
+    final diet = data.dietaryPreferences;
+    if (diet.isKeto) tags.add(isArabic ? 'كيتو' : 'Keto');
+    if (diet.isVegan) tags.add(isArabic ? 'نباتي صارم' : 'Vegan');
+    if (diet.isVegetarian) tags.add(isArabic ? 'نباتي' : 'Vegetarian');
+    if (diet.isGlp1User) tags.add(isArabic ? 'أدوية GLP-1' : 'GLP-1 User');
+    if (diet.isGlutenFree) tags.add(isArabic ? 'خالي من الجلوتين' : 'Gluten-Free');
+    if (diet.isHalal) tags.add(isArabic ? 'حلال' : 'Halal');
+    if (diet.isPescatarian) tags.add(isArabic ? 'بسكيتاريان' : 'Pescatarian');
+
+    final med = data.medicalConditions;
+    if (med.isDiabetesType1) tags.add(isArabic ? 'سكري نوع 1' : 'Diabetes Type 1');
+    if (med.isDiabetesType2) tags.add(isArabic ? 'سكري نوع 2' : 'Diabetes Type 2');
+    if (med.isHypertension) tags.add(isArabic ? 'ارتفاع ضغط الدم' : 'Hypertension');
+    if (med.isPCOS) tags.add(isArabic ? 'تكيس المبايض' : 'PCOS');
+    if (med.isAnemia) tags.add(isArabic ? 'فقر الدم' : 'Anemia');
+    if (med.isCeliacDisease) tags.add(isArabic ? 'السيلياك' : 'Celiac Disease');
+    if (med.isIBS) tags.add(isArabic ? 'القولون العصبي' : 'IBS');
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F5E9).withOpacity(0.4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.psychology_alt_rounded, color: Color(0xFF388E3C), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                isArabic ? 'تحليل التوصية الذكية' : 'AI Recommendation Analysis',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Color(0xFF2E7D32),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildInfoRow(isArabic ? 'الهدف المحدد:' : 'Target Goal:', goalText),
+          _buildInfoRow(isArabic ? 'مستوى النشاط:' : 'Activity Level:', activityText),
+          _buildInfoRow(
+            isArabic ? 'المقاييس الجسدية:' : 'Body Metrics:', 
+            '${data.weight ?? 70} kg | ${data.height ?? 170} cm | ${data.age ?? 25} yrs'
+          ),
+          if (tags.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: tags.map((t) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4CAF50).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  t,
+                  style: const TextStyle(
+                    color: Color(0xFF2E7D32),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              )).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label ',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[800],
+              ),
+            ),
           ),
         ],
       ),
@@ -524,7 +776,7 @@ class _MacrosTargetScreenState extends State<MacrosTargetScreen>
         return ScaleTransition(
           scale: _saveScale,
           child: SizedBox(
-            width: .4 * MediaQuery.of(context).size.width,
+            width: .6 * MediaQuery.of(context).size.width,
             height: 46,
             child: ElevatedButton(
               onPressed: isSubmitting
@@ -566,6 +818,89 @@ class _MacrosTargetScreenState extends State<MacrosTargetScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildWaterCard() {
+    final isDisabled = _isAiEnabled;
+    final isArabic = EasyLocalization.of(context)?.locale.languageCode == 'ar';
+
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
+      opacity: isDisabled ? 0.75 : 1.0,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            )
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE3F2FD),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.water_drop_rounded, color: Colors.blue, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  isArabic ? "مستهدف المياه اليومي" : "Daily Water Target",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: Color(0xFF37474F),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  "$_waterMl ml",
+                  style: const TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 22,
+                  ),
+                ),
+              ],
+            ),
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                activeTrackColor: Colors.blue,
+                inactiveTrackColor: Colors.blue.withOpacity(0.12),
+                thumbColor: Colors.white,
+                overlayColor: Colors.blue.withOpacity(0.12),
+                trackHeight: 5,
+                thumbShape: const RoundSliderThumbShape(
+                  enabledThumbRadius: 11,
+                  elevation: 4,
+                ),
+                overlayShape:
+                    const RoundSliderOverlayShape(overlayRadius: 20),
+                disabledActiveTrackColor: Colors.blue.withOpacity(0.4),
+                disabledInactiveTrackColor: Colors.blue.withOpacity(0.08),
+                disabledThumbColor: Colors.grey.shade300,
+              ),
+              child: Slider(
+                value: _waterMl.toDouble(),
+                min: 1000,
+                max: 5000,
+                divisions: 16,
+                onChanged: isDisabled ? null : (val) => setState(() => _waterMl = val.round()),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

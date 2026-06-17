@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bite_smart/features/profile/data/repositories/profile_repository.dart';
+import 'package:bite_smart/features/profile/data/models/user_insights_model.dart';
 
 class InsightsScreen extends StatefulWidget {
   const InsightsScreen({super.key});
@@ -8,13 +11,12 @@ class InsightsScreen extends StatefulWidget {
 }
 
 class _InsightsScreenState extends State<InsightsScreen> {
-  // 🟢 المتغيرات (Variables) القابلة للتعديل من الداتا بيز
+  // Fallback default variables
   String dateRange = "Oct 24 - Oct 30";
   int avgCalories = 1850;
   double weightChange = -1.2;
   double currentWeightHighlight = 168.4;
 
-  // بيانات الماكروس (Today's Breakdown)
   int carbsIntake = 124;
   int carbsTarget = 150;
   int proteinIntake = 142;
@@ -23,9 +25,136 @@ class _InsightsScreenState extends State<InsightsScreen> {
   int fatsTarget = 55;
 
   int selectedTab = 0; // 0: Weight, 1: Calories, 2: Macros
+  String _selectedRange = 'weekly';
+  bool _isLoading = true;
+  String _errorMessage = '';
+  UserInsightsModel? _insights;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchInsights();
+  }
+
+  Future<void> _fetchInsights() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    try {
+      final repo = context.read<IProfileRepository>();
+      final data = await repo.getUserInsights(range: _selectedRange);
+      setState(() {
+        _insights = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF8FAF8),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
+        ),
+      );
+    }
+
+    if (_errorMessage.isNotEmpty) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAF8),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.redAccent),
+                const SizedBox(height: 16),
+                const Text(
+                  "Failed to load insights",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _errorMessage,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _fetchInsights,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4CAF50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  child: const Text("Retry", style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    String dateRangeText = dateRange;
+    if (_insights != null && _insights!.periodData.isNotEmpty) {
+      final firstDate = _insights!.periodData.first.date;
+      final lastDate = _insights!.periodData.last.date;
+      dateRangeText = "$firstDate - $lastDate";
+    }
+
+    final avgCal = _insights?.avgCalories ?? avgCalories;
+    final wtChange = _insights?.weightChange ?? weightChange;
+    final carbInt = _insights?.todayBreakdown.carbohydrates ?? carbsIntake;
+    final carbTgt = carbsTarget;
+    final protInt = _insights?.todayBreakdown.protein ?? proteinIntake;
+    final protTgt = proteinTarget;
+    final fatInt = _insights?.todayBreakdown.fats ?? fatsIntake;
+    final fatTgt = fatsTarget;
+    const aiTag = "ACHIEVEMENT";
+    const aiTitle = "Great Protein Streak";
+    const aiDesc = "You've hit your protein target for 5 days in a row!";
+
+    List<double> currentChartPoints = [];
+    String highlightLabel = "";
+    if (_insights != null) {
+      if (selectedTab == 0) {
+        currentChartPoints = _insights!.weightGraph.map<double>((e) => e.weight).toList();
+        highlightLabel = currentChartPoints.isNotEmpty
+            ? "${currentChartPoints.last} kg"
+            : "$currentWeightHighlight lbs";
+      } else if (selectedTab == 1) {
+        currentChartPoints = _insights!.periodData.map<double>((e) => e.calories.toDouble()).toList();
+        highlightLabel = currentChartPoints.isNotEmpty
+            ? "${currentChartPoints.last.toInt()} kcal"
+            : "$avgCal kcal";
+      } else {
+        currentChartPoints = _insights!.periodData.map<double>((e) => e.protein.toDouble()).toList();
+        highlightLabel = currentChartPoints.isNotEmpty
+            ? "${currentChartPoints.last.toInt()} g"
+            : "$protInt g";
+      }
+    } else {
+      if (selectedTab == 0) {
+        currentChartPoints = [170.0, 169.5, 169.0, 168.8, 168.6, 168.4, 168.4];
+        highlightLabel = "$currentWeightHighlight lbs";
+      } else if (selectedTab == 1) {
+        currentChartPoints = [2100, 1800, 1950, 1750, 1850, 1900, 1800];
+        highlightLabel = "$avgCalories kcal";
+      } else {
+        currentChartPoints = [120, 130, 124, 140, 135, 128, 122];
+        highlightLabel = "$carbsIntake g";
+      }
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAF8),
       appBar: AppBar(
@@ -40,14 +169,13 @@ class _InsightsScreenState extends State<InsightsScreen> {
           ),
         ),
         centerTitle: true,
-       
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. هيدر "Your Progress" مع اختيار النطاق الزمني
+            // 1. Header with selected range
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -62,43 +190,42 @@ class _InsightsScreenState extends State<InsightsScreen> {
                       ),
                     ),
                     Text(
-                      dateRange,
+                      dateRangeText,
                       style: const TextStyle(color: Colors.grey, fontSize: 13),
                     ),
                   ],
                 ),
-                _buildDropDown("Weekly"),
+                _buildDropDown(),
               ],
             ),
             const SizedBox(height: 20),
 
-            // 2. كروت الملخص السريع (Calories & Weight Change)
+            // 2. Summary cards
             Row(
               children: [
                 _buildSummaryCard(
                   "AVG. CALORIES",
-                  "$avgCalories",
+                  "$avgCal",
                   "kcal/day",
                   Colors.pinkAccent,
                 ),
                 const SizedBox(width: 12),
                 _buildSummaryCard(
                   "WEIGHT CHANGE",
-                  "$weightChange",
-                  "lbs this week",
+                  (wtChange >= 0 ? "+$wtChange" : "$wtChange"),
+                  "lbs this period",
                   Colors.green,
-                  isLoss: true,
+                  isLoss: wtChange < 0,
                 ),
               ],
             ),
             const SizedBox(height: 24),
 
-            // 3. قسم الرسم البياني والـ Tabs
-            _buildChartSection(),
-
+            // 3. Chart section
+            _buildChartSection(currentChartPoints, highlightLabel),
             const SizedBox(height: 30),
 
-            // 4. قسم AI Insights
+            // 4. AI Insights section
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -115,34 +242,33 @@ class _InsightsScreenState extends State<InsightsScreen> {
                 ),
               ],
             ),
-            _buildInsightCard(),
-
+            _buildInsightCard(aiTag, aiTitle, aiDesc),
             const SizedBox(height: 30),
 
-            // 5. قسم Today's Breakdown (Macros)
+            // 5. Today's Breakdown (Macros)
             const Text(
-              "Today's Breakdown",
+              "Breakdown Summary",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             _buildMacroRow(
               "Carbohydrates",
-              carbsIntake,
-              carbsTarget,
+              carbInt,
+              carbTgt,
               const Color(0xFFFFEBEE),
               Colors.pinkAccent,
             ),
             _buildMacroRow(
               "Protein",
-              proteinIntake,
-              proteinTarget,
+              protInt,
+              protTgt,
               const Color(0xFFE8F5E9),
               Colors.green,
             ),
             _buildMacroRow(
               "Fats",
-              fatsIntake,
-              fatsTarget,
+              fatInt,
+              fatTgt,
               const Color(0xFFE3F2FD),
               Colors.blue,
             ),
@@ -152,24 +278,32 @@ class _InsightsScreenState extends State<InsightsScreen> {
     );
   }
 
-  // --- ويدجت العناصر الفرعية ---
-
-  Widget _buildDropDown(String label) {
+  Widget _buildDropDown() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-          ),
-          const Icon(Icons.keyboard_arrow_down, size: 18),
-        ],
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedRange,
+          icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
+          items: const [
+            DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+            DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+          ],
+          onChanged: (val) {
+            if (val != null) {
+              setState(() {
+                _selectedRange = val;
+              });
+              _fetchInsights();
+            }
+          },
+        ),
       ),
     );
   }
@@ -230,7 +364,44 @@ class _InsightsScreenState extends State<InsightsScreen> {
     );
   }
 
-  Widget _buildChartSection() {
+  Widget _buildChartSection(List<double> currentChartPoints, String highlightLabel) {
+    final List<String> labels = _insights != null
+        ? _insights!.periodData.map<String>((e) {
+            try {
+              final date = DateTime.parse(e.date);
+              if (_selectedRange == 'weekly') {
+                final weekdays = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+                return weekdays[date.weekday - 1];
+              } else {
+                // For monthly view, show day number of the month (e.g. "12")
+                return "${date.day}";
+              }
+            } catch (_) {
+              final parts = e.date.split('-');
+              return parts.isNotEmpty ? parts.last : '';
+            }
+          }).toList()
+        : (_selectedRange == 'weekly'
+            ? ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+            : ["Week 1", "Week 2", "Week 3", "Week 4"]);
+
+    // To prevent crowding, display at most 5 evenly-spaced labels when data has many points (e.g., monthly)
+    List<String> visibleLabels = [];
+    if (labels.length > 7) {
+      int total = labels.length;
+      if (total >= 5) {
+        visibleLabels.add(labels[0]); // Start
+        visibleLabels.add(labels[(total * 0.25).floor()]); // 25%
+        visibleLabels.add(labels[(total * 0.50).floor()]); // 50%
+        visibleLabels.add(labels[(total * 0.75).floor()]); // 75%
+        visibleLabels.add(labels[total - 1]); // End
+      } else {
+        visibleLabels = labels;
+      }
+    } else {
+      visibleLabels = labels;
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 20),
@@ -240,12 +411,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
       ),
       child: Column(
         children: [
-          // Tabs
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: ["Weight", "Calories", "Macros"].asMap().entries.map((
-              entry,
-            ) {
+            children: ["Weight", "Calories", "Macros"].asMap().entries.map((entry) {
               bool isSelected = selectedTab == entry.key;
               return GestureDetector(
                 onTap: () => setState(() => selectedTab = entry.key),
@@ -255,9 +423,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFFF3F4F6)
-                        : Colors.transparent,
+                    color: isSelected ? const Color(0xFFF3F4F6) : Colors.transparent,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -273,67 +439,66 @@ class _InsightsScreenState extends State<InsightsScreen> {
             }).toList(),
           ),
           const SizedBox(height: 30),
-          // الخط البياني (Mockup للشكل الانسيابي)
           Stack(
             alignment: Alignment.topCenter,
             children: [
               SizedBox(
                 height: 120,
                 width: double.infinity,
-                child: CustomPaint(painter: LineChartPainter()),
-              ),
-              // فقرة الوزن المختار
-              Positioned(
-                left: 140,
-                top: 0,
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        "$currentWeightHighlight lbs",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      width: 2,
-                      height: 40,
-                      color: Colors.black.withOpacity(0.1),
-                    ),
-                  ],
+                child: CustomPaint(
+                  painter: LineChartPainter(
+                    dataPoints: currentChartPoints,
+                    lineColor: const Color(0xFF4CAF50),
+                  ),
                 ),
               ),
+              if (currentChartPoints.isNotEmpty)
+                Positioned(
+                  right: 16,
+                  top: 0,
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          highlightLabel,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: 2,
+                        height: 40,
+                        color: Colors.black.withAlpha(26),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
+          const SizedBox(height: 8),
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-            ), // مسافة أمان من الجوانب عشان متلزقش في الحافة
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
-                  .map(
-                    (day) => Text(
-                      day,
-                      style: TextStyle(
-                        fontSize: 10, // كبرنا الخط سنة بسيطة عشان القراءة
-                        color: Colors.grey.shade500, // درجة رمادي واضحة ونظيفة
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  )
-                  .toList(),
+              children: visibleLabels.map((day) => Text(
+                day,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey.shade500,
+                  fontWeight: FontWeight.bold,
+                ),
+              )).toList(),
             ),
           ),
         ],
@@ -341,7 +506,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
     );
   }
 
-  Widget _buildInsightCard() {
+  Widget _buildInsightCard(String tag, String title, String desc) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -357,9 +522,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
               color: const Color(0xFFE8F5E9),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: const Text(
-              "ACHIEVEMENT",
-              style: TextStyle(
+            child: Text(
+              tag.toUpperCase(),
+              style: const TextStyle(
                 color: Color(0xFF4CAF50),
                 fontSize: 9,
                 fontWeight: FontWeight.bold,
@@ -367,14 +532,14 @@ class _InsightsScreenState extends State<InsightsScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
-            "Great Protein Streak",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          const Text(
-            "You've hit your protein target for 5 days in a row!",
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+          Text(
+            desc,
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
           ),
           const SizedBox(height: 12),
           Row(
@@ -398,7 +563,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
     Color bgColor,
     Color progressColor,
   ) {
-    double progress = intake / target;
+    double progress = target > 0 ? (intake / target) : 0.0;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(
@@ -468,35 +633,46 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 }
 
-// رسم الخط الانسيابي للشارت
 class LineChartPainter extends CustomPainter {
+  final List<double> dataPoints;
+  final Color lineColor;
+
+  LineChartPainter({required this.dataPoints, required this.lineColor});
+
   @override
   void paint(Canvas canvas, Size size) {
+    if (dataPoints.isEmpty) return;
+
     Paint paint = Paint()
-      ..color = const Color(0xFF4CAF50)
+      ..color = lineColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
 
+    double maxVal = dataPoints.reduce((a, b) => a > b ? a : b);
+    double minVal = dataPoints.reduce((a, b) => a < b ? a : b);
+    double valueRange = (maxVal - minVal) == 0 ? 1.0 : (maxVal - minVal);
+
     Path path = Path();
-    path.moveTo(0, size.height * 0.7);
-    path.quadraticBezierTo(
-      size.width * 0.2,
-      size.height * 0.8,
-      size.width * 0.4,
-      size.height * 0.4,
-    );
-    path.quadraticBezierTo(
-      size.width * 0.6,
-      size.height * 0.1,
-      size.width * 0.8,
-      size.height * 0.3,
-    );
-    path.lineTo(size.width, size.height * 0.2);
+    double stepX = size.width / (dataPoints.length - 1 == 0 ? 1 : dataPoints.length - 1);
+
+    for (int i = 0; i < dataPoints.length; i++) {
+      double ratio = (dataPoints[i] - minVal) / valueRange;
+      double y = size.height - (ratio * size.height * 0.8 + size.height * 0.1);
+      double x = i * stepX;
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
 
     canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant LineChartPainter oldDelegate) {
+    return oldDelegate.dataPoints != dataPoints || oldDelegate.lineColor != lineColor;
+  }
 }

@@ -76,7 +76,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
 
               // زر الاستمرار (Continue)
               SizedBox(
-                width: .4 * MediaQuery.of(context).size.width,
+                width: .6 * MediaQuery.of(context).size.width,
                 height: 46,
                 child: ElevatedButton(
                   onPressed: () {

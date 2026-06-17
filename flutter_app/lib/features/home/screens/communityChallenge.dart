@@ -1,5 +1,7 @@
+import 'package:bite_smart/features/home/data/repositories/engagement_repository.dart';
 import 'package:bite_smart/features/home/screens/leadeerBoard.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class FeaturedChallenge {
   final String badge;
@@ -15,36 +17,6 @@ class FeaturedChallenge {
   });
 }
 
-class Challenge {
-  final String emoji;
-  final Color iconBg;
-  final String name;
-  final String meta;
-  final List<String> avatarInitials;
-  final List<Color> avatarColors;
-  final String participantCount;
-  final String statusLabel;
-  final ChallengeStatus status;
-  final double progress;
-  final Color progressColor;
-
-  const Challenge({
-    required this.emoji,
-    required this.iconBg,
-    required this.name,
-    required this.meta,
-    required this.avatarInitials,
-    required this.avatarColors,
-    required this.participantCount,
-    required this.statusLabel,
-    required this.status,
-    required this.progress,
-    required this.progressColor,
-  });
-}
-
-enum ChallengeStatus { join, joined, preRegister }
-
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 class CommunityChallengesScreen extends StatefulWidget {
@@ -59,6 +31,10 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
   int _selectedTab = 0;
   final List<String> _tabs = ['All Active', 'My Challenges', 'Starting'];
 
+  bool _isLoading = true;
+  List<CommunityChallenge> _allChallenges = [];
+  final Set<String> _locallyJoinedIds = {};
+
   final List<FeaturedChallenge> _featured = const [
     FeaturedChallenge(
       badge: '🔥 TRENDING',
@@ -68,70 +44,139 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
     ),
     FeaturedChallenge(
       badge: '✨ NEW',
-      title: 'Protein Power',
-      subtitle: 'Hit your daily protein goals...',
+      title: 'Walk 10k Steps',
+      subtitle: 'Walk 10,000 steps daily to...',
       gradient: [Color(0xFF534AB7), Color(0xFF3C3489)],
     ),
   ];
 
-  final List<Challenge> _challenges = const [
-    Challenge(
-      emoji: '🚶',
-      iconBg: Color(0xFFFFF4E8),
-      name: 'Walk 10k Steps',
-      meta: 'Daily Goal · 2 days left',
-      avatarInitials: ['A', 'K', 'M'],
-      avatarColors: [Color(0xFFE87040), Color(0xFF534AB7), Color(0xFF2d7a4f)],
-      participantCount: '+1.2k',
-      statusLabel: 'Join',
-      status: ChallengeStatus.join,
-      progress: 0.70,
-      progressColor: Color(0xFF2d7a4f),
-    ),
-    Challenge(
-      emoji: '💧',
-      iconBg: Color(0xFFE8F4FF),
-      name: 'Hydration Station',
-      meta: 'Habit Building · 5 days left',
-      avatarInitials: ['S', 'J'],
-      avatarColors: [Color(0xFFD4537E), Color(0xFF534AB7)],
-      participantCount: '+8k',
-      statusLabel: 'Joined',
-      status: ChallengeStatus.joined,
-      progress: 0.40,
-      progressColor: Color(0xFF378ADD),
-    ),
-    Challenge(
-      emoji: '🧘',
-      iconBg: Color(0xFFEEEEFE),
-      name: 'Mindful Minutes',
-      meta: 'Wellness · Starts tomorrow',
-      avatarInitials: ['L'],
-      avatarColors: [Color(0xFFE87040)],
-      participantCount: '+340',
-      statusLabel: 'Join',
-      status: ChallengeStatus.join,
-      progress: 0.0,
-      progressColor: Color(0xFF9FE1CB),
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchChallenges();
+  }
+
+  Future<void> _fetchChallenges() async {
+    try {
+      final repo = context.read<IEngagementRepository>();
+      final list = await repo.getChallenges();
+      setState(() {
+        _allChallenges = list.map((c) {
+          if (_locallyJoinedIds.contains(c.id)) {
+            return c.copyWith(isJoined: true);
+          }
+          return c;
+        }).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _toggleJoinLeave(CommunityChallenge c) async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final repo = context.read<IEngagementRepository>();
+      if (c.isJoined) {
+        await repo.leaveChallenge(c.id);
+        _locallyJoinedIds.remove(c.id);
+      } else {
+        await repo.joinChallenge(c.id);
+        _locallyJoinedIds.add(c.id);
+      }
+      await _fetchChallenges();
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  List<CommunityChallenge> get _filteredChallenges {
+    if (_selectedTab == 1) {
+      return _allChallenges.where((c) => c.isJoined).toList();
+    } else if (_selectedTab == 2) {
+      return _allChallenges.where((c) => c.durationDays >= 7).toList();
+    }
+    return _allChallenges;
+  }
+
+  String _getEmoji(String category) {
+    switch (category.toLowerCase()) {
+      case 'diet':
+        return '🥗';
+      case 'hydration':
+        return '💧';
+      case 'activity':
+        return '🏋️';
+      default:
+        return '🏆';
+    }
+  }
+
+  Color _getIconBg(String category) {
+    switch (category.toLowerCase()) {
+      case 'diet':
+        return const Color(0xFFFFF4E8);
+      case 'hydration':
+        return const Color(0xFFE8F4FF);
+      case 'activity':
+        return const Color(0xFFEEEEFE);
+      default:
+        return const Color(0xFFE8F5E9);
+    }
+  }
+
+  Color _getProgressColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'diet':
+        return const Color(0xFFE87040);
+      case 'hydration':
+        return const Color(0xFF378ADD);
+      case 'activity':
+        return const Color(0xFF534AB7);
+      default:
+        return const Color(0xFF2d7a4f);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F0),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(),
-              _buildFeaturedSection(),
-              _buildTabs(),
-              _buildOngoingSection(),
-            ],
-          ),
-        ),
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFF2d7a4f)),
+              )
+            : RefreshIndicator(
+                onRefresh: () async {
+                  await _fetchChallenges();
+                },
+                color: const Color(0xFF2d7a4f),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(),
+                      _buildFeaturedSection(),
+                      _buildTabs(),
+                      _buildOngoingSection(),
+                    ],
+                  ),
+                ),
+              ),
       ),
     );
   }
@@ -147,7 +192,7 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children:  [
+            children: const [
               Text(
                 'Community Challenges',
                 style: TextStyle(
@@ -162,20 +207,6 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
                 style: TextStyle(fontSize: 13, color: Color(0xFF888888)),
               ),
             ],
-          ),
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFDDDDDD), width: 0.5),
-            ),
-            child: const Icon(
-              Icons.notifications_none_rounded,
-              size: 18,
-              color: Color(0xFF555555),
-            ),
           ),
         ],
       ),
@@ -208,7 +239,6 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
                     builder: (context) => const LeaderboardScreen(),
                   ),
                 ),
-                child: const Text('Leaderboard'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A1A1A),
                   foregroundColor: Colors.white,
@@ -221,6 +251,7 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                 ),
+                child: const Text('Leaderboard'),
               ),
             ],
           ),
@@ -242,6 +273,11 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
   }
 
   Widget _buildFeaturedCard(FeaturedChallenge c) {
+    final matchIndex = _allChallenges.indexWhere(
+      (ch) => ch.title.toLowerCase() == c.title.toLowerCase()
+    );
+    final isJoined = matchIndex != -1 ? _allChallenges[matchIndex].isJoined : false;
+
     return Container(
       width: 220,
       decoration: BoxDecoration(
@@ -322,24 +358,33 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
                   ),
                 ),
                 const Spacer(),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 7),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.4),
-                      width: 0.5,
+                GestureDetector(
+                  onTap: () {
+                    if (matchIndex != -1) {
+                      _toggleJoinLeave(_allChallenges[matchIndex]);
+                    } else if (_allChallenges.isNotEmpty) {
+                      _toggleJoinLeave(_allChallenges.first);
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.4),
+                        width: 0.5,
+                      ),
                     ),
-                  ),
-                  child: const Text(
-                    'Join Challenge',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                    child: Text(
+                      isJoined ? '✓ Joined' : 'Join Challenge',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),
@@ -411,6 +456,7 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
   // ── Ongoing Challenges ────────────────────────────────────────────────────
 
   Widget _buildOngoingSection() {
+    final list = _filteredChallenges;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -425,23 +471,37 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
             ),
           ),
         ),
-        ...(_challenges
-            .map(
-              (c) => Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 5,
-                ),
-                child: _buildChallengeCard(c),
+        if (list.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(32),
+            child: Center(
+              child: Text(
+                'No challenges found in this section.',
+                style: TextStyle(color: Colors.grey, fontSize: 14),
               ),
-            )
-            .toList()),
+            ),
+          )
+        else
+          ...(list
+              .map(
+                (c) => Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 5,
+                  ),
+                  child: _buildChallengeCard(c),
+                ),
+              )
+              .toList()),
         const SizedBox(height: 20),
       ],
     );
   }
 
-  Widget _buildChallengeCard(Challenge c) {
+  Widget _buildChallengeCard(CommunityChallenge c) {
+    final double progressVal = c.targetValue > 0
+        ? (c.currentProgress / c.targetValue).clamp(0.0, 1.0)
+        : 0.0;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
       decoration: BoxDecoration(
@@ -459,11 +519,12 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: c.iconBg,
+                  color: _getIconBg(c.category),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
-                  child: Text(c.emoji, style: const TextStyle(fontSize: 22)),
+                  child: Text(_getEmoji(c.category),
+                      style: const TextStyle(fontSize: 22)),
                 ),
               ),
               const SizedBox(width: 10),
@@ -474,7 +535,7 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
                   children: [
                     const SizedBox(height: 2),
                     Text(
-                      c.name,
+                      c.title,
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -483,7 +544,7 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      c.meta,
+                      '${c.category} · ${c.durationDays} days left · Goal: ${c.targetValue} ${c.unit}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFFAAAAAA),
@@ -494,7 +555,7 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
               ),
               const SizedBox(width: 8),
               // Action button
-              _buildActionButton(c.status, c.statusLabel),
+              _buildActionButton(c),
             ],
           ),
           const SizedBox(height: 10),
@@ -504,10 +565,9 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
             children: [
               Row(
                 children: [
-                  _buildAvatars(c.avatarInitials, c.avatarColors),
                   const SizedBox(width: 8),
                   Text(
-                    c.participantCount,
+                    '${c.participantsCount > 0 ? c.participantsCount : 120} participants',
                     style: const TextStyle(
                       fontSize: 12,
                       color: Color(0xFFAAAAAA),
@@ -516,17 +576,12 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
                 ],
               ),
               Text(
-                c.status == ChallengeStatus.joined
-                    ? 'Your Progress: ${(c.progress * 100).toInt()}%'
-                    : c.status == ChallengeStatus.preRegister
-                    ? 'Pre-registration'
-                    : '${(c.progress * 100).toInt()}% Global Goal',
-                style: TextStyle(
+                c.isJoined
+                    ? 'Your Progress: ${(progressVal * 100).toInt()}%'
+                    : 'Global Goal',
+                style: const TextStyle(
                   fontSize: 12,
-                  color: const Color(0xFFAAAAAA),
-                  fontStyle: c.status == ChallengeStatus.preRegister
-                      ? FontStyle.italic
-                      : FontStyle.normal,
+                  color: Color(0xFFAAAAAA),
                 ),
               ),
             ],
@@ -536,10 +591,10 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
-              value: c.progress,
+              value: progressVal,
               minHeight: 5,
               backgroundColor: const Color(0xFFF0F0EC),
-              valueColor: AlwaysStoppedAnimation<Color>(c.progressColor),
+              valueColor: AlwaysStoppedAnimation<Color>(_getProgressColor(c.category)),
             ),
           ),
         ],
@@ -547,96 +602,44 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
     );
   }
 
-  Widget _buildActionButton(ChallengeStatus status, String label) {
-    switch (status) {
-      case ChallengeStatus.joined:
-        return OutlinedButton(
-          onPressed: () {},
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF2d7a4f),
-            side: const BorderSide(color: Color(0xFF2d7a4f), width: 1.5),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
+  Widget _buildActionButton(CommunityChallenge c) {
+    if (c.isJoined) {
+      return OutlinedButton(
+        onPressed: () => _toggleJoinLeave(c),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF2d7a4f),
+          side: const BorderSide(color: Color(0xFF2d7a4f), width: 1.5),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-          child: Text(
-            '✓ $label',
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+        child: const Text(
+          '✓ Joined',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+      );
+    } else {
+      return ElevatedButton(
+        onPressed: () => _toggleJoinLeave(c),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1A1A1A),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-        );
-      case ChallengeStatus.preRegister:
-        return OutlinedButton(
-          onPressed: () {},
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF555555),
-            side: const BorderSide(color: Color(0xFFDDDDDD), width: 1.5),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
-        );
-      default:
-        return ElevatedButton(
-          onPressed: () {},
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1A1A1A),
-            foregroundColor: Colors.white,
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
-        );
+        ),
+        child: const Text(
+          'Join',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+      );
     }
-  }
-
-  Widget _buildAvatars(List<String> initials, List<Color> colors) {
-    return SizedBox(
-      width: initials.length * 18.0 + 6,
-      height: 24,
-      child: Stack(
-        children: List.generate(initials.length, (i) {
-          return Positioned(
-            left: i * 18.0,
-            child: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: colors[i],
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: Center(
-                child: Text(
-                  initials[i],
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
   }
 }

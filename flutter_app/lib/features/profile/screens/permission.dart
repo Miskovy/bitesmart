@@ -129,7 +129,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
               
               const Spacer(),
               SizedBox(
-                width: .4*MediaQuery.of(context).size.width,
+                width: .6*MediaQuery.of(context).size.width,
                 height: 46,
                 child: ElevatedButton(
                   onPressed: () => Navigator.push(context,

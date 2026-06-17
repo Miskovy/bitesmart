@@ -1,4 +1,6 @@
 import 'package:equatable/equatable.dart';
+import '../models/macro_targets_model.dart';
+import '../models/profile_setup_model.dart';
 
 abstract class ProfileState extends Equatable {
   const ProfileState();
@@ -30,6 +32,12 @@ class ProfileLoaded extends ProfileState {
   final String? gender;
   final double? height;
   final double? weight;
+  final double? bmi;
+  final int? loginStreak;
+  final int? xp;
+  final MedicalConditionsData? medicalConditions;
+  final DietaryPreferencesData? dietaryPreferences;
+  final MacroTargetsModel? targets;
 
   const ProfileLoaded({
     required this.userId,
@@ -43,6 +51,12 @@ class ProfileLoaded extends ProfileState {
     this.gender,
     this.height,
     this.weight,
+    this.bmi,
+    this.loginStreak,
+    this.xp,
+    this.medicalConditions,
+    this.dietaryPreferences,
+    this.targets,
   });
 
   @override
@@ -58,6 +72,12 @@ class ProfileLoaded extends ProfileState {
         gender,
         height,
         weight,
+        bmi,
+        loginStreak,
+        xp,
+        medicalConditions,
+        dietaryPreferences,
+        targets,
       ];
 }
 

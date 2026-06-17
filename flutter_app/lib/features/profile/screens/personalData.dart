@@ -242,7 +242,7 @@ class _PersonalDataScreenState extends State<PersonalDataScreen> {
   padding: const EdgeInsets.all(20.0),
   child: Center(
     child: SizedBox(
-      width: .4*MediaQuery.of(context).size.width,
+      width: .6*MediaQuery.of(context).size.width,
       height: 56,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
