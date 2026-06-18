@@ -8,7 +8,8 @@ import {
     calculateAndSaveTargets,
     updateDeviceSettingsController,
     syncHealthDataController,
-    uploadAvatarController
+    uploadAvatarController,
+    triggerFastingDaemonController
 } from "../../controllers/user/profile.controller";
 
 const router = Router();
@@ -18,14 +19,10 @@ const upload = multer();
 router.get("/", catchAsync(getProfileData));
 router.put("/", catchAsync(updateProfileData));
 router.patch("/mode", catchAsync(enableMode));
-//! Created by Antigravity: Route to calculate and save targets based on goal
 router.post("/targets/calculate", catchAsync(calculateAndSaveTargets));
-
-//! Created by Antigravity: Routes for device settings and health sync
 router.patch("/device-settings", catchAsync(updateDeviceSettingsController));
 router.post("/health-sync", catchAsync(syncHealthDataController));
-
-//! Created by Antigravity: Route for avatar upload
 router.post("/avatar", upload.single("avatar"), catchAsync(uploadAvatarController));
+router.post("/fasting-daemon/trigger", catchAsync(triggerFastingDaemonController));
 
 export default router;
