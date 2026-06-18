@@ -6,6 +6,7 @@ import {
   timestamp,
   mysqlEnum,
   boolean,
+  mediumtext,
 } from "drizzle-orm/mysql-core";
 
 export const goalsEnum = ["WeightLoss", "Maintenance", "MuscleGain"] as const;
@@ -26,7 +27,7 @@ export const users = mysqlTable("users", {
   password: varchar("password", { length: 255 }).notNull(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   googleId: varchar("googleId", { length: 255 }),
-  avatar: varchar("avatar", { length: 255 }),
+  avatar: mediumtext("avatar"),
   phone: varchar("phone", { length: 20 }),
   role: mysqlEnum("role", userRoleEnum).notNull().default("User"),
   height: double("height"),
