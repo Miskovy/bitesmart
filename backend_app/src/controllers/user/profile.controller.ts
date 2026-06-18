@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getMyProfile, updatemyProfile } from "../../services/user/profile.service";
 import { BadRequest } from "../../errors";
 import { SuccessResponse } from "../../utils/Response";
+import { isValidAvatar } from "../../utils/base64";
 
 
 export const getProfileData = async (req: Request, res: Response) => {
@@ -10,7 +11,7 @@ export const getProfileData = async (req: Request, res: Response) => {
     if (!userId) {
       throw new BadRequest("User ID is missing or user is not authenticated");
     }
-    
+
     const timezone = req.headers["x-timezone"] as string | undefined;
     const offsetHeader = req.headers["x-timezone-offset"];
     const offsetMinutes = offsetHeader ? Number(offsetHeader) : undefined;
@@ -37,12 +38,18 @@ export const updateProfileData = async (req: Request, res: Response) => {
       throw new BadRequest("Update payload cannot be empty");
     }
 
+    if (req.body.avatar !== undefined && req.body.avatar !== null) {
+      if (!isValidAvatar(req.body.avatar)) {
+        throw new BadRequest("Invalid avatar format. Must be a valid image URL or a Base64 image data URI.");
+      }
+    }
+
     const updatedProfile = await updatemyProfile(userId, req.body);
 
     SuccessResponse(res, updatedProfile, 200);
 
-  } catch (error) {
-    throw new BadRequest(`Failed to update profile data: ${error}`);
+  } catch (error: any) {
+    throw new BadRequest(error.message || `Failed to update profile data: ${error}`);
   }
 };
 
@@ -157,5 +164,15 @@ export const uploadAvatarController = async (req: Request, res: Response) => {
 
   } catch (error: any) {
     throw new BadRequest(error.message || "Failed to upload avatar");
+  }
+};
+
+export const triggerFastingDaemonController = async (req: Request, res: Response) => {
+  try {
+    const { checkFastingThresholds } = await import("../../cron/fastingJob");
+    const result = await checkFastingThresholds();
+    SuccessResponse(res, result, 200);
+  } catch (error: any) {
+    throw new BadRequest(error.message || "Failed to run fasting daemon checks");
   }
 };

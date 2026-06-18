@@ -9,6 +9,7 @@ import { errorHandler } from "./middlewares/ErrorHandler";
 import { AppError } from "./errors/AppError";
 import { connectToDatabase } from "./db/connection";
 import apiRouter from "./routes/index";
+import { initFastingCron } from "./cron/fastingJob";
 
 dotenv.config();
 
@@ -57,7 +58,9 @@ app.use((req, res, next) => {
 // Global Error Handler
 app.use(errorHandler);
 
-connectToDatabase();
+connectToDatabase().then(() => {
+    initFastingCron();
+});
 
 const PORT = process.env.PORT || 3000;
 
