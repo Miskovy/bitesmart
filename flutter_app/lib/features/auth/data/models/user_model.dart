@@ -65,7 +65,7 @@ class UserModel extends Equatable {
       email: json['email'] as String,
       displayName: json['displayName'] as String?,
       phoneNumber: json['phoneNumber'] as String?,
-      profileImageUrl: json['profileImageUrl'] as String?,
+      profileImageUrl: (json['profileImageUrl'] ?? json['avatar']) as String?,
       isEmailVerified: json['isEmailVerified'] as bool?,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)

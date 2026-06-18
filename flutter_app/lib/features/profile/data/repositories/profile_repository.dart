@@ -6,6 +6,7 @@ import 'package:bite_smart/features/profile/data/models/user_insights_model.dart
 import 'package:bite_smart/core/network/api_client.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
+import 'dart:convert';
 
 abstract class IProfileRepository {
   Future<UserProfileModel> getUserProfile({required String userId});
@@ -80,10 +81,12 @@ class ProfileRepository implements IProfileRepository {
       }
       if (profile.profileImageUrl != null) {
         String avatarToSend = profile.profileImageUrl!;
-        if (avatarToSend.startsWith('https://bitesmart-production.up.railway.app')) {
-          avatarToSend = avatarToSend.replaceFirst('https://bitesmart-production.up.railway.app', '');
-        } else if (avatarToSend.contains('localhost:3000')) {
-          avatarToSend = avatarToSend.replaceFirst('http://localhost:3000', '');
+        if (!avatarToSend.startsWith('data:image/')) {
+          if (avatarToSend.startsWith('https://bitesmart-production.up.railway.app')) {
+            avatarToSend = avatarToSend.replaceFirst('https://bitesmart-production.up.railway.app', '');
+          } else if (avatarToSend.contains('localhost:3000')) {
+            avatarToSend = avatarToSend.replaceFirst('http://localhost:3000', '');
+          }
         }
         data['avatar'] = avatarToSend;
       }
@@ -252,26 +255,37 @@ class ProfileRepository implements IProfileRepository {
 
   @override
   Future<String> uploadAvatar({required String userId, required String filePath}) async {
-    final formData = FormData.fromMap({
-      'avatar': MultipartFile.fromBytes(
-        await XFile(filePath).readAsBytes(),
-        filename: filePath.split('/').last,
-      ),
-    });
+    final file = XFile(filePath);
+    final bytes = await file.readAsBytes();
 
-    final response = await ApiClient.instance.post('/profile/avatar', data: formData);
+    final extension = filePath.split('.').last.toLowerCase();
+    String mimeType = 'image/jpeg';
+    if (extension == 'png') {
+      mimeType = 'image/png';
+    } else if (extension == 'gif') {
+      mimeType = 'image/gif';
+    } else if (extension == 'webp') {
+      mimeType = 'image/webp';
+    }
+
+    final base64String = base64Encode(bytes);
+    final base64DataUri = 'data:$mimeType;base64,$base64String';
+
+    final response = await ApiClient.instance.put('/profile', data: {
+      'avatar': base64DataUri,
+    });
     final resBody = response.data;
 
-    if (resBody['success'] == true) {
+    if (resBody['success'] == true || resBody['status'] == 'success') {
       final rawData = resBody['data'];
       final data = (rawData is Map && rawData.containsKey('data')) 
           ? rawData['data'] as Map<String, dynamic>
           : rawData as Map<String, dynamic>;
-      final avatarUrl = data['avatarUrl'] as String;
-      if (avatarUrl.startsWith('/uploads')) {
-        return 'https://bitesmart-production.up.railway.app$avatarUrl';
+      final avatarUrl = data['avatar'] as String? ?? data['profileImageUrl'] as String?;
+      if (avatarUrl != null) {
+        return avatarUrl;
       }
-      return avatarUrl;
+      throw Exception('Avatar not found in response');
     } else {
       throw Exception(resBody['message'] ?? 'Failed to upload avatar');
     }
