@@ -127,6 +127,9 @@ class UserProfileModel extends Equatable {
 
   static String? _resolveAvatarUrl(dynamic avatar) {
     if (avatar == null || avatar is! String || avatar.isEmpty) return null;
+    if (avatar.startsWith('data:image/')) {
+      return avatar;
+    }
     if (avatar.startsWith('/uploads')) {
       return 'https://bitesmart-production.up.railway.app$avatar';
     }

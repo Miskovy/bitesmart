@@ -3,9 +3,12 @@ import 'package:bite_smart/features/home/data/repositories/home_repository.dart'
 import 'package:bite_smart/features/home/data/repositories/food_repository.dart';
 import 'package:bite_smart/features/profile/data/models/user_profile_model.dart';
 import 'package:bite_smart/features/profile/data/repositories/profile_repository.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_bloc.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_state.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bite_smart/core/utils/avatar_utils.dart';
 
 class DailyLogModel {
   final int caloriesConsumed;
@@ -204,9 +207,20 @@ class HomeScreenState extends State<HomeScreen> {
     final dinnerMeals = mealsList.where((m) => _getMealType(m) == 'dinner').toList();
     final snacksMeals = mealsList.where((m) => _getMealType(m) == 'snack' || _getMealType(m) == 'snacks').toList();
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F9F6),
-      body: SafeArea(
+    return BlocListener<ProfileBloc, ProfileState>(
+      listener: (context, state) {
+        if (state is ProfileLoaded) {
+          if (_profile == null ||
+              _profile!.profileImageUrl != state.profileImageUrl ||
+              _profile!.displayName != state.displayName ||
+              _profile!.targets != state.targets) {
+            loadDailyLog();
+          }
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF6F9F6),
+        body: SafeArea(
         child: RefreshIndicator(
           onRefresh: loadDailyLog,
           child: SingleChildScrollView(
@@ -291,8 +305,9 @@ class HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   String _getMealType(MealModel meal) {
     if (meal.description != null && meal.description!.contains(' - ')) {
@@ -333,7 +348,7 @@ class HomeScreenState extends State<HomeScreen> {
         CircleAvatar(
           radius: 18,
           backgroundImage: _profile?.profileImageUrl != null && _profile!.profileImageUrl!.isNotEmpty
-              ? NetworkImage(_profile!.profileImageUrl!)
+              ? AvatarUtils.getImageProvider(_profile!.profileImageUrl!)
               : null,
           child: _profile?.profileImageUrl == null || _profile!.profileImageUrl!.isEmpty
               ? const Icon(
