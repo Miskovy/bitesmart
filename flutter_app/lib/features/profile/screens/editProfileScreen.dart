@@ -416,12 +416,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 color: Colors.grey,
                               ),
                             ),
-                            trailing: const Icon(
-                              Icons.arrow_forward_ios,
-                              size: 14,
-                              color: Colors.grey,
-                            ),
-                            onTap: () => debugPrint("Change Goal Action"),
                           ),
                         ],
                       ),

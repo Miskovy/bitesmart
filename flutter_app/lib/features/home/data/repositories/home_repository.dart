@@ -175,6 +175,7 @@ class HomeRepository implements IHomeRepository {
         'estimatedWeightG': pData.measurements.estimatedWeightG,
         'estimatedVolumeCm3': pData.measurements.estimatedVolumeCm3,
         'trainingDataId': pData.trainingDataId,
+        'foodItemId': pData.foodItemId,
       });
 
       return MealModel(

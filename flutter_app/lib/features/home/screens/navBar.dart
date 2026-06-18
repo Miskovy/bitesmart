@@ -15,10 +15,11 @@ class MainHome extends StatefulWidget {
 
 class _MainHomeState extends State<MainHome> {
   int _currentIndex = 0; // التاب الافتراضية (Home)
+  final GlobalKey<HomeScreenState> homeKey = GlobalKey<HomeScreenState>();
 
   // 1. لستة الشاشات المربوطة بالأزرار بترتيب الـ Index
   late final List<Widget> _screens = [
-    const HomeScreen(), // استبدلها بمحتوى صفحة الهوم القديمة (بدون scaffold بتاعها)
+    HomeScreen(key: homeKey), // استبدلها بمحتوى صفحة الهوم القديمة (بدون scaffold بتاعها)
     const CommunityChallengesScreen(),       // شاشة التحديات (Index 1)
     const AiChatScreen(),                     // شاشة الشات بوت اللي عملناها (Index 2)
     const ProfileScreen(), // شاشة البروفايل (Index 3)
@@ -144,7 +145,11 @@ class _MainHomeState extends State<MainHome> {
       onPressed: () => Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const ScanModeSelectionScreen()),
-      ),
+      ).then((shouldRefresh) {
+        if (shouldRefresh == true && mounted) {
+          homeKey.currentState?.loadDailyLog();
+        }
+      }),
       child: const Icon(
         Icons.qr_code_scanner_outlined,
         color: Color(0xFF4CAF50),

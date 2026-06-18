@@ -6,6 +6,11 @@ import 'package:bite_smart/core/network/api_client.dart';
 import 'package:bite_smart/features/home/data/repositories/home_repository.dart';
 import 'package:bite_smart/features/home/data/models/meal_model.dart';
 import 'package:bite_smart/features/home/data/repositories/food_repository.dart';
+import 'package:bite_smart/features/auth/data/bloc/auth_bloc.dart';
+import 'package:bite_smart/features/auth/data/bloc/auth_state.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_bloc.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_state.dart';
+import 'package:bite_smart/features/profile/data/bloc/profile_event.dart';
 
 class MyPlanScreen extends StatefulWidget {
   const MyPlanScreen({super.key});
@@ -20,7 +25,7 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
 
   // Real plan values
   int consumedCalories = 0;
-  int targetCalories = 2000;
+  int targetCalories =0;
   int consumedProtein = 0;
   int targetProtein = 120;
   
@@ -37,6 +42,19 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
   void initState() {
     super.initState();
     _generateWeekDays();
+
+    // Ensure profile is loaded to fetch the actual targets
+    final profileState = context.read<ProfileBloc>().state;
+    if (profileState is! ProfileLoaded) {
+      final authState = context.read<AuthBloc>().state;
+      if (authState is AuthAuthenticated) {
+        context.read<ProfileBloc>().add(LoadProfileEvent(userId: authState.userId));
+      }
+    } else if (profileState.targets != null) {
+      targetCalories = profileState.targets!.calorieTarget;
+      targetProtein = profileState.targets!.proteinTarget;
+    }
+
     _loadDailyLog();
   }
 
@@ -130,12 +148,26 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
       dinnerMeals = allMeals.where((m) => _getMealType(m) == 'dinner').toList();
       snackMeals = allMeals.where((m) => _getMealType(m) == 'snack').toList();
 
+      int tCal = 2000;
+      int tProt = 120;
+      if (!mounted) return;
+      final profileState = context.read<ProfileBloc>().state;
+      if (profileState is ProfileLoaded && profileState.targets != null) {
+        tCal = profileState.targets!.calorieTarget;
+        tProt = profileState.targets!.proteinTarget;
+      } else {
+        tCal = _toInt(target['calories']);
+        tProt = _toInt(target['protein']);
+      }
+      if (tCal == 0) tCal = 2000;
+      if (tProt == 0) tProt = 120;
+
       if (mounted) {
         setState(() {
           consumedCalories = _toInt(consumed['calories']);
-          targetCalories = _toInt(target['calories'] ?? 2000);
+          targetCalories = tCal;
           consumedProtein = _toInt(consumed['protein']);
-          targetProtein = _toInt(target['protein'] ?? 120);
+          targetProtein = tProt;
           _isLoading = false;
         });
       }
@@ -170,215 +202,225 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAF8), // لون الخلفية الهادئ الموحد للأبلكيشن
-      
-      // 2. شريط العنوان (AppBar) باسم My Plan
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        title: const Text(
-          "My Plan",
-          style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
+    return BlocListener<ProfileBloc, ProfileState>(
+      listener: (context, state) {
+        if (state is ProfileLoaded && state.targets != null) {
+          setState(() {
+            targetCalories = state.targets!.calorieTarget;
+            targetProtein = state.targets!.proteinTarget;
+          });
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAF8), // لون الخلفية الهادئ الموحد للأبلكيشن
+        
+        // 2. شريط العنوان (AppBar) باسم My Plan
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0.5,
+          title: const Text(
+            "My Plan",
+            style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          centerTitle: true,
         ),
-        centerTitle: true,
-      ),
-      
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF388E3C),
-              ),
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_errorMessage != null) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.red.shade100),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.error_outline, color: Colors.red.shade600, size: 20),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  "Failed to load latest plan data",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                    color: Color(0xFFC62828),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _errorMessage!,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.red.shade800,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            onPressed: _loadDailyLog,
-                            icon: Icon(Icons.refresh_rounded, color: Colors.red.shade600, size: 20),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // 3. العنوان الرئيسي في أول البادي (This Week) 
-                  const Text(
-                    "This Week",
-                    style: TextStyle(
-                      fontSize: 22, 
-                      fontWeight: FontWeight.bold, 
-                      color: Color(0xFF111827),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 4. شريط اختيار الأيام الأفقي - Responsive Horizontal Scrollable week list
-                  SizedBox(
-                    height: 75,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      child: Row(
-                        children: List.generate(weekDays.length, (index) {
-                          bool isSelected = selectedDayIndex == index;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8.0),
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  selectedDayIndex = index;
-                                });
-                                _loadDailyLog();
-                              },
-                              child: Container(
-                                width: 56,
-                                height: 65,
-                                decoration: BoxDecoration(
-                                  color: isSelected ? const Color(0xFF388E3C) : Colors.white,
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withAlpha(5),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    )
-                                  ],
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      weekDays[index]['dayName']!,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: isSelected ? Colors.white70 : Colors.grey,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+        
+        body: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF388E3C),
+                ),
+              )
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_errorMessage != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.shade100),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.red.shade600, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Failed to load latest plan data",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: Color(0xFFC62828),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      weekDays[index]['dayNum']!,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: isSelected ? Colors.white : Colors.black,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _errorMessage!,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.red.shade800,
                                     ),
-                                  ],
-                                ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
                             ),
-                          );
-                        }),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              onPressed: _loadDailyLog,
+                              icon: Icon(Icons.refresh_rounded, color: Colors.red.shade600, size: 20),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // 3. العنوان الرئيسي في أول البادي (This Week) 
+                    const Text(
+                      "This Week",
+                      style: TextStyle(
+                        fontSize: 22, 
+                        fontWeight: FontWeight.bold, 
+                        color: Color(0xFF111827),
                       ),
                     ),
+                    const SizedBox(height: 12),
+
+                    // 4. شريط اختيار الأيام الأفقي - Responsive Horizontal Scrollable week list
+                    SizedBox(
+                      height: 75,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: List.generate(weekDays.length, (index) {
+                            bool isSelected = selectedDayIndex == index;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    selectedDayIndex = index;
+                                  });
+                                  _loadDailyLog();
+                                },
+                                child: Container(
+                                  width: 56,
+                                  height: 65,
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? const Color(0xFF388E3C) : Colors.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withAlpha(5),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      )
+                                    ],
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        weekDays[index]['dayName']!,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isSelected ? Colors.white70 : Colors.grey,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        weekDays[index]['dayNum']!,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: isSelected ? Colors.white : Colors.black,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                        // 5. كارت الـ AI Coach المستطيل الأخضر الداكن
+                        _buildCoachSummaryCard(),
+
+                        const SizedBox(height: 24),
+
+                        // Breakfast Section
+                        if (breakfastMeals.isNotEmpty)
+                          ...breakfastMeals.map((meal) => _buildMealSection(
+                            title: "Breakfast",
+                            time: DateFormat('hh:mm a').format(meal.dateTime),
+                            mealName: meal.name,
+                            calories: meal.calories,
+                            protein: meal.nutrition!.protein,
+                            imageUrl: meal.imageUrl ?? "https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&q=80&w=200",
+                          ))
+                        else
+                          _buildEmptyMealSection("Breakfast", "08:00 AM"),
+                        
+                        // Lunch Section
+                        if (lunchMeals.isNotEmpty)
+                          ...lunchMeals.map((meal) => _buildMealSection(
+                            title: "Lunch",
+                            time: DateFormat('hh:mm a').format(meal.dateTime),
+                            mealName: meal.name,
+                            calories: meal.calories,
+                            protein: meal.nutrition!.protein,
+                            imageUrl: meal.imageUrl ?? "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&q=80&w=200",
+                            hasDot: true,
+                          ))
+                        else
+                          _buildEmptyMealSection("Lunch", "01:00 PM"),
+                        
+                        // Dinner Section
+                        if (dinnerMeals.isNotEmpty)
+                          ...dinnerMeals.map((meal) => _buildMealSection(
+                            title: "Dinner",
+                            time: DateFormat('hh:mm a').format(meal.dateTime),
+                            mealName: meal.name,
+                            calories: meal.calories,
+                            protein: meal.nutrition!.protein,
+                            imageUrl: meal.imageUrl ?? "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&q=80&w=200",
+                          ))
+                        else
+                          _buildEmptyMealSection("Dinner", "07:30 PM"),
+                        
+                        // Snacks Section
+                        if (snackMeals.isNotEmpty)
+                          ...snackMeals.map((meal) => _buildSnackSection(
+                            title: "Snacks",
+                            time: DateFormat('hh:mm a').format(meal.dateTime),
+                            mealName: meal.name,
+                            calories: meal.calories,
+                            imageUrl: meal.imageUrl ?? "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&q=80&w=200",
+                          ))
+                        else
+                          _buildEmptySnackSection("Snacks", "Anytime"),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 20),
-
-                      // 5. كارت الـ AI Coach المستطيل الأخضر الداكن
-                      _buildCoachSummaryCard(),
-
-                      const SizedBox(height: 24),
-
-                      // Breakfast Section
-                      if (breakfastMeals.isNotEmpty)
-                        ...breakfastMeals.map((meal) => _buildMealSection(
-                          title: "Breakfast",
-                          time: DateFormat('hh:mm a').format(meal.dateTime),
-                          mealName: meal.name,
-                          calories: meal.calories,
-                          protein: meal.nutrition!.protein,
-                          imageUrl: meal.imageUrl ?? "https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&q=80&w=200",
-                        ))
-                      else
-                        _buildEmptyMealSection("Breakfast", "08:00 AM"),
-                      
-                      // Lunch Section
-                      if (lunchMeals.isNotEmpty)
-                        ...lunchMeals.map((meal) => _buildMealSection(
-                          title: "Lunch",
-                          time: DateFormat('hh:mm a').format(meal.dateTime),
-                          mealName: meal.name,
-                          calories: meal.calories,
-                          protein: meal.nutrition!.protein,
-                          imageUrl: meal.imageUrl ?? "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&q=80&w=200",
-                          hasDot: true,
-                        ))
-                      else
-                        _buildEmptyMealSection("Lunch", "01:00 PM"),
-                      
-                      // Dinner Section
-                      if (dinnerMeals.isNotEmpty)
-                        ...dinnerMeals.map((meal) => _buildMealSection(
-                          title: "Dinner",
-                          time: DateFormat('hh:mm a').format(meal.dateTime),
-                          mealName: meal.name,
-                          calories: meal.calories,
-                          protein: meal.nutrition!.protein,
-                          imageUrl: meal.imageUrl ?? "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&q=80&w=200",
-                        ))
-                      else
-                        _buildEmptyMealSection("Dinner", "07:30 PM"),
-                      
-                      // Snacks Section
-                      if (snackMeals.isNotEmpty)
-                        ...snackMeals.map((meal) => _buildSnackSection(
-                          title: "Snacks",
-                          time: DateFormat('hh:mm a').format(meal.dateTime),
-                          mealName: meal.name,
-                          calories: meal.calories,
-                          imageUrl: meal.imageUrl ?? "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&q=80&w=200",
-                        ))
-                      else
-                        _buildEmptySnackSection("Snacks", "Anytime"),
-                    ],
-                  ),
-                ),
+      ),
     );
   }
 
@@ -523,7 +565,7 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text("$calories kcal · ${protein}g Protein", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      Text("$calories kcal . ${protein}g Protein", style: const TextStyle(color: Colors.grey, fontSize: 12)),
                       const SizedBox(height: 8),
                       // زر الـ Recipe
                       GestureDetector(
@@ -610,10 +652,6 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                     ),
                   ],
                 ),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.grey, size: 24),
               ),
             ],
           ),

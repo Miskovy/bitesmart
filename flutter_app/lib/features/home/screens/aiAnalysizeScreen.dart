@@ -345,20 +345,48 @@ class _SuccessPanelState extends State<_SuccessPanel> {
       final repo = context.read<IHomeRepository>();
       final foodRepo = context.read<IFoodRepository>();
 
-      // Create custom food item
-      final customFood = await foodRepo.createCustomFood(
-        name: widget.meal.name,
-        calories: _calories.toDouble(),
-        protein: _protein.toDouble(),
-        carbs: _carbs.toDouble(),
-        fats: _fat.toDouble(),
-      );
+      int? foodItemId;
+      double estimatedWeightG = 100.0;
 
+      if (widget.meal.description != null) {
+        try {
+          final decoded = jsonDecode(widget.meal.description!);
+          if (decoded is Map) {
+            foodItemId = decoded['foodItemId'] as int?;
+            estimatedWeightG = (decoded['estimatedWeightG'] as num? ?? 100.0).toDouble();
+          }
+        } catch (_) {}
+      }
+
+      int finalFoodItemId;
+      double finalQuantity = estimatedWeightG;
+
+      if (_portionValue < 0.25) {
+        finalQuantity = estimatedWeightG * 0.7;
+      } else if (_portionValue >= 0.75) {
+        finalQuantity = estimatedWeightG * 1.4;
+      }
+
+      if (foodItemId != null) {
+        finalFoodItemId = foodItemId;
+      } else {
+        // Fallback: create custom food item
+        final customFood = await foodRepo.createCustomFood(
+          name: widget.meal.name,
+          calories: _calories.toDouble(),
+          protein: _protein.toDouble(),
+          carbs: _carbs.toDouble(),
+          fats: _fat.toDouble(),
+        );
+        finalFoodItemId = customFood.id;
+        finalQuantity = 100.0; // Custom foods are logged per 100g in this flow
+      }
+  
       // Log food item
       await repo.logMealDirect(
-        foodItemId: customFood.id,
+        foodItemId: finalFoodItemId,
         mealType: _getMealTypeByTime(),
-        quantity: 100.0,
+        quantity: finalQuantity,
         unit: 'g',
         imageUrl: widget.meal.imageUrl ?? widget.imagePath,
       );
@@ -705,48 +733,6 @@ class _SuccessPanelState extends State<_SuccessPanel> {
                       ),
                       const SizedBox(height: 16),
                     ],
-
-                    // Ingredients tile
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey[200]!),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.list_alt, color: Colors.grey[600]),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "analyze.ingredients".tr(),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  ingredientsStr,
-                                  style: TextStyle(
-                                    color: Colors.grey[500],
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Icon(Icons.chevron_right, color: Colors.grey[400]),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 32),
-
                     // Add to log button
                     SizedBox(
                       width:.6 * double.infinity,

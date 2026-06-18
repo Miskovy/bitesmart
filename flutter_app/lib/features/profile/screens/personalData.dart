@@ -243,7 +243,7 @@ class _PersonalDataScreenState extends State<PersonalDataScreen> {
   child: Center(
     child: SizedBox(
       width: .6*MediaQuery.of(context).size.width,
-      height: 56,
+      height: 46,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.green,
@@ -324,7 +324,7 @@ class _PersonalDataScreenState extends State<PersonalDataScreen> {
     required String? Function(String?) validator,
   }) {
     return Container(
-      width: .45*MediaQuery.of(context).size.width,
+      width: .4*MediaQuery.of(context).size.width,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,

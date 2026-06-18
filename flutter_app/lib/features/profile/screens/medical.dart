@@ -194,9 +194,9 @@ class _MedicalConditionsScreenState extends State<MedicalConditionsScreen> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20.0, 0.0, 20.0, 20.0),
           child: FractionallySizedBox(
-            widthFactor: .4,
+            widthFactor: .6,
             child: SizedBox(
-              width: .4* MediaQuery.of(context).size.width,
+              width: .6* MediaQuery.of(context).size.width,
               height: 46,
               child: ElevatedButton(
                 onPressed: () {
@@ -308,4 +308,4 @@ class _MedicalConditionsScreenState extends State<MedicalConditionsScreen> {
       ),
     );
   }
-}
+}
