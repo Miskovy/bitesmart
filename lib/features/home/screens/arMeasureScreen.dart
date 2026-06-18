@@ -18,6 +18,7 @@ class ArMeasureScreen extends StatefulWidget {
 class _ArMeasureScreenState extends State<ArMeasureScreen> {
   ArCoreController? _arCoreController;
   final List<vector.Vector3> _points = [];
+  final List<String> _addedNodeNames = [];
   double? _measuredWidthCm;
   bool _isArReady = false;
   String _instruction = '';
@@ -78,7 +79,9 @@ class _ArMeasureScreenState extends State<ArMeasureScreen> {
   }
 
   void _addMarkerNode(vector.Vector3 position) {
+    final name = 'marker_${_addedNodeNames.length}';
     final node = ArCoreNode(
+      name: name,
       shape: ArCoreSphere(
         materials: [
           ArCoreMaterial(
@@ -91,11 +94,12 @@ class _ArMeasureScreenState extends State<ArMeasureScreen> {
       position: position,
     );
     _arCoreController?.addArCoreNodeWithAnchor(node);
+    _addedNodeNames.add(name);
   }
 
   void _addLineBetweenPoints(vector.Vector3 a, vector.Vector3 b) {
     // Place small spheres along the line to visualize the connection
-    const int segments = 20;
+    const int segments = 10;
     for (int i = 1; i < segments; i++) {
       final t = i / segments;
       final point = vector.Vector3(
@@ -103,7 +107,9 @@ class _ArMeasureScreenState extends State<ArMeasureScreen> {
         a.y + (b.y - a.y) * t,
         a.z + (b.z - a.z) * t,
       );
+      final name = 'line_segment_${_addedNodeNames.length}';
       final node = ArCoreNode(
+        name: name,
         shape: ArCoreSphere(
           materials: [
             ArCoreMaterial(
@@ -116,21 +122,23 @@ class _ArMeasureScreenState extends State<ArMeasureScreen> {
         position: point,
       );
       _arCoreController?.addArCoreNodeWithAnchor(node);
+      _addedNodeNames.add(name);
     }
   }
 
   void _resetMeasurement() {
-    _arCoreController?.dispose();
+    // Gracefully remove only the nodes we added instead of tearing down the whole controller session!
+    for (final nodeName in _addedNodeNames) {
+      _arCoreController?.removeNode(nodeName: nodeName);
+    }
+    _addedNodeNames.clear();
     _points.clear();
     setState(() {
       _measuredWidthCm = null;
-      _isArReady = false;
       _instruction = 'ar_measure.tap_left'.tr().isNotEmpty
           ? 'ar_measure.tap_left'.tr()
           : 'Tap the left edge of the food';
     });
-    // Recreate will happen automatically via ArCoreView rebuild
-    setState(() {});
   }
 
   Future<void> _confirmAndCapture() async {
