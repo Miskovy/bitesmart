@@ -316,7 +316,10 @@
     "enter_diameter": "Enter Plate Diameter (cm):",
     "start_scanning": "Start Scanning",
     "calib_title": "Scale Calibration",
-    "calib_desc": "Calibrate your device scale factor for accurate weight calculations."
+    "calib_desc": "Calibrate your device scale factor for accurate weight calculations.",
+    "ar_unsupported_title": "AR Not Supported",
+    "ar_unsupported_desc": "AR features are only supported on Android devices.",
+    "ar_install_desc": "Please ensure Google Play Services for AR is installed and updated on your device."
   },
   "ar_measure": {
     "title": "AR Measurement",

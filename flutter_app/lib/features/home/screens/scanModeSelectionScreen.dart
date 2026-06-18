@@ -1,4 +1,7 @@
 import 'dart:ui';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:arcore_flutter_plus/arcore_flutter_plus.dart';
 import 'package:bite_smart/features/home/screens/cameraScreen.dart';
 import 'package:bite_smart/features/home/screens/arMeasureScreen.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +19,87 @@ class _ScanModeSelectionScreenState extends State<ScanModeSelectionScreen> {
   final TextEditingController _diameterController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  void _onSelectAr() {
+  void _showUnsupportedDialog({required String title, required String message}) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E293B),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            message,
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'OK'.tr().isNotEmpty ? 'OK'.tr() : 'OK',
+                style: const TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _onSelectAr() async {
+    // 1. Check if platform is Android (ARCore is Android-only in this package)
+    if (kIsWeb || !Platform.isAndroid) {
+      _showUnsupportedDialog(
+        title: 'scan_mode.ar_unsupported_title'.tr().isNotEmpty 
+            ? 'scan_mode.ar_unsupported_title'.tr() 
+            : 'AR Not Supported',
+        message: 'scan_mode.ar_unsupported_desc'.tr().isNotEmpty 
+            ? 'scan_mode.ar_unsupported_desc'.tr() 
+            : 'AR features are only supported on Android devices.',
+      );
+      return;
+    }
+
+    // 2. Check ARCore availability and installation
+    try {
+      final bool isAvailable = await ArCoreController.checkArCoreAvailability();
+      final bool isInstalled = await ArCoreController.checkIsArCoreInstalled();
+
+      if (!isAvailable || !isInstalled) {
+        _showUnsupportedDialog(
+          title: 'scan_mode.ar_unsupported_title'.tr().isNotEmpty 
+              ? 'scan_mode.ar_unsupported_title'.tr() 
+              : 'ARCore Not Available',
+          message: 'scan_mode.ar_install_desc'.tr().isNotEmpty 
+              ? 'scan_mode.ar_install_desc'.tr() 
+              : 'Please ensure Google Play Services for AR is installed and updated on your device.',
+        );
+        return;
+      }
+    } catch (e) {
+      _showUnsupportedDialog(
+        title: 'scan_mode.ar_unsupported_title'.tr().isNotEmpty 
+            ? 'scan_mode.ar_unsupported_title'.tr() 
+            : 'AR Error',
+        message: 'Failed to initialize AR: $e',
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
     Navigator.push(
       context,
       MaterialPageRoute(
