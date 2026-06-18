@@ -22,7 +22,11 @@ class _ScanModeSelectionScreenState extends State<ScanModeSelectionScreen> {
       MaterialPageRoute(
         builder: (context) => const ArMeasureScreen(),
       ),
-    );
+    ).then((shouldRefresh) {
+      if (shouldRefresh == true && mounted) {
+        Navigator.pop(context, true);
+      }
+    });
   }
 
   void _onStartCalibration() {
@@ -36,7 +40,11 @@ class _ScanModeSelectionScreenState extends State<ScanModeSelectionScreen> {
             foodWidthCm: width,
           ),
         ),
-      );
+      ).then((shouldRefresh) {
+        if (shouldRefresh == true && mounted) {
+          Navigator.pop(context, true);
+        }
+      });
     }
   }
 

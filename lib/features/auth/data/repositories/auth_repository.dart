@@ -45,10 +45,7 @@ class AuthRepository implements IAuthRepository {
 
       final response = await ApiClient.instance.post(
         '/auth/login',
-        data: {
-          'email': email,
-          'password': password,
-        },
+        data: {'email': email, 'password': password},
       );
 
       final responseData = response.data as Map<String, dynamic>;
@@ -64,7 +61,9 @@ class AuthRepository implements IAuthRepository {
         // Extract user details
         final String name = userMap['name'] as String? ?? 'User';
         final String userEmail = userMap['email'] as String? ?? email;
-        final String id = userMap['id'] as String? ?? JwtHelper.getUserId(token, fallback: 'unknown_id');
+        final String id =
+            userMap['id'] as String? ??
+            JwtHelper.getUserId(token, fallback: 'unknown_id');
 
         // Cache user details securely for offline access / restoration
         await _secureStorage.write(key: _userEmailKey, value: userEmail);
@@ -101,11 +100,7 @@ class AuthRepository implements IAuthRepository {
 
       final response = await ApiClient.instance.post(
         '/auth/signup',
-        data: {
-          'name': fullName,
-          'email': email,
-          'password': password,
-        },
+        data: {'name': fullName, 'email': email, 'password': password},
       );
 
       final responseData = response.data as Map<String, dynamic>;
@@ -121,7 +116,9 @@ class AuthRepository implements IAuthRepository {
         // Extract user details
         final String name = userMap['name'] as String? ?? fullName;
         final String userEmail = userMap['email'] as String? ?? email;
-        final String id = userMap['id'] as String? ?? JwtHelper.getUserId(token, fallback: 'unknown_id');
+        final String id =
+            userMap['id'] as String? ??
+            JwtHelper.getUserId(token, fallback: 'unknown_id');
 
         // Cache user details securely for offline access / restoration
         await _secureStorage.write(key: _userEmailKey, value: userEmail);
@@ -178,9 +175,7 @@ class AuthRepository implements IAuthRepository {
       try {
         await ApiClient.instance.post(
           '/auth/forgot-password',
-          data: {
-            'email': normalized,
-          },
+          data: {'email': normalized},
         );
       } catch (error) {
         debugPrint('Background forgot-password error: $error');
@@ -196,9 +191,7 @@ class AuthRepository implements IAuthRepository {
     try {
       final response = await ApiClient.instance.post(
         '/auth/verify-reset-code',
-        data: {
-          'code': otp,
-        },
+        data: {'code': otp},
       );
       final responseData = response.data as Map<String, dynamic>;
       if (responseData['success'] == true) {
@@ -227,10 +220,7 @@ class AuthRepository implements IAuthRepository {
     try {
       final response = await ApiClient.instance.post(
         '/auth/reset-password',
-        data: {
-          'token': token,
-          'newPassword': newPassword,
-        },
+        data: {'token': token, 'newPassword': newPassword},
       );
       final responseData = response.data as Map<String, dynamic>;
       if (responseData['success'] != true) {
@@ -284,14 +274,17 @@ class AuthRepository implements IAuthRepository {
     try {
       // Google Sign-In authenticate() is not supported on web in v7+
       if (kIsWeb) {
-        throw Exception('Google Sign-In is not supported on web. Please use the mobile app.');
+        throw Exception(
+          'Google Sign-In is not supported on web. Please use the mobile app.',
+        );
       }
 
       // Initialize GoogleSignIn singleton once (required in v7+)
       if (!_isGoogleSignInInitialized) {
         try {
           await GoogleSignIn.instance.initialize(
-            serverClientId: '631866973740-rse08hek68dcrfc0r787rcrmeu335nuv.apps.googleusercontent.com',
+            serverClientId:
+                '631866973740-rse08hek68dcrfc0r787rcrmeu335nuv.apps.googleusercontent.com',
           );
         } catch (e) {
           if (e.toString().contains('already been called')) {
@@ -304,7 +297,8 @@ class AuthRepository implements IAuthRepository {
       }
 
       // Authenticate
-      final GoogleSignInAccount? googleUser = await GoogleSignIn.instance.authenticate();
+      final GoogleSignInAccount? googleUser = await GoogleSignIn.instance
+          .authenticate();
       if (googleUser == null) {
         throw Exception('Google Sign-In was cancelled by user');
       }
@@ -319,9 +313,7 @@ class AuthRepository implements IAuthRepository {
       // Send to Backend
       final response = await ApiClient.instance.post(
         '/auth/google',
-        data: {
-          'idToken': idToken,
-        },
+        data: {'idToken': idToken},
       );
 
       final responseData = response.data as Map<String, dynamic>;
@@ -337,7 +329,9 @@ class AuthRepository implements IAuthRepository {
         // Extract user details
         final String name = userMap['name'] as String? ?? 'User';
         final String userEmail = userMap['email'] as String? ?? '';
-        final String id = userMap['id'] as String? ?? JwtHelper.getUserId(token, fallback: 'unknown_id');
+        final String id =
+            userMap['id'] as String? ??
+            JwtHelper.getUserId(token, fallback: 'unknown_id');
 
         // Cache user details securely for offline access / restoration
         await _secureStorage.write(key: _userEmailKey, value: userEmail);
@@ -353,7 +347,9 @@ class AuthRepository implements IAuthRepository {
           isEmailVerified: true,
         );
       } else {
-        throw Exception(responseData['message'] ?? 'Failed to authenticate with Google');
+        throw Exception(
+          responseData['message'] ?? 'Failed to authenticate with Google',
+        );
       }
     } catch (e) {
       final errStr = e.toString();
@@ -361,7 +357,9 @@ class AuthRepository implements IAuthRepository {
         throw Exception('Google Sign-In was cancelled by user');
       }
       if (errStr.contains('sign_in_failed')) {
-        throw Exception('Google Sign-In configuration error. Please ensure SHA-1/OAuth IDs are correctly configured.');
+        throw Exception(
+          'Google Sign-In configuration error. Please ensure SHA-1/OAuth IDs are correctly configured.',
+        );
       }
       throw Exception(errStr.replaceAll('Exception: ', ''));
     }
@@ -378,11 +376,13 @@ class AuthRepository implements IAuthRepository {
 
   Future<bool> _checkIfEmailExists(String email) async {
     final normalized = email.trim().toLowerCase();
-    if (normalized == 'mo.khedr8118@gmail.com' || normalized == 'user@example.com') {
+    if (normalized == 'mo.khedr8118@gmail.com' ||
+        normalized == 'user@example.com') {
       return true;
     }
     try {
-      final registeredEmailsStr = await _secureStorage.read(key: 'registered_emails') ?? '';
+      final registeredEmailsStr =
+          await _secureStorage.read(key: 'registered_emails') ?? '';
       final registeredEmails = registeredEmailsStr
           .split(',')
           .map((e) => e.trim().toLowerCase())
@@ -396,7 +396,8 @@ class AuthRepository implements IAuthRepository {
   Future<void> _markEmailAsRegistered(String email) async {
     try {
       final normalized = email.trim().toLowerCase();
-      final registeredEmailsStr = await _secureStorage.read(key: 'registered_emails') ?? '';
+      final registeredEmailsStr =
+          await _secureStorage.read(key: 'registered_emails') ?? '';
       final registeredEmails = registeredEmailsStr
           .split(',')
           .map((e) => e.trim().toLowerCase())

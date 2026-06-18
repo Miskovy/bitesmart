@@ -354,7 +354,7 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
           Slider(
             value: appetiteLevel,
             min: 1,
-            max: 5,
+            max: 4,
             activeColor: const Color(0xFF4CAF50),
             inactiveColor: const Color(0xFFE0E0E0),
             onChanged: (val) => setState(() => appetiteLevel = val),

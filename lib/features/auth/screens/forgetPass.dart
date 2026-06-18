@@ -119,10 +119,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           },
           child: Form(
             key: _formKey,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 30.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 20),
 
@@ -240,7 +241,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ],
                   ),
 
-                  Spacer(),
+                  const SizedBox(height: 40),
 
                   BlocBuilder<AuthBloc, AuthState>(
                     builder: (context, state) {
@@ -314,6 +315,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
