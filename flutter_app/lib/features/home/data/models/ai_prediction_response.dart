@@ -59,12 +59,14 @@ class PredictionData {
   final Measurements measurements;
   final Macros macros;
   final String trainingDataId;
+  final int? foodItemId;
 
   PredictionData({
     required this.foodDetected,
     required this.measurements,
     required this.macros,
     required this.trainingDataId,
+    this.foodItemId,
   });
 
   factory PredictionData.fromJson(Map<String, dynamic> json) {
@@ -73,6 +75,7 @@ class PredictionData {
       measurements: Measurements.fromJson(json['measurements'] as Map<String, dynamic>? ?? {}),
       macros: Macros.fromJson(json['macros'] as Map<String, dynamic>? ?? {}),
       trainingDataId: json['training_data_id'] as String? ?? '',
+      foodItemId: json['food_item_id'] as int?,
     );
   }
 
@@ -82,6 +85,7 @@ class PredictionData {
       'measurements': measurements.toJson(),
       'macros': macros.toJson(),
       'training_data_id': trainingDataId,
+      'food_item_id': foodItemId,
     };
   }
 }

@@ -41,10 +41,10 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   DailyLogModel? _dailyLog;
   UserProfileModel? _profile;
@@ -52,7 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDailyLog();
+    loadDailyLog();
   }
 
   int _toInt(dynamic val) {
@@ -62,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return 0;
   }
 
-  Future<void> _loadDailyLog() async {
+  Future<void> loadDailyLog() async {
     try {
       final repo = context.read<IHomeRepository>();
       final now = DateTime.now();
@@ -124,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final int changeMl = targetMl - currentMl;
       
       await repo.logWater(amountMl: changeMl);
-      await _loadDailyLog();
+      await loadDailyLog();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -139,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final repo = context.read<IHomeRepository>();
       await repo.removeMeal(mealId: entryId);
-      await _loadDailyLog();
+      await loadDailyLog();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -159,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
           mealType: mealType,
           onMealAdded: () {
             Navigator.pop(context);
-            _loadDailyLog();
+            loadDailyLog();
           },
         );
       },
@@ -208,7 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: const Color(0xFFF6F9F6),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _loadDailyLog,
+          onRefresh: loadDailyLog,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 20),

@@ -146,7 +146,7 @@ class _ArMeasureScreenState extends State<ArMeasureScreen> {
 
       if (image != null && mounted) {
         final bytes = await image.readAsBytes();
-        Navigator.pushReplacement(
+        Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => AiAnalysizeScreen(
@@ -156,7 +156,11 @@ class _ArMeasureScreenState extends State<ArMeasureScreen> {
               isCalibration: false,
             ),
           ),
-        );
+        ).then((shouldRefresh) {
+          if (shouldRefresh == true && mounted) {
+            Navigator.pop(context, true);
+          }
+        });
       }
     } catch (e) {
       if (mounted) {
