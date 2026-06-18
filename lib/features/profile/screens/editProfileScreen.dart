@@ -10,6 +10,7 @@ import 'package:bite_smart/features/profile/screens/chooseGoalScreen.dart';
 import 'package:bite_smart/features/profile/data/bloc/profile_setup_bloc.dart';
 import 'package:bite_smart/features/profile/data/bloc/profile_setup_event.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:bite_smart/core/utils/avatar_utils.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -271,7 +272,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               radius: 46,
                               backgroundColor: const Color(0xFFE8D5C4),
                               backgroundImage: imageUrl.isNotEmpty
-                                  ? NetworkImage(imageUrl)
+                                  ? AvatarUtils.getImageProvider(imageUrl)
                                   : null,
                               child: imageUrl.isEmpty
                                   ? const Icon(

@@ -13,6 +13,7 @@ import 'package:bite_smart/features/profile/data/bloc/profile_bloc.dart';
 import 'package:bite_smart/features/profile/data/bloc/profile_event.dart';
 import 'package:bite_smart/features/profile/data/bloc/profile_state.dart';
 import 'package:bite_smart/features/profile/data/repositories/profile_repository.dart';
+import 'package:bite_smart/core/utils/avatar_utils.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -49,6 +50,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (_) {
       // Fallback if network is not available
     }
+  }
+
+  void _showImageDialog(BuildContext context, String? imageUrl) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Align(
+                alignment: Alignment.topRight,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: InteractiveViewer(
+                  panEnabled: true,
+                  boundaryMargin: const EdgeInsets.all(20),
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: AvatarUtils.buildAvatarWidget(
+                    avatar: imageUrl ?? 'https://i.pravatar.cc/150?img=47',
+                    size: MediaQuery.of(context).size.width - 40,
+                    fit: BoxFit.contain,
+                    placeholder: const Icon(
+                      Icons.person,
+                      size: 150,
+                      color: Color(0xFFB09080),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -92,17 +138,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: ClipOval(
                         child: BlocBuilder<ProfileBloc, ProfileState>(
                           builder: (context, state) {
-                            String imageUrl = 'https://i.pravatar.cc/150?img=47';
+                            String? imageUrl;
                             if (state is ProfileLoaded && state.profileImageUrl != null && state.profileImageUrl!.isNotEmpty) {
                               imageUrl = state.profileImageUrl!;
                             }
-                            return Image.network(
-                              imageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Icon(
-                                Icons.person,
-                                size: 50,
-                                color: Color(0xFFB09080),
+                            return GestureDetector(
+                              onTap: () => _showImageDialog(context, imageUrl),
+                              child: AvatarUtils.buildAvatarWidget(
+                                avatar: imageUrl ?? 'https://i.pravatar.cc/150?img=47',
+                                size: 90,
+                                fit: BoxFit.cover,
+                                placeholder: const Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: Color(0xFFB09080),
+                                ),
                               ),
                             );
                           },
