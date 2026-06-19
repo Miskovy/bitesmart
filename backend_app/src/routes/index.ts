@@ -10,6 +10,8 @@ import modeSettingsRoute from "./user/modeSettings.route";
 import challengeRoute from "./user/challenge.route";
 import leaderboardRoute from "./user/leaderboard.route";
 import insightsRoute from "./user/insights.route";
+import userRoute from "./user/user.route";
+import dashboardRoute from "./user/dashboard.route";
 import { authenticated } from "../middlewares/Authenticated";
 
 const router = Router();
@@ -26,5 +28,7 @@ router.use("/settings", modeSettingsRoute);
 router.use("/challenges", challengeRoute);
 router.use("/leaderboard", leaderboardRoute);
 router.use("/insights", insightsRoute);
+router.use("/users", userRoute);
+router.use("/dashboard", dashboardRoute);
 
 export default router;

@@ -1,4 +1,4 @@
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, or, like, desc, count } from "drizzle-orm";
 import { db } from "../../db/connection";
 import { communityChallenges } from "../../models/community_challenges";
 import { userChallenges } from "../../models/user_challenges";
@@ -196,5 +196,124 @@ export const createChallenge = async (
         endDate: end,
         participantsCount: 0
     };
+};
+
+/* ==========================================
+   ADMINISTRATIVE CHALLENGES CRUD OPERATIONS
+   ========================================== */
+
+/**
+ * Get all community challenges with pagination and search for admin panel
+ */
+export const getAllChallengesAdmin = async ({
+    page = 1,
+    pageSize = 10,
+    query,
+}: {
+    page?: number;
+    pageSize?: number;
+    query?: string;
+}) => {
+    const skip = (page - 1) * pageSize;
+
+    const whereClause = query
+        ? or(
+              like(communityChallenges.title, `%${query}%`),
+              like(communityChallenges.description, `%${query}%`)
+          )
+        : undefined;
+
+    const totalResult = await db
+        .select({ value: count() })
+        .from(communityChallenges)
+        .where(whereClause);
+
+    const total = totalResult[0]?.value || 0;
+
+    const challengesList = await db.query.communityChallenges.findMany({
+        where: whereClause,
+        limit: pageSize,
+        offset: skip,
+        orderBy: [desc(communityChallenges.startDate)],
+    });
+
+    return {
+        challenges: challengesList,
+        total,
+        page,
+        pageSize,
+    };
+};
+
+/**
+ * Get a single community challenge by ID for admin panel
+ */
+export const getChallengeByIdAdmin = async (id: string) => {
+    const challenge = await db.query.communityChallenges.findFirst({
+        where: eq(communityChallenges.id, id),
+    });
+
+    if (!challenge) {
+        throw new NotFound(`Challenge with ID ${id} not found`);
+    }
+
+    return challenge;
+};
+
+/**
+ * Update an existing community challenge
+ */
+export const updateChallenge = async (id: string, data: any) => {
+    const challenge = await db.query.communityChallenges.findFirst({
+        where: eq(communityChallenges.id, id),
+    });
+
+    if (!challenge) {
+        throw new NotFound(`Challenge with ID ${id} not found`);
+    }
+
+    const updates: any = {};
+    if (data.title !== undefined) updates.title = data.title;
+    if (data.description !== undefined) updates.description = data.description;
+    if (data.startDate !== undefined) updates.startDate = data.startDate ? new Date(data.startDate) : null;
+    if (data.endDate !== undefined) updates.endDate = data.endDate ? new Date(data.endDate) : null;
+    if (data.participantsCount !== undefined) updates.participantsCount = data.participantsCount;
+
+    if (Object.keys(updates).length > 0) {
+        await db.update(communityChallenges).set(updates).where(eq(communityChallenges.id, id));
+    }
+
+    const updatedChallenge = await db.query.communityChallenges.findFirst({
+        where: eq(communityChallenges.id, id),
+    });
+
+    if (!updatedChallenge) {
+        throw new BadRequest("Failed to retrieve updated challenge");
+    }
+
+    return updatedChallenge;
+};
+
+/**
+ * Delete a community challenge and its user participation records
+ */
+export const deleteChallenge = async (id: string) => {
+    const challenge = await db.query.communityChallenges.findFirst({
+        where: eq(communityChallenges.id, id),
+    });
+
+    if (!challenge) {
+        throw new NotFound(`Challenge with ID ${id} not found`);
+    }
+
+    await db.transaction(async (tx) => {
+        // 1. Delete user participation records
+        await tx.delete(userChallenges).where(eq(userChallenges.challengeId, id));
+
+        // 2. Delete the community challenge itself
+        await tx.delete(communityChallenges).where(eq(communityChallenges.id, id));
+    });
+
+    return { id, message: "Challenge and all related participant records deleted successfully" };
 };
 
