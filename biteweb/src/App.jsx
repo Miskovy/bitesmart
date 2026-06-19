@@ -53,7 +53,6 @@ async function api(url, opts = {}) {
   const tok = Token.get();
   console.log(`[API Request] URL: ${url} | Token retrieved:`, tok);
   
-  // Check if the body is FormData (needed for image uploads)
   const isFormData = opts.body instanceof FormData;
   
   const headers = {
@@ -61,8 +60,6 @@ async function api(url, opts = {}) {
     ...(opts.headers || {}),
   };
 
-  // Only set content-type to JSON if it's not FormData. 
-  // For FormData, the browser must automatically set the boundary.
   if (!isFormData && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
   }
@@ -118,7 +115,6 @@ const PredictionAPI = {
     const formData = new FormData();
     formData.append("file", file); 
     formData.append("plate_diameter_cm", plateDiameterCm); 
-
     return api(EP.CALIBRATE, { method: "POST", body: formData });
   },
   calibrate: (trainingDataId, value) =>
@@ -136,22 +132,21 @@ function extractAuth(data) {
   };
 }
 
-function extractArray(response, keys = []) {
-  if (Array.isArray(response)) return response;
-  if (!response) return [];
+function extractArray(obj) {
+  // A much smarter array extractor that will hunt down the array 
+  // no matter what key your backend hides it under (data, logs, meals, etc.)
+  if (!obj) return [];
+  if (Array.isArray(obj)) return obj;
+  if (Array.isArray(obj.data)) return obj.data;
   
-  // Handle basic axios/fetch extraction
-  const data = response.data || response;
-  if (Array.isArray(data)) return data;
-
-  for (const k of keys) {
-    if (Array.isArray(data[k])) return data[k];
-  }
-  
-  const nested = data.data || {};
-  if (Array.isArray(nested)) return nested;
-  for (const k of keys) {
-    if (Array.isArray(nested[k])) return nested[k];
+  // Deep search for the array
+  for (const key in obj) {
+    if (Array.isArray(obj[key])) return obj[key];
+    if (typeof obj[key] === 'object' && obj[key] !== null) {
+       for (const subKey in obj[key]) {
+           if (Array.isArray(obj[key][subKey])) return obj[key][subKey];
+       }
+    }
   }
   return [];
 }
@@ -159,24 +154,30 @@ function extractArray(response, keys = []) {
 function normalizeMeal(r) {
   if (!r) return null;
   
-  // Dig deep to catch relations like r.foodItem
-  const nestedFood = r.foodItem || {};
+  // 1. Look for 'foodName' based on your successful API response
+  let extractedName = r.foodName || r.name || r.meal_name || r.foodItem?.name || "Logged Meal";
+  
+  if (typeof r.food === 'object' && r.food !== null) {
+      extractedName = r.food.name || extractedName;
+  } else if (typeof r.food === 'string') {
+      extractedName = r.food;
+  }
 
+  // 2. Safely capture the nested 'nutrition' object
+  const nutrition = r.nutrition || {};
+
+  // 3. Map everything carefully, prioritizing the 'nutrition' object metrics
   return {
-    id: r.id || r._id || r.logId || Math.random().toString(36).substring(7),
-    name: r.name || r.food || r.meal_name || nestedFood.name || "Logged Meal",
-    
-    // Using explicit Number parsing to block NaN from breaking Recharts component loops
-    cal: Math.round(Number(r.cal || r.calories || nestedFood.calories || 0)),
-    protein: Math.round(Number(r.protein || r.protein_g || nestedFood.protein || 0)),
-    carbs: Math.round(Number(r.carbs || r.carbs_g || nestedFood.carbs || 0)),
-    fat: Math.round(Number(r.fat || r.fat_g || r.fats || nestedFood.fat || 0)),
-    
-    time: r.time || r.logged_at || r.createdAt || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    emoji: r.emoji || "🍽️",
+    id: String(r.id || r._id || r.logId || Date.now()),
+    name: String(extractedName),
+    cal: Math.round(Number(r.cal || r.calories || nutrition.calories || 0)),
+    protein: Math.round(Number(r.protein || r.protein_g || nutrition.protein || 0)),
+    carbs: Math.round(Number(r.carbs || r.carbs_g || nutrition.carbs || 0)),
+    fat: Math.round(Number(r.fat || r.fats || r.fat_g || nutrition.fats || 0)),
+    time: String(r.time || r.dateStr || r.logged_at || r.created_at || "—"),
+    emoji: String(r.emoji || "🍽️"),
   };
 }
-
 function normalizeMsg(r) {
   return {
     role: r.role || (r.sender === "user" ? "user" : "assistant"),
@@ -241,7 +242,7 @@ input[type=range]{accent-color:#10b981;width:100%}
 
 /* ─── Theme ─── */
 const T = {
-  d: { bg: "#020817", bg2: "#0f172a", t: "#f1f5f9", t2: "#94a3b8", t3: "#475569", bdr: "rgba(255,255,255,.07)", acc: "#10b981", inp: "inp", gl: "glass" },
+  d: { bg: "#020817", bg2: "#0f172a", t: "#f1f5f9", t2: "#94a3b8", t3: "#475569", bdr: "rgba(255,255,255,.07)", acc: "#07a470", inp: "inp", gl: "glass" },
   l: { bg: "#f0fdf4", bg2: "#f8fafc", t: "#0f172a", t2: "#475569", t3: "#94a3b8", bdr: "rgba(0,0,0,.08)", acc: "#059669", inp: "inp-l", gl: "glass-l" },
 };
 
@@ -274,12 +275,7 @@ const quickSugg = [
   "1500 calorie meal plan for today",
 ];
 
-function getBMICat(bmi) {
-  if (bmi < 18.5) return { label: "Underweight", color: "#3b82f6", tip: "Consider increasing caloric intake with nutrient-dense foods." };
-  if (bmi < 25) return { label: "Normal weight", color: "#10b981", tip: "Great! Maintain your current healthy habits and balanced diet." };
-  if (bmi < 30) return { label: "Overweight", color: "#f59e0b", tip: "Small changes in diet and exercise can make a big difference." };
-  return { label: "Obese", color: "#ef4444", tip: "Consider consulting a healthcare professional for a personalized plan." };
-}
+
 
 function Spinner({ size = 20, color = "#fff" }) {
   return (
@@ -391,6 +387,7 @@ function LandingPage({ setPage, darkMode }) {
           </div>
         </div>
       </section>
+      
 
       <section style={{ padding: "100px 24px", background: darkMode ? "#0a101f" : t.bg2 }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
@@ -413,32 +410,6 @@ function LandingPage({ setPage, darkMode }) {
         </div>
       </section>
 
-      <section style={{ padding: "100px 24px", background: t.bg }}>
-        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 56 }}>
-            <h2 className="fs" style={{ fontSize: "clamp(28px,4vw,42px)", fontWeight: 800, color: t.t, marginBottom: 14 }}>
-              Loved by <span className="gd">50,000+ users</span>
-            </h2>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 20 }}>
-            {testimonials.map(({ name, role, quote, initials, color }, i) => (
-              <div key={i} className={`hvup ${t.gl}`} style={{ padding: "28px 24px", borderRadius: 16 }}>
-                <div style={{ display: "flex", gap: 2, marginBottom: 14 }}>
-                  {[...Array(5)].map((_, j) => <Star key={j} size={15} fill="#f59e0b" color="#f59e0b" />)}
-                </div>
-                <p style={{ fontSize: 15, color: t.t2, lineHeight: 1.7, marginBottom: 20 }}>"{quote}"</p>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: `${color}22`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color }}>{initials}</div>
-                  <div>
-                    <div style={{ fontWeight: 600, color: t.t, fontSize: 14 }}>{name}</div>
-                    <div style={{ fontSize: 12, color: t.t3 }}>{role}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
@@ -593,7 +564,6 @@ function Sidebar({ page, setPage, setAuthed, darkMode, setDarkMode }) {
   const links = [
     { id: "dashboard", icon: <Home size={18} />, label: "Dashboard" },
     { id: "tracker", icon: <Utensils size={18} />, label: "Calorie Tracker" },
-    { id: "bmi", icon: <Scale size={18} />, label: "BMI Calculator" },
     { id: "chat", icon: <MessageSquare size={18} />, label: "AI Chat" },
   ];
   return (
@@ -638,7 +608,11 @@ function Sidebar({ page, setPage, setAuthed, darkMode, setDarkMode }) {
 function Dashboard({ darkMode, currentUser }) {
   const t = darkMode ? T.d : T.l;
   const [water, setWater] = useState(6);
-  const name = currentUser?.name || currentUser?.full_name || currentUser?.username || "there";
+  
+  // 🔴 FIX: Safely retrieve the user's name to prevent crash if currentUser is a nested object
+  let rawName = currentUser?.name || currentUser?.full_name || currentUser?.username || "there";
+  if (typeof rawName !== 'string') rawName = "there"; 
+  const name = String(rawName);
 
   const cards = [
     { icon: <Flame size={20} />, label: "Calories Today", val: "1,780", sub: "of 2,000 goal", color: "#f59e0b", pct: 89 },
@@ -754,71 +728,16 @@ function Dashboard({ darkMode, currentUser }) {
     </div>
   );
 }
+
 /* ══════════════════════════════════════════════
    BMI CALCULATOR
-══════════════════════════════════════════════ */
-function BMICalculator({ darkMode }) {
-  const t = darkMode ? T.d : T.l;
-  const [weight, setWeight] = useState(70);
-  const [height, setHeight] = useState(175);
-
-  // Calculate BMI: weight (kg) / (height (m) * height (m))
-  const bmi = (weight / Math.pow(height / 100, 2)).toFixed(1);
-  const cat = getBMICat(bmi); // This uses the helper function already in your file!
-
-  return (
-    <div style={{ flex: 1, padding: "32px 28px", background: t.bg, minHeight: "100vh" }}>
-      <div className="afu" style={{ marginBottom: 24 }}>
-        <h1 className="fs" style={{ fontSize: 26, fontWeight: 800, color: t.t, margin: "0 0 4px" }}>BMI Calculator</h1>
-        <p style={{ color: t.t2, fontSize: 15, margin: 0 }}>Check your Body Mass Index and health category</p>
-      </div>
-
-      <div className={`asc ${t.gl}`} style={{ borderRadius: 16, padding: "32px", maxWidth: 500, margin: "0 auto", marginTop: 40 }}>
-        
-        {/* Weight Slider */}
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-            <label style={{ color: t.t2, fontSize: 15, fontWeight: 500 }}>Weight (kg)</label>
-            <span className="fs" style={{ color: t.t, fontWeight: 700, fontSize: 18 }}>{weight} kg</span>
-          </div>
-          <input type="range" min="30" max="150" value={weight} onChange={e => setWeight(e.target.value)} 
-            style={{ width: "100%", accentColor: "#10b981", cursor: "pointer" }} />
-        </div>
-
-        {/* Height Slider */}
-        <div style={{ marginBottom: 40 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-            <label style={{ color: t.t2, fontSize: 15, fontWeight: 500 }}>Height (cm)</label>
-            <span className="fs" style={{ color: t.t, fontWeight: 700, fontSize: 18 }}>{height} cm</span>
-          </div>
-          <input type="range" min="120" max="220" value={height} onChange={e => setHeight(e.target.value)} 
-            style={{ width: "100%", accentColor: "#10b981", cursor: "pointer" }} />
-        </div>
-
-        {/* Results Card */}
-        <div style={{ textAlign: "center", padding: "32px 24px", borderRadius: 16, background: darkMode ? "rgba(0,0,0,.2)" : "rgba(0,0,0,.03)", border: `1px solid ${t.bdr}` }}>
-          <div style={{ fontSize: 13, color: t.t2, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Your BMI is</div>
-          <div className="fs" style={{ fontSize: 56, fontWeight: 800, color: cat.color, lineHeight: 1 }}>{bmi}</div>
-          
-          <div style={{ display: "inline-block", padding: "6px 16px", borderRadius: 20, background: `${cat.color}22`, color: cat.color, fontSize: 14, fontWeight: 700, marginTop: 16, marginBottom: 12 }}>
-            {cat.label}
-          </div>
-          
-          <p style={{ fontSize: 14, color: t.t3, margin: 0, lineHeight: 1.6 }}>{cat.tip}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-/* ══════════════════════════════════════════════
-   CALORIE TRACKER + SNAP & LOG (USING PREDICTION API)
 ══════════════════════════════════════════════ */
 
 
 /* ══════════════════════════════════════════════
    CALORIE TRACKER + SNAP & LOG
 ══════════════════════════════════════════════ */
-function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractArray, normalizeMeal, T }) {
+function CalorieTracker({ darkMode, addToast }) {
   const t = darkMode ? T.d : T.l;
   const [meals, setMeals] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -826,22 +745,19 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
   const [saving, setSaving] = useState(false);
   const [newMeal, setNewMeal] = useState({ name: "", cal: "", protein: "", carbs: "", fat: "", time: "" });
   
-  // Snap & Log State
   const [snapMode, setSnapMode] = useState(false);
   const [snapImg, setSnapImg] = useState(null);
   const [snapFile, setSnapFile] = useState(null); 
-  const [plateDiameter, setPlateDiameter] = useState(""); 
+  const [foodWidth, setFoodWidth] = useState(""); 
   const [analyzing, setAnalyzing] = useState(false);
   const [snapRes, setSnapRes] = useState(null);
   
-  // Replace fileRef with two separate refs for Camera and Gallery
   const cameraRef = useRef(null);
   const galleryRef = useRef(null);
   
   const [mealType, setMealType] = useState("Lunch"); 
   const [quantity, setQuantity] = useState(1);       
 
-  // Correction & Calibration State
   const [showCorrect, setShowCorrect] = useState(false);
   const [correctLabel, setCorrectLabel] = useState("");
   const [showCalibrate, setShowCalibrate] = useState(false);
@@ -861,9 +777,8 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
         const data = await MealsAPI.list();
         const raw = extractArray(data, ["meals", "items", "logs", "mealLogs"]);
         
-        // Safely parse values and drop anything that returns undefined or null references
-        const validatedMeals = raw.map(normalizeMeal).filter(m => m !== null && !!m.id);
-        setMeals(validatedMeals);
+        // 🔴 FIX: Filter out nulls natively to prevent crash if data is mangled
+        setMeals(raw.map(normalizeMeal).filter(Boolean));
       } catch (err) {
         addToast("Couldn't load meals — " + err.message, "error");
       } finally {
@@ -878,36 +793,23 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
       return;
     }
 
-    // 🚨 PASTE THE VALID ID YOU COPIED FROM APIDOG BETWEEN THESE QUOTES 🚨
-    const VALID_DB_FOOD_ID = "PASTE_YOUR_VALID_FOOD_ID_HERE";
-
     setSaving(true);
     try {
       const payload = {
-        // We force it to use a real ID that exists in your food items table
-        foodItemId: VALID_DB_FOOD_ID,
-        
+        foodItemId: src.foodItemId || src.trainingDataId || 0,
         mealType: src.mealType, 
-        quantity: parseFloat(src.quantity), 
-        name: src.name, // The UI will still show the AI's name (e.g., Falafel)
-        cal: +src.cal,  // The UI will still track the AI's calories
-        protein: +(src.protein || 0),
-        carbs: +(src.carbs || 0),
-        fat: +(src.fat || 0),
-        time: src.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        emoji: src.emoji || "🍽️",
+        quantity: parseFloat(src.quantity)
       };
-      
       const created = await MealsAPI.create(payload);
-      setMeals(p => [...p, normalizeMeal(created)]);
       
-      // Clear forms
+      setMeals(p => [...p, normalizeMeal(created?.data || created)]);
+      
       setNewMeal({ name: "", cal: "", protein: "", carbs: "", fat: "", time: "" });
       setShowForm(false);
-      setSnapMode(false); setSnapImg(null); setSnapFile(null); setSnapRes(null); setPlateDiameter("");
+      setSnapMode(false); setSnapImg(null); setSnapFile(null); setSnapRes(null); setFoodWidth("");
       setShowCorrect(false); setShowCalibrate(false);
       
-      addToast(`${payload.name} added to your logs!`);
+      addToast(`Meal added to your logs!`);
     } catch (err) {
       addToast("Failed to add meal — " + err.message, "error");
     } finally {
@@ -943,27 +845,28 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
   const runVision = async () => {
     if (!snapFile) return;
     
-    if (!plateDiameter) {
-      addToast("Please enter the plate diameter in cm first!", "error");
+    if (!foodWidth) {
+      addToast("Please enter the food/plate width in cm first!", "error");
       return;
     }
 
     setAnalyzing(true); setSnapRes(null);
     
     try {
-      const rawData = await PredictionAPI.predict(snapFile, plateDiameter); 
+      const rawData = await PredictionAPI.predict(snapFile, foodWidth); 
       const actualResult = rawData?.data?.data || rawData?.data || rawData;
       const getNum = (val1, val2, val3) => Math.round(Number(val1 || val2 || val3 || 0));
 
-     setSnapRes({
+      setSnapRes({
         name: actualResult?.food_detected || actualResult?.meal_name || "Detected Meal",
         cal: getNum(actualResult?.macros?.calories, actualResult?.calories, actualResult?.cal),
         protein: getNum(actualResult?.macros?.protein_g, actualResult?.protein_g, actualResult?.protein),
         carbs: getNum(actualResult?.macros?.carbs_g, actualResult?.carbs_g, actualResult?.carbs),
         fat: getNum(actualResult?.macros?.fats_g, actualResult?.fats_g, actualResult?.fat),
         emoji: "🍽️", 
-        // 👇 ADDED: actualResult?.training_data_id is now first in line!
-        trainingDataId: actualResult?.training_data_id || actualResult?.trainingDataId || actualResult?.id 
+        
+        trainingDataId: actualResult?.training_data_id || actualResult?.trainingDataId,
+        foodItemId: actualResult?.food_item_id || actualResult?.training_data_id
       });
     } catch (err) {
       addToast("Analysis failed — " + err.message, "error");
@@ -971,7 +874,7 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
       setAnalyzing(false);
     }
   };
-
+  
   const submitCorrection = async () => {
     if (!correctLabel || !snapRes?.trainingDataId) return;
     try {
@@ -1048,7 +951,7 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
               {v}<span style={{ fontSize: 12, color: t.t3, fontWeight: 400 }}>/{goal}{u}</span>
             </div>
             <div className="pbar" style={{ background: darkMode ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.08)", marginTop: 8, height: 6, borderRadius: 3 }}>
-              <div className="pfill" style={{ width: `${Math.min(v / goal * 100, 100)}%`, background: c, height: "100%", borderRadius: 3 }} />
+              <div className="pfill" style={{ width: `${Math.min((v / goal) * 100, 100) || 0}%`, background: c, height: "100%", borderRadius: 3 }} />
             </div>
           </div>
         ))}
@@ -1079,7 +982,6 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
                 <Camera size={32} color={t.t3} style={{ marginBottom: 10 }} />
                 <p style={{ color: t.t3, fontSize: 14, margin: "0 0 16px" }}>Upload or take a photo of your food</p>
                 
-                {/* Two explicit buttons for Camera and Gallery */}
                 <div style={{ display: "flex", gap: 12 }}>
                   <button onClick={() => cameraRef.current?.click()} className="btn-o" style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, border: `1px solid ${t.bdr}`, color: t.t, background: "transparent" }}>
                     Take Photo
@@ -1092,7 +994,6 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
             )}
           </div>
           
-          {/* Two hidden inputs: One forces camera, one allows file picking */}
           <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={onPick} style={{ display: "none" }} />
           <input ref={galleryRef} type="file" accept="image/*" onChange={onPick} style={{ display: "none" }} />
 
@@ -1100,13 +1001,13 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
             <>
               <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
                 <label style={{ color: t.t2, fontSize: 13, fontWeight: 500 }}>
-                  Plate Diameter (cm):
+                  Plate/Food Width (cm):
                 </label>
                 <input 
                   type="number" 
                   placeholder="e.g. 20"
-                  value={plateDiameter} 
-                  onChange={(e) => setPlateDiameter(e.target.value)}
+                  value={foodWidth} 
+                  onChange={(e) => setFoodWidth(e.target.value)}
                   className={t.inp}
                   style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `1px solid ${t.bdr}`, background: "transparent", color: t.t }}
                 />
@@ -1127,7 +1028,7 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 32 }}>{snapRes.emoji}</span>
                   <div>
-                    <div style={{ fontWeight: 700, color: t.t, fontSize: 16 }}>{snapRes.name}</div>
+                    <div style={{ fontWeight: 700, color: t.t, fontSize: 16 }}>{String(snapRes.name)}</div>
                     <div style={{ fontSize: 12, color: t.t3 }}>AI estimated</div>
                   </div>
                 </div>
@@ -1145,31 +1046,29 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
                 ))}
               </div>
 
-              {/* NEW: Meal Type & Quantity selectors before saving */}
               <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-                          <select 
-                            className={t.inp} 
-                            value={mealType} 
-                            onChange={e => setMealType(e.target.value)} 
-                            style={{flex: 1, padding: "10px 12px", borderRadius: 8, border: `1px solid ${t.bdr}`, background: darkMode ? "rgba(0,0,0,0.2)" : "#fff", color: t.t}}
-                          >
-                            <option value="Breakfast">Breakfast</option>
-                            <option value="Lunch">Lunch</option>
-                            <option value="Dinner">Dinner</option>
-                            <option value="Snack">Snack</option>
-                          </select>
+                <select 
+                  className={t.inp} 
+                  value={mealType} 
+                  onChange={e => setMealType(e.target.value)} 
+                  style={{flex: 1, padding: "10px 12px", borderRadius: 8, border: `1px solid ${t.bdr}`, background: darkMode ? "rgba(0,0,0,0.2)" : "#fff", color: t.t}}
+                >
+                  <option value="Breakfast">Breakfast</option>
+                  <option value="Lunch">Lunch</option>
+                  <option value="Dinner">Dinner</option>
+                  <option value="Snack">Snack</option>
+                </select>
                 <input 
                   type="number" 
                   value={quantity} 
                   onChange={e => setQuantity(e.target.value)} 
                   min="0.1" step="0.1" placeholder="Qty"
                   className={t.inp} 
-                  style={{width: 70, padding: "10px", borderRadius: 8, border: `1px solid ${t.bdr}`, background: darkMode ? "rgba(0,0,0,0.2)" : "#fff", color: t.t}} 
+                  style={{width: 80, padding: "10px", borderRadius: 8, border: `1px solid ${t.bdr}`, background: darkMode ? "rgba(0,0,0,0.2)" : "#fff", color: t.t}} 
                 />
               </div>
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-                {/* Note how we inject mealType and quantity into the doAdd function here! */}
                 <button onClick={() => doAdd({ ...snapRes, mealType, quantity })} disabled={saving} className="btn-g"
                   style={{ flex: 2, padding: "11px", borderRadius: 9, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                   {saving ? <span>Saving...</span> : <><Check size={15} />Add to Log</>}
@@ -1217,12 +1116,35 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
       {showForm && (
         <div className={`asc ${t.gl}`} style={{ borderRadius: 16, padding: "20px", marginBottom: 20 }}>
           <h3 className="fs" style={{ fontSize: 16, fontWeight: 700, color: t.t, marginBottom: 16 }}>Log a Meal</h3>
+          
+          <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+            <select 
+              className={t.inp} 
+              value={mealType} 
+              onChange={e => setMealType(e.target.value)} 
+              style={{flex: 1, padding: "10px 12px", borderRadius: 8, border: `1px solid ${t.bdr}`, background: darkMode ? "rgba(0,0,0,0.2)" : "#fff", color: t.t}}
+            >
+              <option value="Breakfast">Breakfast</option>
+              <option value="Lunch">Lunch</option>
+              <option value="Dinner">Dinner</option>
+              <option value="Snack">Snack</option>
+            </select>
+            <input 
+              type="number" 
+              value={quantity} 
+              onChange={e => setQuantity(e.target.value)} 
+              min="0.1" step="0.1" placeholder="Qty"
+              className={t.inp} 
+              style={{width: 100, padding: "10px", borderRadius: 8, border: `1px solid ${t.bdr}`, background: darkMode ? "rgba(0,0,0,0.2)" : "#fff", color: t.t}} 
+            />
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
             {fi("name", "Meal name")}{fi("cal", "Calories")}{fi("protein", "Protein (g)")}
             {fi("carbs", "Carbs (g)")}{fi("fat", "Fat (g)")}{fi("time", "Time")}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={() => doAdd(newMeal)} disabled={saving} className="btn-g"
+            <button onClick={() => doAdd({ ...newMeal, mealType, quantity })} disabled={saving} className="btn-g"
               style={{ padding: "10px 24px", borderRadius: 8, fontSize: 14, display: "flex", alignItems: "center", gap: 8, opacity: saving ? .7 : 1 }}>
               Add Meal
             </button>
@@ -1230,24 +1152,25 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
         </div>
       )}
 
-      {/* Meal list */}
+      {/* 🔴 FIX: Mapped Meal List Fully Bulletproofed Against Object Renders */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <h3 className="fs" style={{ fontSize: 16, fontWeight: 700, color: t.t, marginBottom: 4 }}>Today's Meals</h3>
         {meals.map((m, i) => (
           <div key={m.id} className={`${t.gl} hvup asr`}
             style={{ borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", gap: 16, animationDelay: `${i * 0.06}s` }}>
-            <div style={{ fontSize: 28 }}>{m.emoji}</div>
+            <div style={{ fontSize: 28 }}>{String(m.emoji)}</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, color: t.t, fontSize: 15, marginBottom: 2 }}>{m.name}</div>
+              {/* 🔴 FIX: Explicitly enforce String mapping here to prevent {id, name} object crash */}
+              <div style={{ fontWeight: 600, color: t.t, fontSize: 15, marginBottom: 2 }}>{String(m.name || "Meal")}</div>
               <div style={{ fontSize: 12, color: t.t3, display: "flex", gap: 12 }}>
-                <span><Clock size={11} style={{ marginRight: 3 }} />{m.time}</span>
-                <span style={{ color: "#10b981" }}>P: {m.protein}g</span>
-                <span style={{ color: "#f59e0b" }}>C: {m.carbs}g</span>
-                <span style={{ color: "#a855f7" }}>F: {m.fat}g</span>
+                <span><Clock size={11} style={{ marginRight: 3 }} />{String(m.time)}</span>
+                <span style={{ color: "#10b981" }}>P: {Number(m.protein || 0)}g</span>
+                <span style={{ color: "#f59e0b" }}>C: {Number(m.carbs || 0)}g</span>
+                <span style={{ color: "#a855f7" }}>F: {Number(m.fat || 0)}g</span>
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div className="fs" style={{ fontSize: 20, fontWeight: 700, color: "#10b981" }}>{m.cal}</div>
+              <div className="fs" style={{ fontSize: 20, fontWeight: 700, color: "#10b981" }}>{Number(m.cal || 0)}</div>
               <div style={{ fontSize: 11, color: t.t3 }}>kcal</div>
             </div>
             <button onClick={() => doDelete(m.id)} className="btn-o"
@@ -1264,15 +1187,13 @@ function CalorieTracker({ darkMode, addToast, MealsAPI, PredictionAPI, extractAr
   );
 }
 
-
-
 /* ══════════════════════════════════════════════
    AI CHAT — wired to /coach/sessions + /coach/chat
 ══════════════════════════════════════════════ */
 function AIChat({ darkMode }) {
   const t = darkMode ? T.d : T.l;
 
-  const WELCOME = { role: "assistant", content: "👋 Hey! I'm **Byte**, your AI nutrition coach. Ask me anything about calories, meal plans, macros, or healthy eating!" };
+  const WELCOME = { role: "assistant", content: "👋 Hey! I'm **Bite**, your AI nutrition coach. Ask me anything about calories, meal plans, macros, or healthy eating!" };
 
   const [sessions, setSessions] = useState([]);
   const [activeId, setActiveId] = useState(null);
@@ -1336,7 +1257,7 @@ function AIChat({ darkMode }) {
     e.stopPropagation();
     setSessions(p => p.filter(s => (s.id || s._id) !== sid));
     if (activeId === sid) newSession();
-    try { await CoachAPI.deleteSession(sid); } catch (err) { console.error(err); }
+    try { await CoachAPI.deleteSession(sid); } catch { }
   };
 
   /* Send message */
@@ -1371,7 +1292,6 @@ function AIChat({ darkMode }) {
         setSessions(p => [newSess, ...p]);
       }
     } catch (err) {
-      console.error(err);
       setMsgs(p => [...p, { role: "assistant", content: "Sorry, I ran into an issue. Please try again." }]);
     } finally {
       setTyping(false);
@@ -1391,7 +1311,7 @@ function AIChat({ darkMode }) {
       <div style={{ width: 220, borderRight: `1px solid ${t.bdr}`, display: "flex", flexDirection: "column", padding: "16px 10px", background: t.bg2, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "0 4px" }}>
           <Bot size={16} color="#10b981" />
-          <span style={{ fontSize: 13, fontWeight: 600, color: t.t }}>Byte AI</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: t.t }}>Bite AI</span>
         </div>
 
         <button onClick={newSession} className="btn-g"
@@ -1524,7 +1444,7 @@ function AIChat({ darkMode }) {
             <textarea ref={taRef} value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder="Ask Byte anything about nutrition…"
+              placeholder="Ask Bite anything about nutrition…"
               rows={1}
               style={{ flex: 1, background: "transparent", border: "none", resize: "none", fontSize: 14, color: t.t, fontFamily: "'DM Sans',sans-serif", lineHeight: 1.5, maxHeight: 120, outline: "none", padding: "4px 0", overflowY: "auto" }} />
             <button onClick={() => send()} disabled={!input.trim() || typing} className="btn-g"
@@ -1533,7 +1453,7 @@ function AIChat({ darkMode }) {
             </button>
           </div>
           <p style={{ fontSize: 11, color: t.t3, textAlign: "center", margin: "8px 0 0" }}>
-            Byte can make mistakes. Verify important health info with a professional.
+            Bite can make mistakes. Verify important health info with a professional.
           </p>
         </div>
       </div>
@@ -1565,7 +1485,7 @@ function AppLayout({ page, setPage, setAuthed, darkMode, setDarkMode, addToast, 
           />
         )}
         
-        {page === "bmi" && <BMICalculator darkMode={darkMode} />}
+        
         {page === "chat" && <AIChat darkMode={darkMode} />}
       </div>
     </div>
@@ -1576,8 +1496,8 @@ function AppLayout({ page, setPage, setAuthed, darkMode, setDarkMode, addToast, 
    ROOT
 ══════════════════════════════════════════════ */
 export default function App() {
-  const [page, setPage] = useState(() => Token.get() ? "dashboard" : "landing");
-  const [authed, setAuthed] = useState(() => !!Token.get());
+  const [page, setPage] = useState("landing");
+  const [authed, setAuthed] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [dark, setDark] = useState(true);
   const [toasts, setToasts] = useState([]);
@@ -1587,6 +1507,10 @@ export default function App() {
     el.textContent = CSS;
     document.head.appendChild(el);
     return () => document.head.removeChild(el);
+  }, []);
+
+  useEffect(() => {
+    if (Token.get()) { setAuthed(true); setPage("dashboard"); }
   }, []);
 
   const addToast = (msg, type = "success") => {
