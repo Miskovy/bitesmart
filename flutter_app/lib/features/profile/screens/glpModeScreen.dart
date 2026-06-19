@@ -245,7 +245,7 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: const Color(0xFF4CAF50),
+            activeThumbColor: const Color(0xFF4CAF50),
           ),
         ],
       ),
@@ -271,7 +271,7 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
                   ],
                 ),
               ),
-              Switch(value: isHighProteinEnabled, onChanged: (val) => setState(() => isHighProteinEnabled = val), activeColor: const Color(0xFF4CAF50)),
+              Switch(value: isHighProteinEnabled, onChanged: (val) => setState(() => isHighProteinEnabled = val), activeThumbColor: const Color(0xFF4CAF50)),
             ],
           ),
           const Divider(height: 24),
@@ -391,7 +391,7 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
           Switch(
             value: smartRemindersEnabled,
             onChanged: (v) => setState(() => smartRemindersEnabled = v),
-            activeColor: const Color(0xFF4CAF50),
+            activeThumbColor: const Color(0xFF4CAF50),
           ),
         ],
       ),

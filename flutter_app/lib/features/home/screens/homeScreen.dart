@@ -425,7 +425,7 @@ class HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${'home.of'.tr()} ${target} ${'home.kcal'.tr()}',
+                        '${'home.of'.tr()} $target ${'home.kcal'.tr()}',
                         style: const TextStyle(fontSize: 6, color: Colors.grey),
                       ),
                     ],

@@ -262,7 +262,7 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: _featured.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (_, _) => const SizedBox(width: 12),
             itemBuilder: (context, index) =>
                 _buildFeaturedCard(_featured[index]),
           ),

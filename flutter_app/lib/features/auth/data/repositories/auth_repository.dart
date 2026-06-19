@@ -297,11 +297,8 @@ class AuthRepository implements IAuthRepository {
       }
 
       // Authenticate
-      final GoogleSignInAccount? googleUser = await GoogleSignIn.instance
+      final GoogleSignInAccount googleUser = await GoogleSignIn.instance
           .authenticate();
-      if (googleUser == null) {
-        throw Exception('Google Sign-In was cancelled by user');
-      }
 
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
       final String? idToken = googleAuth.idToken;
