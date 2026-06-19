@@ -5,7 +5,6 @@ import 'package:bite_smart/features/profile/data/models/profile_setup_model.dart
 import 'package:bite_smart/features/profile/data/models/user_insights_model.dart';
 import 'package:bite_smart/core/network/api_client.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:dio/dio.dart';
 import 'dart:convert';
 
 abstract class IProfileRepository {

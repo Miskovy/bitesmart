@@ -1,11 +1,9 @@
 import 'dart:typed_data';
 import 'package:bite_smart/features/home/screens/aiAnalysizeScreen.dart';
-import 'package:bite_smart/features/home/data/repositories/home_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AiCameraScreen extends StatefulWidget {
   final bool isCalibrating;
@@ -20,7 +18,7 @@ class _AiCameraScreenState extends State<AiCameraScreen> {
   CameraController? _controller;
   List<CameraDescription>? _cameras;
   bool _isCameraInitialized = false;
-  bool _isProcessing = false;
+  final bool _isProcessing = false;
   // flashState: (0 = off, 1 = torch, 2 = auto)
   final ValueNotifier<int> flashState = ValueNotifier(0);
   final ImagePicker _picker = ImagePicker();

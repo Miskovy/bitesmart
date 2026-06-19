@@ -56,7 +56,7 @@ class AvatarUtils {
             width: size,
             height: size,
             fit: fit,
-            errorBuilder: (_, __, ___) => defaultPlaceholder,
+            errorBuilder: (_, _, _) => defaultPlaceholder,
           );
         }
       } catch (e) {
@@ -70,7 +70,7 @@ class AvatarUtils {
       width: size,
       height: size,
       fit: fit,
-      errorBuilder: (_, __, ___) => defaultPlaceholder,
+      errorBuilder: (_, _, _) => defaultPlaceholder,
     );
   }
 }

@@ -1,10 +1,8 @@
-import 'dart:convert';
 import 'package:bite_smart/features/home/screens/chatHistoryScreen.dart';
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:bite_smart/features/home/data/repositories/coach_repository.dart';
-import 'package:bite_smart/features/home/data/models/coach_models.dart';
 
 class AiChatScreen extends StatefulWidget {
   final String? chatId;
