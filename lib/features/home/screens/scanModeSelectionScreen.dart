@@ -58,8 +58,7 @@ class _ScanModeSelectionScreenState extends State<ScanModeSelectionScreen> {
     );
   }
 
-  Future<void> _onSelectAr() async {
-    // 1. Check if platform is Android (ARCore is Android-only in this package)
+  Future<void> _openArMeasure() async {
     if (kIsWeb || !Platform.isAndroid) {
       _showUnsupportedDialog(
         title: 'scan_mode.ar_unsupported_title'.tr().isNotEmpty 
@@ -72,7 +71,6 @@ class _ScanModeSelectionScreenState extends State<ScanModeSelectionScreen> {
       return;
     }
 
-    // 2. Check ARCore availability and installation
     try {
       final bool isAvailable = await ArCoreController.checkArCoreAvailability();
       final bool isInstalled = await ArCoreController.checkIsArCoreInstalled();
@@ -100,16 +98,16 @@ class _ScanModeSelectionScreenState extends State<ScanModeSelectionScreen> {
 
     if (!mounted) return;
 
-    Navigator.push(
+    final result = await Navigator.push<double>(
       context,
       MaterialPageRoute(
         builder: (context) => const ArMeasureScreen(),
       ),
-    ).then((shouldRefresh) {
-      if (shouldRefresh == true && mounted) {
-        Navigator.pop(context, true);
-      }
-    });
+    );
+
+    if (result != null && mounted) {
+      _diameterController.text = result.toStringAsFixed(1);
+    }
   }
 
   void _onStartCalibration() {
@@ -227,20 +225,6 @@ class _ScanModeSelectionScreenState extends State<ScanModeSelectionScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Mode A: AR Food Prediction Card
-                          _buildModeCard(
-                            title: 'scan_mode.ar_title'.tr().isNotEmpty ? 'scan_mode.ar_title'.tr() : 'AR Food Analysis',
-                            description: 'scan_mode.ar_desc'.tr().isNotEmpty 
-                                ? 'scan_mode.ar_desc'.tr() 
-                                : 'Identify food portions and nutrients using AR prediction.',
-                            icon: Icons.view_in_ar_rounded,
-                            gradient: const [Color(0xFF1B5E20), Color(0xFF388E3C)],
-                            isSelected: false,
-                            onTap: _onSelectAr,
-                          ),
-
-                          const SizedBox(height: 16),
-
                           // Mode B: Scale Calibration Card
                           _buildModeCard(
                             title: 'scan_mode.calib_title'.tr().isNotEmpty ? 'scan_mode.calib_title'.tr() : 'Scale Calibration',
@@ -291,7 +275,27 @@ class _ScanModeSelectionScreenState extends State<ScanModeSelectionScreen> {
                                       hintText: 'e.g. 25',
                                       hintStyle: const TextStyle(color: Colors.grey),
                                       suffixText: 'cm',
-                                      suffixStyle: const TextStyle(color: Colors.grey),
+                                      suffixIcon: GestureDetector(
+                                        onTap: _openArMeasure,
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF4CAF50).withOpacity(0.2),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: const [
+                                                Icon(Icons.camera_alt, color: Color(0xFF4CAF50), size: 16),
+                                                SizedBox(width: 4),
+                                                Text('AR', style: TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.bold)),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                       filled: true,
                                       fillColor: Colors.black.withOpacity(0.2),
                                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
