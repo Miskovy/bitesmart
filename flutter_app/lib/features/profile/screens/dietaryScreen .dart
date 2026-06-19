@@ -8,7 +8,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class DietaryPreferencesScreen extends StatefulWidget {
-  const DietaryPreferencesScreen({super.key});
+  final bool isUpdating;
+  const DietaryPreferencesScreen({super.key, this.isUpdating = false});
 
   @override
   State<DietaryPreferencesScreen> createState() => _DietaryPreferencesScreenState();
@@ -111,6 +112,16 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
               height: 46,
               child: ElevatedButton(
                 onPressed: () {
+                  if (_selectedDiets.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Please select at least one dietary preference.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
                   final dietaryPreferences = DietaryPreferencesData(
                     isVegetarian: _selectedDiets.contains('vegetarian'),
                     isVegan: _selectedDiets.contains('vegan'),
@@ -143,7 +154,7 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'diet.update'.tr(),
+                      widget.isUpdating ? 'diet.update'.tr() : 'continueBtn'.tr(),
                       style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(width: 8),
@@ -176,6 +187,11 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
           if (isSelected) {
             _selectedDiets.remove(key);
           } else {
+            if (key == 'none') {
+              _selectedDiets.clear();
+            } else {
+              _selectedDiets.remove('none');
+            }
             _selectedDiets.add(key);
           }
         });
