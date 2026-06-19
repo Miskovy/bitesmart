@@ -145,7 +145,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             return GestureDetector(
                               onTap: () => _showImageDialog(context, imageUrl),
                               child: AvatarUtils.buildAvatarWidget(
-                                avatar: imageUrl ?? 'https://i.pravatar.cc/150?img=47',
+                                avatar: imageUrl ?? '',
                                 size: 90,
                                 fit: BoxFit.cover,
                                 placeholder: const Icon(

@@ -517,7 +517,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: rest.length,
-        separatorBuilder: (_, __) => const Divider(
+        separatorBuilder: (_, _) => const Divider(
           height: 1,
           color: Color(0xFFEEEEEE),
           indent: 64,

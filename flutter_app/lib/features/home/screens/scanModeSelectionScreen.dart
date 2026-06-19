@@ -1,9 +1,7 @@
 import 'dart:ui';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
-import 'package:arcore_flutter_plus/arcore_flutter_plus.dart';
+
 import 'package:bite_smart/features/home/screens/cameraScreen.dart';
-import 'package:bite_smart/features/home/screens/arMeasureScreen.dart';
+
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 
@@ -58,57 +56,7 @@ class _ScanModeSelectionScreenState extends State<ScanModeSelectionScreen> {
     );
   }
 
-  Future<void> _openArMeasure() async {
-    if (kIsWeb || !Platform.isAndroid) {
-      _showUnsupportedDialog(
-        title: 'scan_mode.ar_unsupported_title'.tr().isNotEmpty 
-            ? 'scan_mode.ar_unsupported_title'.tr() 
-            : 'AR Not Supported',
-        message: 'scan_mode.ar_unsupported_desc'.tr().isNotEmpty 
-            ? 'scan_mode.ar_unsupported_desc'.tr() 
-            : 'AR features are only supported on Android devices.',
-      );
-      return;
-    }
 
-    try {
-      final bool isAvailable = await ArCoreController.checkArCoreAvailability();
-      final bool isInstalled = await ArCoreController.checkIsArCoreInstalled();
-
-      if (!isAvailable || !isInstalled) {
-        _showUnsupportedDialog(
-          title: 'scan_mode.ar_unsupported_title'.tr().isNotEmpty 
-              ? 'scan_mode.ar_unsupported_title'.tr() 
-              : 'ARCore Not Available',
-          message: 'scan_mode.ar_install_desc'.tr().isNotEmpty 
-              ? 'scan_mode.ar_install_desc'.tr() 
-              : 'Please ensure Google Play Services for AR is installed and updated on your device.',
-        );
-        return;
-      }
-    } catch (e) {
-      _showUnsupportedDialog(
-        title: 'scan_mode.ar_unsupported_title'.tr().isNotEmpty 
-            ? 'scan_mode.ar_unsupported_title'.tr() 
-            : 'AR Error',
-        message: 'Failed to initialize AR: $e',
-      );
-      return;
-    }
-
-    if (!mounted) return;
-
-    final result = await Navigator.push<double>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ArMeasureScreen(),
-      ),
-    );
-
-    if (result != null && mounted) {
-      _diameterController.text = result.toStringAsFixed(1);
-    }
-  }
 
   void _onStartCalibration() {
     if (_formKey.currentState?.validate() ?? false) {
@@ -275,27 +223,7 @@ class _ScanModeSelectionScreenState extends State<ScanModeSelectionScreen> {
                                       hintText: 'e.g. 25',
                                       hintStyle: const TextStyle(color: Colors.grey),
                                       suffixText: 'cm',
-                                      suffixIcon: GestureDetector(
-                                        onTap: _openArMeasure,
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF4CAF50).withOpacity(0.2),
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: const [
-                                                Icon(Icons.camera_alt, color: Color(0xFF4CAF50), size: 16),
-                                                SizedBox(width: 4),
-                                                Text('AR', style: TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.bold)),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
+
                                       filled: true,
                                       fillColor: Colors.black.withOpacity(0.2),
                                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
