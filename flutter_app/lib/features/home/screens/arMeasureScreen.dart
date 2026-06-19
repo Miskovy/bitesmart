@@ -36,8 +36,6 @@ class _ArMeasureScreenState extends State<ArMeasureScreen> {
   bool _isTapping = false;
   String _instruction = '';
 
-  final ImagePicker _picker = ImagePicker();
-
   // ── Localised strings ───────────────────────────────────────────────────────
   String get _tapLeftText  => 'ar_measure.tap_left'.tr();
   String get _tapRightText => 'ar_measure.tap_right'.tr();
@@ -181,62 +179,13 @@ class _ArMeasureScreenState extends State<ArMeasureScreen> {
 
   Future<void> _confirmAndCapture() async {
     if (_measuredWidthCm == null) return;
-    final capturedWidth = _measuredWidthCm!;
-
-    // Dispose AR controller to release the camera before opening ImagePicker.
-    // ARCore holds an exclusive camera handle; without this, ImagePicker.camera
-    // and AR race for the same hardware → crash.
+    
+    // Dispose AR controller to release the camera
     _arCoreController?.dispose();
     _arCoreController = null;
 
-    try {
-      final XFile? image = await showModalBottomSheet<XFile?>(
-        context: context,
-        backgroundColor: Colors.transparent,
-        builder: (ctx) => _ImageSourceSheet(picker: _picker),
-      );
-
-      if (!mounted) return;
-
-      if (image != null) {
-        final bytes = await image.readAsBytes();
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => AiAnalysizeScreen(
-              imagePath    : image.path,
-              imageBytes   : bytes,
-              foodWidthCm  : capturedWidth,
-              isCalibration: false,
-            ),
-          ),
-        );
-      } else {
-        // User cancelled → rebuild the AR view from scratch.
-        _placedNodeNames.clear();
-        _points.clear();
-        setState(() {
-          _measuredWidthCm = null;
-          _isArReady       = false;
-          _arViewKey       = UniqueKey();
-          _instruction     = _tapLeftText;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-        _placedNodeNames.clear();
-        _points.clear();
-        setState(() {
-          _measuredWidthCm = null;
-          _isArReady       = false;
-          _arViewKey       = UniqueKey();
-          _instruction     = _tapLeftText;
-        });
-      }
+    if (mounted) {
+      Navigator.pop(context, _measuredWidthCm);
     }
   }
 
@@ -503,7 +452,7 @@ class _BottomControlBar extends StatelessWidget {
                     : null,
               ),
               child: Icon(
-                Icons.camera_alt,
+                Icons.check,
                 color: isMeasured ? Colors.white : Colors.grey[400],
                 size: 30,
               ),
@@ -551,120 +500,3 @@ class _IconTextButton extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Image-source bottom sheet
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _ImageSourceSheet extends StatelessWidget {
-  final ImagePicker picker;
-  const _ImageSourceSheet({required this.picker});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin : const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle
-          Container(
-            width: 40, height: 4,
-            margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-              color: Colors.grey[600],
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Text(
-            'ar_measure.capture_title'.tr(),
-            style: const TextStyle(
-              color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'ar_measure.capture_subtitle'
-                .tr(),
-            style: TextStyle(color: Colors.grey[400], fontSize: 13),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: _SourceOption(
-                  icon : Icons.camera_alt,
-                  label: 'Camera',
-                  // AR controller was disposed before this sheet opened,
-                  // so the camera hardware is free for ImagePicker to use.
-                  onTap: () async {
-                    final img = await picker.pickImage(
-                      source: ImageSource.camera,
-                    );
-                    if (context.mounted) Navigator.pop(context, img);
-                  },
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _SourceOption(
-                  icon : Icons.photo_library,
-                  label: 'Gallery',
-                  onTap: () async {
-                    final img = await picker.pickImage(
-                      source: ImageSource.gallery,
-                    );
-                    if (context.mounted) Navigator.pop(context, img);
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-}
-
-class _SourceOption extends StatelessWidget {
-  final IconData    icon;
-  final String      label;
-  final VoidCallback onTap;
-
-  const _SourceOption({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: _kGreen, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
