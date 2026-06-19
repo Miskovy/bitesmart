@@ -1,13 +1,18 @@
-import 'dart:typed_data';
 import 'package:arcore_flutter_plus/arcore_flutter_plus.dart';
 import 'package:bite_smart/features/home/screens/aiAnalysizeScreen.dart';
-import 'package:bite_smart/features/home/data/repositories/home_repository.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:vector_math/vector_math_64.dart' as vector;
 import 'package:image_picker/image_picker.dart';
+import 'package:vector_math/vector_math_64.dart' as vector;
 
+// ── Shared design tokens ──────────────────────────────────────────────────────
+const _kGreen      = Color(0xFF4CAF50);
+const _kGreenLight = Color(0xFF81C784);
+const _kBlack60    = Color(0x99000000); // Colors.black.withOpacity(0.6)
+const _kBlack70    = Color(0xB3000000); // Colors.black.withOpacity(0.7)
+const _kBlack80    = Color(0xCC000000); // Colors.black.withOpacity(0.8)
+
+// ─────────────────────────────────────────────────────────────────────────────
 class ArMeasureScreen extends StatefulWidget {
   const ArMeasureScreen({super.key});
 
@@ -16,158 +21,206 @@ class ArMeasureScreen extends StatefulWidget {
 }
 
 class _ArMeasureScreenState extends State<ArMeasureScreen> {
+  // ── AR state ────────────────────────────────────────────────────────────────
   ArCoreController? _arCoreController;
+
+  // Key swap is needed for reset because the native ArCoreView.dispose()
+  // destroys the ArSceneView entirely — there is no way to "clear" it.
+  Key _arViewKey = UniqueKey();
+
   final List<vector.Vector3> _points = [];
-  final List<String> _addedNodeNames = [];
+  final List<String> _placedNodeNames = [];
+
   double? _measuredWidthCm;
   bool _isArReady = false;
+  bool _isTapping = false;
   String _instruction = '';
+
   final ImagePicker _picker = ImagePicker();
 
+  // ── Localised strings ───────────────────────────────────────────────────────
+  String get _tapLeftText  => 'ar_measure.tap_left'.tr();
+  String get _tapRightText => 'ar_measure.tap_right'.tr();
+
+  // ── Lifecycle ────────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
-    _instruction = 'ar_measure.tap_left'.tr().isNotEmpty
-        ? 'ar_measure.tap_left'.tr()
-        : 'Tap the left edge of the food';
+    _instruction = _tapLeftText;
   }
 
+  @override
+  void dispose() {
+    // We intentionally DO NOT call _arCoreController?.dispose() here!
+    // Flutter's AndroidView automatically handles native platform view tear-down.
+    // Manually invoking dispose over the MethodChannel during widget destruction
+    // causes a double-free/race condition that crashes the app on re-entry.
+    super.dispose();
+  }
+
+  // ── AR callbacks ─────────────────────────────────────────────────────────────
   void _onArCoreViewCreated(ArCoreController controller) {
+    if (!mounted) return;
+
     _arCoreController = controller;
     _arCoreController!.onPlaneTap = _onPlaneTap;
-    setState(() {
-      _isArReady = true;
-    });
+
+    // Force the AR session to start tracking. Sometimes the Activity lifecycle
+    // misses the onResume trigger, leaving the AR camera black or frozen.
+    _arCoreController!.resume();
+
+    // Surface native ARCore errors so they're not silently swallowed.
+    _arCoreController!.onError = (String error) {
+      debugPrint('ARCore error: $error');
+    };
+
+    setState(() => _isArReady = true);
   }
 
   void _onPlaneTap(List<ArCoreHitTestResult> hits) {
-    if (hits.isEmpty || _points.length >= 2) return;
+    if (hits.isEmpty || _points.length >= 2 || _isTapping) return;
+    _isTapping = true;
 
-    final hit = hits.first;
-    final pose = hit.pose;
+    final pose     = hits.first.pose;
     final position = vector.Vector3(
       pose.translation.x,
       pose.translation.y,
       pose.translation.z,
     );
 
-    // Add a visual marker sphere at the tapped position
     _addMarkerNode(position);
     _points.add(position);
 
     if (_points.length == 1) {
-      setState(() {
-        _instruction = 'ar_measure.tap_right'.tr().isNotEmpty
-            ? 'ar_measure.tap_right'.tr()
-            : 'Now tap the right edge of the food';
-      });
-    } else if (_points.length == 2) {
-      // Calculate distance between the two points (in meters) → convert to cm
-      final distanceM = _points[0].distanceTo(_points[1]);
-      final distanceCm = distanceM * 100.0;
-
-      // Draw a line between the two points
+      setState(() => _instruction = _tapRightText);
+    } else {
+      final distanceCm = _points[0].distanceTo(_points[1]) * 100.0;
       _addLineBetweenPoints(_points[0], _points[1]);
 
       setState(() {
         _measuredWidthCm = distanceCm;
-        _instruction = 'ar_measure.width_label'.tr().isNotEmpty
-            ? '${'ar_measure.width_label'.tr()}: ${distanceCm.toStringAsFixed(1)} cm'
-            : 'Measured Width: ${distanceCm.toStringAsFixed(1)} cm';
+        _instruction =
+            '${'ar_measure.width_label'.tr()}: '
+            '${distanceCm.toStringAsFixed(1)} cm';
       });
     }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _isTapping = false);
   }
 
+  // ── AR node helpers ──────────────────────────────────────────────────────────
   void _addMarkerNode(vector.Vector3 position) {
-    final name = 'marker_${_addedNodeNames.length}';
     final node = ArCoreNode(
-      name: name,
       shape: ArCoreSphere(
-        materials: [
-          ArCoreMaterial(
-            color: const Color(0xFF4CAF50),
-            metallic: 0.2,
-          ),
-        ],
-        radius: 0.008, // 8mm sphere
+        materials: [ArCoreMaterial(color: _kGreen, metallic: 1.0)],
+        radius: 0.01,
       ),
       position: position,
     );
+    // addArCoreNodeWithAnchor creates a proper ARCore Anchor at this position
+    // via session.createAnchor(Pose(...)). This anchors the sphere to the
+    // real-world surface so it stays fixed as the camera moves.
     _arCoreController?.addArCoreNodeWithAnchor(node);
-    _addedNodeNames.add(name);
+    if (node.name != null) _placedNodeNames.add(node.name!);
   }
 
   void _addLineBetweenPoints(vector.Vector3 a, vector.Vector3 b) {
-    // Place small spheres along the line to visualize the connection
-    const int segments = 10;
-    for (int i = 1; i < segments; i++) {
-      final t = i / segments;
-      final point = vector.Vector3(
-        a.x + (b.x - a.x) * t,
-        a.y + (b.y - a.y) * t,
-        a.z + (b.z - a.z) * t,
+    final midpoint  = (a + b) * 0.5;
+    final length    = a.distanceTo(b);
+    final direction = (b - a).normalized();
+
+    final yAxis = vector.Vector3(0.0, 1.0, 0.0);
+    vector.Quaternion q;
+
+    if (direction.dot(yAxis) < -0.9999) {
+      q = vector.Quaternion.axisAngle(
+        vector.Vector3(1.0, 0.0, 0.0),
+        3.14159265358979,
       );
-      final name = 'line_segment_${_addedNodeNames.length}';
-      final node = ArCoreNode(
-        name: name,
-        shape: ArCoreSphere(
-          materials: [
-            ArCoreMaterial(
-              color: const Color(0xFF81C784),
-              metallic: 0.1,
-            ),
-          ],
-          radius: 0.003, // 3mm small dots for the line
-        ),
-        position: point,
-      );
-      _arCoreController?.addArCoreNodeWithAnchor(node);
-      _addedNodeNames.add(name);
+    } else {
+      q = vector.Quaternion.fromTwoVectors(yAxis, direction)..normalize();
     }
+
+    final node = ArCoreNode(
+      shape: ArCoreCylinder(
+        materials: [ArCoreMaterial(color: _kGreenLight, metallic: 0.1)],
+        radius: 0.004,
+        height: length,
+      ),
+      position: midpoint,
+      rotation: vector.Vector4(q.x, q.y, q.z, q.w),
+    );
+    _arCoreController?.addArCoreNodeWithAnchor(node);
+    if (node.name != null) _placedNodeNames.add(node.name!);
   }
 
+  // ── User actions ─────────────────────────────────────────────────────────────
+
+  /// Reset: dispose the current controller and swap the key so Flutter
+  /// unmounts the old ArCoreView and creates a fresh one.
   void _resetMeasurement() {
-    // Gracefully remove only the nodes we added instead of tearing down the whole controller session!
-    for (final nodeName in _addedNodeNames) {
-      _arCoreController?.removeNode(nodeName: nodeName);
-    }
-    _addedNodeNames.clear();
+    // Dispose the old controller first so the native side can clean up.
+    _arCoreController?.dispose();
+    _arCoreController = null;
+
+    _placedNodeNames.clear();
     _points.clear();
+
     setState(() {
       _measuredWidthCm = null;
-      _instruction = 'ar_measure.tap_left'.tr().isNotEmpty
-          ? 'ar_measure.tap_left'.tr()
-          : 'Tap the left edge of the food';
+      _isArReady       = false;
+      _arViewKey       = UniqueKey();
+      _instruction     = _tapLeftText;
     });
+  }
+
+  /// Close the AR screen safely. Let the Flutter engine tear down the AndroidView.
+  void _closeArScreen() {
+    if (mounted) Navigator.pop(context);
   }
 
   Future<void> _confirmAndCapture() async {
     if (_measuredWidthCm == null) return;
+    final capturedWidth = _measuredWidthCm!;
+
+    // Dispose AR controller to release the camera before opening ImagePicker.
+    // ARCore holds an exclusive camera handle; without this, ImagePicker.camera
+    // and AR race for the same hardware → crash.
+    _arCoreController?.dispose();
+    _arCoreController = null;
 
     try {
-      // Pick or capture image for prediction
       final XFile? image = await showModalBottomSheet<XFile?>(
         context: context,
         backgroundColor: Colors.transparent,
         builder: (ctx) => _ImageSourceSheet(picker: _picker),
       );
 
-      if (image != null && mounted) {
+      if (!mounted) return;
+
+      if (image != null) {
         final bytes = await image.readAsBytes();
-        Navigator.push(
+        if (!mounted) return;
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => AiAnalysizeScreen(
-              imagePath: image.path,
-              imageBytes: bytes,
-              foodWidthCm: _measuredWidthCm!,
+              imagePath    : image.path,
+              imageBytes   : bytes,
+              foodWidthCm  : capturedWidth,
               isCalibration: false,
             ),
           ),
-        ).then((shouldRefresh) {
-          if (shouldRefresh == true && mounted) {
-            Navigator.pop(context, true);
-          }
+        );
+      } else {
+        // User cancelled → rebuild the AR view from scratch.
+        _placedNodeNames.clear();
+        _points.clear();
+        setState(() {
+          _measuredWidthCm = null;
+          _isArReady       = false;
+          _arViewKey       = UniqueKey();
+          _instruction     = _tapLeftText;
         });
       }
     } catch (e) {
@@ -175,84 +228,48 @@ class _ArMeasureScreenState extends State<ArMeasureScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
+        _placedNodeNames.clear();
+        _points.clear();
+        setState(() {
+          _measuredWidthCm = null;
+          _isArReady       = false;
+          _arViewKey       = UniqueKey();
+          _instruction     = _tapLeftText;
+        });
       }
     }
   }
 
-  @override
-  void dispose() {
-    _arCoreController?.dispose();
-    super.dispose();
-  }
-
+  // ── Build ────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // AR Camera View
+          // ── AR camera view ─────────────────────────────────────────────────
           ArCoreView(
+            key: _arViewKey,
             onArCoreViewCreated: _onArCoreViewCreated,
             enableTapRecognizer: true,
             enablePlaneRenderer: true,
+            debug: true,
           ),
 
-          // Top bar
+          // ── Top bar ────────────────────────────────────────────────────────
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Title badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: _isArReady
-                                ? const Color(0xFF4CAF50)
-                                : Colors.orange,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'ar_measure.title'.tr().isNotEmpty
-                              ? 'ar_measure.title'.tr()
-                              : 'AR Measurement',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Close button
+                  _StatusBadge(isReady: _isArReady),
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: CircleAvatar(
-                      backgroundColor: Colors.black.withOpacity(0.5),
+                    onTap: _closeArScreen,
+                    child: const CircleAvatar(
+                      backgroundColor: _kBlack60,
                       radius: 22,
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+                      child: Icon(Icons.close, color: Colors.white, size: 20),
                     ),
                   ),
                 ],
@@ -260,189 +277,135 @@ class _ArMeasureScreenState extends State<ArMeasureScreen> {
             ),
           ),
 
-          // Instruction overlay
+          // ── Instruction banner ─────────────────────────────────────────────
           Positioned(
-            top: MediaQuery.of(context).padding.top + 70,
-            left: 24,
+            top  : MediaQuery.of(context).padding.top + 70,
+            left : 24,
             right: 24,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _measuredWidthCm != null
-                      ? const Color(0xFF4CAF50)
-                      : Colors.white.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    _measuredWidthCm != null
-                        ? Icons.check_circle
-                        : _points.isEmpty
-                            ? Icons.touch_app
-                            : Icons.ads_click,
-                    color: _measuredWidthCm != null
-                        ? const Color(0xFF4CAF50)
-                        : Colors.white,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      _instruction,
-                      style: TextStyle(
-                        color: _measuredWidthCm != null
-                            ? const Color(0xFF4CAF50)
-                            : Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            child: _InstructionBanner(
+              instruction: _instruction,
+              pointCount : _points.length,
+              isMeasured : _measuredWidthCm != null,
             ),
           ),
 
-          // Measurement badge (shown after measurement)
+          // ── Measurement badge (shown once both points are set) ─────────────
           if (_measuredWidthCm != null)
-            Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 28,
-                  vertical: 16,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4CAF50).withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF4CAF50).withOpacity(0.4),
-                      blurRadius: 20,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Text(
-                  '${_measuredWidthCm!.toStringAsFixed(1)} cm',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ),
-            ),
+            Center(child: _MeasurementBadge(widthCm: _measuredWidthCm!)),
 
-          // Points counter
+          // ── Points progress counter ────────────────────────────────────────
           if (_points.isNotEmpty && _measuredWidthCm == null)
             Positioned(
               bottom: 140,
-              left: 0,
-              right: 0,
+              left  : 0,
+              right : 0,
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                    horizontal: 16, vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
+                    color: _kBlack60,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    '${_points.length}/2 points placed',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13,
-                    ),
+                    '${_points.length}/2 '
+                    '${'ar_measure.points_placed'.tr()}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                 ),
               ),
             ),
 
-          // Bottom controls
+          // ── Bottom control bar ─────────────────────────────────────────────
           Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.only(
-                bottom: 40,
-                top: 20,
-                left: 24,
-                right: 24,
-              ),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    Colors.black.withOpacity(0.8),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  // Reset button
-                  _BottomButton(
-                    icon: Icons.refresh,
-                    label: 'ar_measure.reset'.tr().isNotEmpty
-                        ? 'ar_measure.reset'.tr()
-                        : 'Reset',
-                    onTap: _resetMeasurement,
-                    color: Colors.white,
-                  ),
+            bottom: 0, left: 0, right: 0,
+            child: _BottomControlBar(
+              isMeasured: _measuredWidthCm != null,
+              onReset   : _resetMeasurement,
+              onCapture : _confirmAndCapture,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-                  // Confirm & Capture button
-                  GestureDetector(
-                    onTap: _measuredWidthCm != null ? _confirmAndCapture : null,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _measuredWidthCm != null
-                            ? const Color(0xFF4CAF50)
-                            : Colors.grey[700],
-                        border: Border.all(
-                          color: _measuredWidthCm != null
-                              ? Colors.white
-                              : Colors.grey,
-                          width: 3,
-                        ),
-                        boxShadow: _measuredWidthCm != null
-                            ? [
-                                BoxShadow(
-                                  color:
-                                      const Color(0xFF4CAF50).withOpacity(0.4),
-                                  blurRadius: 12,
-                                  spreadRadius: 2,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Icon(
-                        Icons.camera_alt,
-                        color: _measuredWidthCm != null
-                            ? Colors.white
-                            : Colors.grey[400],
-                        size: 30,
-                      ),
-                    ),
-                  ),
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-widgets – extracted for readability and to keep build() clean
+// ─────────────────────────────────────────────────────────────────────────────
 
-                  // Spacer for symmetry
-                  const SizedBox(width: 60),
-                ],
+class _StatusBadge extends StatelessWidget {
+  final bool isReady;
+  const _StatusBadge({required this.isReady});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: _kBlack60, borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8, height: 8,
+            decoration: BoxDecoration(
+              color : isReady ? _kGreen : Colors.orange,
+              shape : BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'ar_measure.title'.tr(),
+            style: const TextStyle(
+              color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InstructionBanner extends StatelessWidget {
+  final String instruction;
+  final int    pointCount;
+  final bool   isMeasured;
+
+  const _InstructionBanner({
+    required this.instruction,
+    required this.pointCount,
+    required this.isMeasured,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final IconData icon  = isMeasured
+        ? Icons.check_circle
+        : pointCount == 0 ? Icons.touch_app : Icons.ads_click;
+    final Color    color = isMeasured ? _kGreen : Colors.white;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: _kBlack70,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isMeasured ? _kGreen : Colors.white.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              instruction,
+              style: TextStyle(
+                color: color, fontSize: 14, fontWeight: FontWeight.w500,
               ),
             ),
           ),
@@ -452,13 +415,115 @@ class _ArMeasureScreenState extends State<ArMeasureScreen> {
   }
 }
 
-class _BottomButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final Color color;
+class _MeasurementBadge extends StatelessWidget {
+  final double widthCm;
+  const _MeasurementBadge({required this.widthCm});
 
-  const _BottomButton({
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+      decoration: BoxDecoration(
+        color: _kGreen.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: _kGreen.withValues(alpha: 0.4),
+            blurRadius: 20, spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Text(
+        '${widthCm.toStringAsFixed(1)} cm',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1,
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomControlBar extends StatelessWidget {
+  final bool          isMeasured;
+  final VoidCallback  onReset;
+  final VoidCallback  onCapture;
+
+  const _BottomControlBar({
+    required this.isMeasured,
+    required this.onReset,
+    required this.onCapture,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(
+        bottom: 40, top: 20, left: 24, right: 24,
+      ),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin  : Alignment.bottomCenter,
+          end    : Alignment.topCenter,
+          colors : [_kBlack80, Colors.transparent],
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _IconTextButton(
+            icon : Icons.refresh,
+            label: 'ar_measure.reset'.tr(),
+            onTap: onReset,
+            color: Colors.white,
+          ),
+
+          // Confirm & Capture CTA
+          GestureDetector(
+            onTap: isMeasured ? onCapture : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 72, height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isMeasured ? _kGreen : Colors.grey[700],
+                border: Border.all(
+                  color: isMeasured ? Colors.white : Colors.grey,
+                  width: 3,
+                ),
+                boxShadow: isMeasured
+                    ? [
+                        BoxShadow(
+                          color: _kGreen.withValues(alpha: 0.4),
+                          blurRadius: 12, spreadRadius: 2,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Icon(
+                Icons.camera_alt,
+                color: isMeasured ? Colors.white : Colors.grey[400],
+                size: 30,
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 60), // mirror the left button for symmetry
+        ],
+      ),
+    );
+  }
+}
+
+class _IconTextButton extends StatelessWidget {
+  final IconData    icon;
+  final String      label;
+  final VoidCallback onTap;
+  final Color       color;
+
+  const _IconTextButton({
     required this.icon,
     required this.label,
     required this.onTap,
@@ -473,30 +538,30 @@ class _BottomButton extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           CircleAvatar(
-            backgroundColor: Colors.white.withOpacity(0.15),
+            backgroundColor: Colors.white.withValues(alpha: 0.15),
             radius: 24,
             child: Icon(icon, color: color, size: 22),
           ),
           const SizedBox(height: 6),
-          Text(
-            label,
-            style: TextStyle(color: color, fontSize: 11),
-          ),
+          Text(label, style: TextStyle(color: color, fontSize: 11)),
         ],
       ),
     );
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Image-source bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _ImageSourceSheet extends StatelessWidget {
   final ImagePicker picker;
-
   const _ImageSourceSheet({required this.picker});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(16),
+      margin : const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
@@ -505,9 +570,9 @@ class _ImageSourceSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Drag handle
           Container(
-            width: 40,
-            height: 4,
+            width: 40, height: 4,
             margin: const EdgeInsets.only(bottom: 20),
             decoration: BoxDecoration(
               color: Colors.grey[600],
@@ -515,20 +580,15 @@ class _ImageSourceSheet extends StatelessWidget {
             ),
           ),
           Text(
-            'ar_measure.capture_title'.tr().isNotEmpty
-                ? 'ar_measure.capture_title'.tr()
-                : 'Capture Food Image',
+            'ar_measure.capture_title'.tr(),
             style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+              color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'ar_measure.capture_subtitle'.tr().isNotEmpty
-                ? 'ar_measure.capture_subtitle'.tr()
-                : 'Take a photo or pick from gallery',
+            'ar_measure.capture_subtitle'
+                .tr(),
             style: TextStyle(color: Colors.grey[400], fontSize: 13),
           ),
           const SizedBox(height: 24),
@@ -536,8 +596,10 @@ class _ImageSourceSheet extends StatelessWidget {
             children: [
               Expanded(
                 child: _SourceOption(
-                  icon: Icons.camera_alt,
+                  icon : Icons.camera_alt,
                   label: 'Camera',
+                  // AR controller was disposed before this sheet opened,
+                  // so the camera hardware is free for ImagePicker to use.
                   onTap: () async {
                     final img = await picker.pickImage(
                       source: ImageSource.camera,
@@ -549,7 +611,7 @@ class _ImageSourceSheet extends StatelessWidget {
               const SizedBox(width: 16),
               Expanded(
                 child: _SourceOption(
-                  icon: Icons.photo_library,
+                  icon : Icons.photo_library,
                   label: 'Gallery',
                   onTap: () async {
                     final img = await picker.pickImage(
@@ -569,8 +631,8 @@ class _ImageSourceSheet extends StatelessWidget {
 }
 
 class _SourceOption extends StatelessWidget {
-  final IconData icon;
-  final String label;
+  final IconData    icon;
+  final String      label;
   final VoidCallback onTap;
 
   const _SourceOption({
@@ -586,20 +648,18 @@ class _SourceOption extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.08),
+          color: Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
         child: Column(
           children: [
-            Icon(icon, color: const Color(0xFF4CAF50), size: 32),
+            Icon(icon, color: _kGreen, size: 32),
             const SizedBox(height: 8),
             Text(
               label,
               style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+                color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500,
               ),
             ),
           ],
