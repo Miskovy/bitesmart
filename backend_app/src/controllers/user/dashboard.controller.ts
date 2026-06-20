@@ -1,21 +1,11 @@
 import { Request, Response } from "express";
-import { getUserDashboardData } from "../../services/user/dashboard.service";
-import { UnauthorizedError } from "../../errors";
+import { getAdminDashboardData } from "../../services/user/dashboard.service";
 import { SuccessResponse } from "../../utils/Response";
 
 /**
- * Controller to fetch home dashboard stats and insights for the authenticated user.
+ * Controller to fetch admin dashboard stats and insights.
  */
 export const getDashboardController = async (req: Request, res: Response) => {
-    const userId = req.user?.id;
-    if (!userId) {
-        throw new UnauthorizedError("User is not authenticated");
-    }
-
-    const timezone = req.headers["x-timezone"] as string | undefined;
-    const offsetHeader = req.headers["x-timezone-offset"];
-    const offsetMinutes = offsetHeader ? Number(offsetHeader) : undefined;
-
-    const result = await getUserDashboardData(userId, timezone, offsetMinutes);
+    const result = await getAdminDashboardData();
     SuccessResponse(res, result, 200);
 };
