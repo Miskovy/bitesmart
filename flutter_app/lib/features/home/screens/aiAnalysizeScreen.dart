@@ -401,6 +401,7 @@ class _SuccessPanelState extends State<_SuccessPanel> {
     double plateDiameterCm = 0.0;
     double estimatedWeightG = 0.0;
     double estimatedVolumeCm3 = 0.0;
+    // ignore: unused_local_variable
     String ingredientsStr = "analyze.ingredients_example".tr();
 
     if (widget.meal.description != null) {
@@ -732,37 +733,6 @@ class _SuccessPanelState extends State<_SuccessPanel> {
     );
   }
 }
-
-class _CircleButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _CircleButton({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.9),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Icon(icon, size: 20, color: const Color(0xFF1A1A1A)),
-      ),
-    );
-  }
-}
-
 class _MacroCard extends StatelessWidget {
   final String label;
   final String value;

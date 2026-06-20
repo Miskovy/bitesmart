@@ -17,46 +17,6 @@ class _ScanModeSelectionScreenState extends State<ScanModeSelectionScreen> {
   final TextEditingController _diameterController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  void _showUnsupportedDialog({required String title, required String message}) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-              ),
-            ],
-          ),
-          content: Text(
-            message,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'OK'.tr().isNotEmpty ? 'OK'.tr() : 'OK',
-                style: const TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-
 
   void _onStartCalibration() {
     if (_formKey.currentState?.validate() ?? false) {

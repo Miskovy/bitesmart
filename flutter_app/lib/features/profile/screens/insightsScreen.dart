@@ -120,9 +120,6 @@ class _InsightsScreenState extends State<InsightsScreen> {
     final protTgt = proteinTarget;
     final fatInt = _insights?.todayBreakdown.fats ?? fatsIntake;
     final fatTgt = fatsTarget;
-    const aiTag = "ACHIEVEMENT";
-    const aiTitle = "Great Protein Streak";
-    const aiDesc = "You've hit your protein target for 5 days in a row!";
 
     List<double> currentChartPoints = [];
     String highlightLabel = "";
@@ -488,57 +485,6 @@ class _InsightsScreenState extends State<InsightsScreen> {
       ),
     );
   }
-
-  Widget _buildInsightCard(String tag, String title, String desc) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F5E9),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              tag.toUpperCase(),
-              style: const TextStyle(
-                color: Color(0xFF4CAF50),
-                fontSize: 9,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            desc,
-            style: const TextStyle(color: Colors.grey, fontSize: 13),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children:  [
-              Text(
-                'insights_screen.see_details'.tr(),
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-              Icon(Icons.arrow_forward, size: 16),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildMacroRow(
     String name,
     int intake,
