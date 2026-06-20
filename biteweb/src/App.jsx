@@ -8,7 +8,7 @@ import {
   Send, Plus, X, Flame, Droplets, Target, TrendingUp, User,
   Mail, Lock, Eye, EyeOff, Scale, Zap, Star,
   Check, Activity, Bot, Leaf, Shield, Trash2,
-  Clock, Sparkles, Camera
+  Clock, Sparkles, Camera, Settings, Edit2, ChevronRight, ChevronLeft
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────
@@ -63,7 +63,6 @@ const UserStore = {
 /* ─── Fetch wrapper ─── */
 async function api(url, opts = {}) {
   const tok = Token.get();
-  console.log(`[API Request] URL: ${url} | Token retrieved:`, tok);
   
   const isFormData = opts.body instanceof FormData;
   
@@ -88,8 +87,8 @@ async function api(url, opts = {}) {
 
 /* ─── Auth ─── */
 const AuthAPI = {
-  signUp: (name, email, password) =>
-    api(EP.SIGN_UP, { method: "POST", body: JSON.stringify({ name, email, password }) }),
+  signUp: (payload) =>
+    api(EP.SIGN_UP, { method: "POST", body: JSON.stringify(payload) }),
   signIn: (email, password) =>
     api(EP.SIGN_IN, { method: "POST", body: JSON.stringify({ email, password }) }),
 };
@@ -152,6 +151,7 @@ const WaterAPI = {
 /* ─── Profile ─── */
 const ProfileAPI = {
   get: () => api(EP.PROFILE),
+  update: (data) => api(EP.PROFILE, { method: "PUT", body: JSON.stringify(data) }),
 };
 
 /* ─── Completion ─── */
@@ -173,13 +173,10 @@ function extractAuth(data) {
 }
 
 function extractArray(obj) {
-  // A much smarter array extractor that will hunt down the array 
-  // no matter what key your backend hides it under (data, logs, meals, etc.)
   if (!obj) return [];
   if (Array.isArray(obj)) return obj;
   if (Array.isArray(obj.data)) return obj.data;
   
-  // Deep search for the array
   for (const key in obj) {
     if (Array.isArray(obj[key])) return obj[key];
     if (typeof obj[key] === 'object' && obj[key] !== null) {
@@ -193,33 +190,26 @@ function extractArray(obj) {
 
 function normalizeMeal(r) {
   if (!r) return null;
-  
   const formatTime = (val) => {
     if (!val || typeof val !== 'string') return "";
     if (val.includes("T")) {
       try {
         const d = new Date(val);
-        if (!isNaN(d.getTime())) {
-          return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        }
+        if (!isNaN(d.getTime())) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       } catch (e) {}
     }
     return val;
   };
 
-  // 1. Look for 'foodName' based on your successful API response
   let extractedName = r.foodName || r.name || r.meal_name || r.foodItem?.name || "Logged Meal";
-  
   if (typeof r.food === 'object' && r.food !== null) {
       extractedName = r.food.name || extractedName;
   } else if (typeof r.food === 'string') {
       extractedName = r.food;
   }
 
-  // 2. Safely capture the nested 'nutrition' object
   const nutrition = r.nutrition || {};
 
-  // 3. Map everything carefully, prioritizing the 'nutrition' object metrics
   return {
     id: String(r.id || r._id || r.logId || Date.now()),
     name: String(extractedName),
@@ -235,6 +225,7 @@ function normalizeMeal(r) {
     foodItemId: r.foodItemId || r.food_item_id || (r.food && (r.food.id || r.food.foodItemId)) || null,
   };
 }
+
 function normalizeMsg(r) {
   return {
     role: r.role || (r.sender === "user" ? "user" : "assistant"),
@@ -304,14 +295,6 @@ const T = {
 };
 
 /* ─── Static data ─── */
-const weekCals = [
-  { d: "Mon", c: 1850 }, { d: "Tue", c: 2100 }, { d: "Wed", c: 1750 },
-  { d: "Thu", c: 1920 }, { d: "Fri", c: 2050 }, { d: "Sat", c: 1600 }, { d: "Sun", c: 1780 },
-];
-const wtProg = [
-  { w: "W1", kg: 82 }, { w: "W2", kg: 81.5 }, { w: "W3", kg: 81.2 }, { w: "W4", kg: 80.8 },
-  { w: "W5", kg: 80.1 }, { w: "W6", kg: 79.8 }, { w: "W7", kg: 79.5 }, { w: "W8", kg: 79.2 },
-];
 const features = [
   { Icon: Bot, title: "AI Nutrition Coach", desc: "24/7 personalized guidance from your AI-powered nutrition expert", color: "#10b981" },
   { Icon: Flame, title: "Calorie Tracking", desc: "Effortlessly log meals and track daily calories and macros", color: "#f59e0b" },
@@ -320,19 +303,13 @@ const features = [
   { Icon: Droplets, title: "Hydration Tracker", desc: "Smart reminders and tracking to keep you perfectly hydrated", color: "#3b82f6" },
   { Icon: Target, title: "Goal Setting", desc: "Set milestones and crush them with adaptive AI coaching", color: "#ec4899" },
 ];
-const testimonials = [
-  { name: "Sarah Chen", role: "Fitness Enthusiast", quote: "Bite Smart transformed how I think about nutrition. Lost 15 kg in 4 months!", initials: "SC", color: "#10b981" },
-  { name: "Marcus Rivera", role: "Marathon Runner", quote: "The AI coaching is incredibly accurate. My race performance improved dramatically.", initials: "MR", color: "#22d3ee" },
-  { name: "Priya Patel", role: "Nutritionist", quote: "I recommend Bite Smart to all my clients. The tracking is intuitive and precise.", initials: "PP", color: "#a855f7" },
-];
+
 const quickSugg = [
   "How many calories in 100g rice?",
   "High protein breakfast ideas",
   "Benefits of intermittent fasting",
   "1500 calorie meal plan for today",
 ];
-
-
 
 function Spinner({ size = 20, color = "#fff" }) {
   return (
@@ -427,7 +404,7 @@ function LandingPage({ setPage, darkMode }) {
                   Smart calorie tracking, AI meal recommendations, personalized nutrition coaching, and powerful insights.
                 </p>
                 <button onClick={() => setPage("signup")} style={{ padding: "16px 34px", borderRadius: 16, border: "none", background: "#10b981", color: "#000", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
-                  Get Started →
+                  Get the App →
                 </button>
                 <div style={{ display: "flex", gap: 24, marginTop: 36, flexWrap: "wrap" }}>
                   {[{ icon: <Check size={14} />, label: "Free to start" }, { icon: <Shield size={14} />, label: "Privacy first" }, { icon: <Zap size={14} />, label: "AI-powered" }].map((b, i) => (
@@ -438,13 +415,12 @@ function LandingPage({ setPage, darkMode }) {
                 </div>
               </div>
               <div>
-                <img src="/hero-image.jpg" alt="Hero" style={{ width: "100%", height: 680, objectFit: "cover", borderRadius: 28, display: "block" }} />
+                <img src="/hero-image.jpg" alt="Hero" style={{ width: "100%", height: 680, objectFit: "cover", borderRadius: 28, display: "block", background: "rgba(16,185,129,.1)" }} />
               </div>
             </div>
           </div>
         </div>
       </section>
-      
 
       <section style={{ padding: "100px 24px", background: darkMode ? "#0a101f" : t.bg2 }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
@@ -466,13 +442,12 @@ function LandingPage({ setPage, darkMode }) {
           </div>
         </div>
       </section>
-
     </div>
   );
 }
 
 /* ══════════════════════════════════════════════
-   AUTH
+   AUTH (UPDATED WITH MULTI-STEP SIGNUP)
    ══════════════════════════════════════════════ */
 const AuthField = ({ field, placeholder, type = "text", icon, form, setForm, errors, showPw, setShowPw, t }) => (
   <div style={{ position: "relative" }}>
@@ -495,16 +470,22 @@ const AuthField = ({ field, placeholder, type = "text", icon, form, setForm, err
   </div>
 );
 
-function AuthPage({ setPage, setAuthed, setCurrentUser, darkMode, isSignup, setDarkMode }) {
+function AuthPage({ setPage, setAuthed, setCurrentUser, darkMode, isSignup, setDarkMode, addToast }) {
   const t = darkMode ? T.d : T.l;
   const [mode, setMode] = useState(isSignup ? "signup" : "signin");
+  const [step, setStep] = useState(1);
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  
+  // Expanded form state for multi-step signup
+  const [form, setForm] = useState({ 
+    name: "", email: "", password: "",
+    age: "", gender: "Male", height: "", weight: "", activityLevel: "ModeratelyActive", userGoal: "WeightLoss"
+  });
   const [errors, setErrors] = useState({});
   const [apiErr, setApiErr] = useState("");
 
-  const validate = () => {
+  const validateStep1 = () => {
     const e = {};
     if (mode === "signup" && !form.name.trim()) e.name = "Name is required";
     if (!form.email.includes("@")) e.email = "Valid email required";
@@ -513,33 +494,48 @@ function AuthPage({ setPage, setAuthed, setCurrentUser, darkMode, isSignup, setD
     return Object.keys(e).length === 0;
   };
 
+  const validateStep2 = () => {
+    const e = {};
+    if (!form.age) e.age = "Required";
+    if (!form.height) e.height = "Required";
+    if (!form.weight) e.weight = "Required";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
   const submit = async () => {
-    if (!validate()) return;
+    if (mode === "signin" && !validateStep1()) return;
+    if (mode === "signup" && step === 3) {
+      // Final submit for signup
+    } else if (mode === "signup") {
+      return; // Handled by next button
+    }
+
     setLoading(true); setApiErr("");
     try {
-      let data = mode === "signup"
-        ? await AuthAPI.signUp(form.name, form.email, form.password)
-        : await AuthAPI.signIn(form.email, form.password);
+      let data;
+      if (mode === "signup") {
+        const payload = {
+          name: form.name, email: form.email, password: form.password,
+          age: Number(form.age), gender: form.gender, height: Number(form.height), weight: Number(form.weight),
+          activityLevel: form.activityLevel, userGoal: form.userGoal
+        };
+        data = await AuthAPI.signUp(payload);
+      } else {
+        data = await AuthAPI.signIn(form.email, form.password);
+      }
 
-      console.log("[Auth Submit] Raw API Response:", data);
       let { token, user } = extractAuth(data);
-      console.log("[Auth Submit] Extracted Token:", token, "Extracted User:", user);
 
       if (!token && mode === "signup") {
         const ld = await AuthAPI.signIn(form.email, form.password);
-        console.log("[Auth Submit] Signup fallback SignIn Response:", ld);
         const r = extractAuth(ld);
         token = r.token; user = r.user;
-        console.log("[Auth Submit] Signup fallback Extracted Token:", token);
       }
 
       if (token) {
         Token.set(token);
-        console.log("[Auth Submit] Token saved to localStorage:", Token.get());
-      } else {
-        console.warn("[Auth Submit] No token was extracted to save!");
       }
-      // ✅ Persist user data (name, email, etc.) so it survives page refresh
       UserStore.set(user);
       setCurrentUser(user);
       setAuthed(true);
@@ -549,6 +545,11 @@ function AuthPage({ setPage, setAuthed, setCurrentUser, darkMode, isSignup, setD
     } finally {
       setLoading(false);
     }
+  };
+
+  const nextStep = () => {
+    if (step === 1 && validateStep1()) setStep(2);
+    if (step === 2 && validateStep2()) setStep(3);
   };
 
   return (
@@ -563,16 +564,24 @@ function AuthPage({ setPage, setAuthed, setCurrentUser, darkMode, isSignup, setD
             <Leaf size={24} color="white" />
           </div>
           <h1 className="fs" style={{ fontSize: 26, fontWeight: 800, color: t.t, marginBottom: 4 }}>
-            {mode === "signup" ? "Create account" : "Welcome back"}
+            {mode === "signup" ? (step === 1 ? "Create account" : step === 2 ? "About You" : "Your Goals") : "Welcome back"}
           </h1>
           <p style={{ fontSize: 14, color: t.t2 }}>
             {mode === "signup" ? "Start your health journey today" : "Sign in to your Bite Smart account"}
           </p>
         </div>
 
-        <div style={{ display: "flex", background: darkMode ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.05)", borderRadius: 10, padding: 4, marginBottom: 24 }}>
+        {mode === "signup" && (
+          <div style={{ display: "flex", gap: 6, marginBottom: 24, justifyContent: "center" }}>
+            {[1, 2, 3].map(s => (
+              <div key={s} style={{ height: 4, width: 30, borderRadius: 2, background: s <= step ? "#10b981" : (darkMode ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.1)"), transition: "all .3s" }} />
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: "flex", background: darkMode ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.05)", borderRadius: 10, padding: 4, marginBottom: 24, display: mode === "signup" && step > 1 ? "none" : "flex" }}>
           {["signin", "signup"].map(m => (
-            <button key={m} onClick={() => { setMode(m); setApiErr(""); }} className="btn-o"
+            <button key={m} onClick={() => { setMode(m); setApiErr(""); setStep(1); }} className="btn-o"
               style={{
                 flex: 1, padding: "8px", borderRadius: 8, fontSize: 14, fontWeight: 500, border: "none",
                 background: mode === m ? (darkMode ? "rgba(255,255,255,.08)" : "#fff") : "transparent",
@@ -585,11 +594,65 @@ function AuthPage({ setPage, setAuthed, setCurrentUser, darkMode, isSignup, setD
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {mode === "signup" && (
-            <AuthField field="name" placeholder="Full name" icon={<User size={16} />} form={form} setForm={setForm} errors={errors} showPw={showPw} setShowPw={setShowPw} t={t} />
+          {(mode === "signin" || (mode === "signup" && step === 1)) && (
+            <>
+              {mode === "signup" && (
+                <AuthField field="name" placeholder="Full name" icon={<User size={16} />} form={form} setForm={setForm} errors={errors} showPw={showPw} setShowPw={setShowPw} t={t} />
+              )}
+              <AuthField field="email" placeholder="Email address" type="email" icon={<Mail size={16} />} form={form} setForm={setForm} errors={errors} showPw={showPw} setShowPw={setShowPw} t={t} />
+              <AuthField field="password" placeholder="Password" icon={<Lock size={16} />} form={form} setForm={setForm} errors={errors} showPw={showPw} setShowPw={setShowPw} t={t} />
+            </>
           )}
-          <AuthField field="email" placeholder="Email address" type="email" icon={<Mail size={16} />} form={form} setForm={setForm} errors={errors} showPw={showPw} setShowPw={setShowPw} t={t} />
-          <AuthField field="password" placeholder="Password" icon={<Lock size={16} />} form={form} setForm={setForm} errors={errors} showPw={showPw} setShowPw={setShowPw} t={t} />
+
+          {mode === "signup" && step === 2 && (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, color: t.t3, marginBottom: 4, display: "block" }}>Age</label>
+                  <input type="number" className={t.inp} value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} style={{ width: "100%", padding: "12px", borderRadius: 10 }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: t.t3, marginBottom: 4, display: "block" }}>Gender</label>
+                  <select className={t.inp} value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })} style={{ width: "100%", padding: "12px", borderRadius: 10, background: "transparent", color: t.t }}>
+                    <option style={{ color: "black" }} value="Male">Male</option>
+                    <option style={{ color: "black" }} value="Female">Female</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, color: t.t3, marginBottom: 4, display: "block" }}>Height (cm)</label>
+                  <input type="number" className={t.inp} value={form.height} onChange={e => setForm({ ...form, height: e.target.value })} style={{ width: "100%", padding: "12px", borderRadius: 10 }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: t.t3, marginBottom: 4, display: "block" }}>Weight (kg)</label>
+                  <input type="number" className={t.inp} value={form.weight} onChange={e => setForm({ ...form, weight: e.target.value })} style={{ width: "100%", padding: "12px", borderRadius: 10 }} />
+                </div>
+              </div>
+            </>
+          )}
+
+          {mode === "signup" && step === 3 && (
+            <>
+              <div>
+                <label style={{ fontSize: 12, color: t.t3, marginBottom: 4, display: "block" }}>Activity Level</label>
+                <select className={t.inp} value={form.activityLevel} onChange={e => setForm({ ...form, activityLevel: e.target.value })} style={{ width: "100%", padding: "12px", borderRadius: 10, background: "transparent", color: t.t }}>
+                  <option style={{ color: "black" }} value="Sedentary">Sedentary (Little/No exercise)</option>
+                  <option style={{ color: "black" }} value="LightlyActive">Lightly Active (1-3 days/wk)</option>
+                  <option style={{ color: "black" }} value="ModeratelyActive">Moderately Active (3-5 days/wk)</option>
+                  <option style={{ color: "black" }} value="VeryActive">Very Active (6-7 days/wk)</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: t.t3, marginBottom: 4, display: "block" }}>Primary Goal</label>
+                <select className={t.inp} value={form.userGoal} onChange={e => setForm({ ...form, userGoal: e.target.value })} style={{ width: "100%", padding: "12px", borderRadius: 10, background: "transparent", color: t.t }}>
+                  <option style={{ color: "black" }} value="WeightLoss">Weight Loss</option>
+                  <option style={{ color: "black" }} value="Maintenance">Maintenance</option>
+                  <option style={{ color: "black" }} value="MuscleGain">Muscle Gain</option>
+                </select>
+              </div>
+            </>
+          )}
         </div>
 
         {apiErr && (
@@ -598,18 +661,27 @@ function AuthPage({ setPage, setAuthed, setCurrentUser, darkMode, isSignup, setD
           </div>
         )}
 
-        <button onClick={submit} className="btn-g"
-          style={{ width: "100%", padding: "14px", borderRadius: 10, fontSize: 16, fontWeight: 600, marginTop: 20, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          {loading ? <Spinner /> : (mode === "signin" ? "Sign In" : "Create Account")}
-        </button>
+        <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
+          {mode === "signup" && step > 1 && (
+            <button onClick={() => setStep(step - 1)} className="btn-o" style={{ flex: 1, padding: "14px", borderRadius: 10, border: `1px solid ${t.bdr}`, color: t.t, display: "flex", justifyContent: "center", alignItems: "center" }}>
+              <ChevronLeft size={18} /> Back
+            </button>
+          )}
+          <button onClick={mode === "signup" && step < 3 ? nextStep : submit} className="btn-g"
+            style={{ flex: 2, padding: "14px", borderRadius: 10, fontSize: 16, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            {loading ? <Spinner /> : mode === "signin" ? "Sign In" : step < 3 ? <>Next <ChevronRight size={18} /></> : "Create Account"}
+          </button>
+        </div>
 
-        <p style={{ textAlign: "center", fontSize: 13, color: t.t3, marginTop: 20 }}>
-          {mode === "signin" ? "Don't have an account? " : "Already have an account? "}
-          <span onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setApiErr(""); }}
-            style={{ color: t.acc, cursor: "pointer", fontWeight: 500 }}>
-            {mode === "signin" ? "Sign up free" : "Sign in"}
-          </span>
-        </p>
+        {mode === "signup" && step > 1 ? null : (
+          <p style={{ textAlign: "center", fontSize: 13, color: t.t3, marginTop: 20 }}>
+            {mode === "signin" ? "Don't have an account? " : "Already have an account? "}
+            <span onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setApiErr(""); setStep(1); }}
+              style={{ color: t.acc, cursor: "pointer", fontWeight: 500 }}>
+              {mode === "signin" ? "Sign up free" : "Sign in"}
+            </span>
+          </p>
+        )}
       </div>
     </div>
   );
@@ -624,6 +696,7 @@ function Sidebar({ page, setPage, setAuthed, darkMode, setDarkMode }) {
     { id: "dashboard", icon: <Home size={18} />, label: "Dashboard" },
     { id: "tracker", icon: <Utensils size={18} />, label: "Calorie Tracker" },
     { id: "chat", icon: <MessageSquare size={18} />, label: "AI Chat" },
+    { id: "profile", icon: <User size={18} />, label: "Profile" },
   ];
   return (
     <aside style={{ width: 220, minHeight: "100vh", background: t.bg2, borderRight: `1px solid ${t.bdr}`, display: "flex", flexDirection: "column", padding: "0 12px", flexShrink: 0, position: "sticky", top: 0 }}>
@@ -662,6 +735,213 @@ function Sidebar({ page, setPage, setAuthed, darkMode, setDarkMode }) {
 }
 
 /* ══════════════════════════════════════════════
+   PROFILE PAGE (NEW)
+══════════════════════════════════════════════ */
+function ProfilePage({ darkMode, addToast, currentUser, setCurrentUser }) {
+  const t = darkMode ? T.d : T.l;
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  
+  const [form, setForm] = useState({});
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      const res = await ProfileAPI.get();
+      const data = res?.data?.data || res?.data || currentUser || {};
+      setProfile(data);
+      setForm({
+        name: data.name || "",
+        phone: data.phone || "",
+        height: data.height || "",
+        weight: data.weight || "",
+        gender: data.gender || "Male",
+        age: data.age || "",
+        activityLevel: data.activityLevel || "ModeratelyActive",
+        userGoal: data.userGoal || "WeightLoss"
+      });
+    } catch (err) {
+      addToast("Failed to load profile", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const payload = {
+        ...form,
+        height: Number(form.height),
+        weight: Number(form.weight),
+        age: Number(form.age)
+      };
+      await ProfileAPI.update(payload);
+      
+      const updatedProfile = { ...profile, ...payload };
+      setProfile(updatedProfile);
+      setCurrentUser(updatedProfile);
+      UserStore.set(updatedProfile);
+      setIsEditing(false);
+      addToast("Profile updated successfully!");
+    } catch (err) {
+      addToast(err.message || "Failed to update profile", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: t.bg }}>
+        <Spinner size={32} color="#10b981" />
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return <div style={{ padding: 40, color: t.t }}>Failed to load user data.</div>;
+  }
+
+  // Safe destructuring
+  const med = profile?.medicalConditions || {};
+  const diet = profile?.dietaryPreferences || {};
+  const tgts = profile?.targets || {};
+  
+  const activeMeds = Object.keys(med).filter(k => med[k] === true).map(k => k.replace('is', '').replace(/([A-Z])/g, ' $1').trim());
+  const activeDiets = Object.keys(diet).filter(k => diet[k] === true).map(k => k.replace('is', '').replace(/([A-Z])/g, ' $1').trim());
+
+  return (
+    <div style={{ flex: 1, padding: "32px 28px", overflowY: "auto", background: t.bg, minHeight: "100vh" }}>
+      <div className="afu" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 28 }}>
+        <div>
+          <h1 className="fs" style={{ fontSize: 26, fontWeight: 800, color: t.t, margin: "0 0 4px" }}>Profile</h1>
+          <p style={{ color: t.t2, fontSize: 15, margin: 0 }}>Manage your personal data and goals</p>
+        </div>
+        <button onClick={() => isEditing ? handleSave() : setIsEditing(true)} className="btn-g" disabled={saving} style={{ padding: "10px 20px", borderRadius: 10, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
+          {saving ? <Spinner size={16} /> : isEditing ? <><Check size={16} /> Save Changes</> : <><Edit2 size={16} /> Edit Profile</>}
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 24, alignItems: "start" }}>
+        
+        {/* Left Col: Avatar & Badges */}
+        <div className={`${t.gl} afu s1`} style={{ borderRadius: 16, padding: 24, textAlign: "center" }}>
+          <img src={profile.avatar || "https://ui-avatars.com/api/?name=" + (profile.name || "U") + "&background=10b981&color=fff"} 
+               alt="Avatar" style={{ width: 100, height: 100, borderRadius: "50%", margin: "0 auto 16px", display: "block", border: `4px solid ${t.bdr}` }} />
+          <h2 className="fs" style={{ fontSize: 20, color: t.t, margin: "0 0 4px" }}>{profile.name}</h2>
+          <p style={{ fontSize: 13, color: t.t3, margin: "0 0 16px" }}>{profile.email}</p>
+          
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 20 }}>
+            <div style={{ padding: "8px 16px", borderRadius: 12, background: "rgba(16,185,129,.1)", color: "#10b981" }}>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>{profile.streak || 0}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>Day Streak</div>
+            </div>
+            <div style={{ padding: "8px 16px", borderRadius: 12, background: "rgba(168,85,247,.1)", color: "#a855f7" }}>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>{profile.xp || 0}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>XP Earned</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Col: Forms & Data */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          
+          {/* Section: Personal Info */}
+          <div className={`${t.gl} afu s2`} style={{ borderRadius: 16, padding: 24 }}>
+            <h3 className="fs" style={{ fontSize: 16, color: t.t, marginBottom: 16, borderBottom: `1px solid ${t.bdr}`, paddingBottom: 10 }}>Personal Metrics</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              {isEditing ? (
+                <>
+                  <div><label style={{ fontSize: 12, color: t.t3 }}>Name</label><input className={t.inp} value={form.name} onChange={e => setForm({...form, name: e.target.value})} style={{ width: "100%", padding: 10, borderRadius: 8, marginTop: 4 }} /></div>
+                  <div><label style={{ fontSize: 12, color: t.t3 }}>Phone</label><input className={t.inp} value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} style={{ width: "100%", padding: 10, borderRadius: 8, marginTop: 4 }} /></div>
+                  <div><label style={{ fontSize: 12, color: t.t3 }}>Age</label><input type="number" className={t.inp} value={form.age} onChange={e => setForm({...form, age: e.target.value})} style={{ width: "100%", padding: 10, borderRadius: 8, marginTop: 4 }} /></div>
+                  <div><label style={{ fontSize: 12, color: t.t3 }}>Gender</label>
+                    <select className={t.inp} value={form.gender} onChange={e => setForm({...form, gender: e.target.value})} style={{ width: "100%", padding: 10, borderRadius: 8, marginTop: 4, background: "transparent", color: t.t }}>
+                      <option style={{ color: "black" }} value="Male">Male</option><option style={{ color: "black" }} value="Female">Female</option>
+                    </select>
+                  </div>
+                  <div><label style={{ fontSize: 12, color: t.t3 }}>Height (cm)</label><input type="number" className={t.inp} value={form.height} onChange={e => setForm({...form, height: e.target.value})} style={{ width: "100%", padding: 10, borderRadius: 8, marginTop: 4 }} /></div>
+                  <div><label style={{ fontSize: 12, color: t.t3 }}>Weight (kg)</label><input type="number" className={t.inp} value={form.weight} onChange={e => setForm({...form, weight: e.target.value})} style={{ width: "100%", padding: 10, borderRadius: 8, marginTop: 4 }} /></div>
+                  <div><label style={{ fontSize: 12, color: t.t3 }}>Activity Level</label>
+                    <select className={t.inp} value={form.activityLevel} onChange={e => setForm({...form, activityLevel: e.target.value})} style={{ width: "100%", padding: 10, borderRadius: 8, marginTop: 4, background: "transparent", color: t.t }}>
+                      <option style={{ color: "black" }} value="Sedentary">Sedentary</option><option style={{ color: "black" }} value="LightlyActive">Lightly Active</option><option style={{ color: "black" }} value="ModeratelyActive">Moderately Active</option><option style={{ color: "black" }} value="VeryActive">Very Active</option>
+                    </select>
+                  </div>
+                  <div><label style={{ fontSize: 12, color: t.t3 }}>Goal</label>
+                    <select className={t.inp} value={form.userGoal} onChange={e => setForm({...form, userGoal: e.target.value})} style={{ width: "100%", padding: 10, borderRadius: 8, marginTop: 4, background: "transparent", color: t.t }}>
+                      <option style={{ color: "black" }} value="WeightLoss">Weight Loss</option><option style={{ color: "black" }} value="Maintenance">Maintenance</option><option style={{ color: "black" }} value="MuscleGain">Muscle Gain</option>
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div><div style={{ fontSize: 12, color: t.t3 }}>Phone</div><div style={{ color: t.t, fontWeight: 500 }}>{profile.phone || "Not set"}</div></div>
+                  <div><div style={{ fontSize: 12, color: t.t3 }}>Age & Gender</div><div style={{ color: t.t, fontWeight: 500 }}>{profile.age} yrs, {profile.gender}</div></div>
+                  <div><div style={{ fontSize: 12, color: t.t3 }}>Height</div><div style={{ color: t.t, fontWeight: 500 }}>{profile.height} cm</div></div>
+                  <div><div style={{ fontSize: 12, color: t.t3 }}>Weight (BMI)</div><div style={{ color: t.t, fontWeight: 500 }}>{profile.weight} kg <span style={{ color: t.acc, fontSize: 12 }}>({profile.BMI || "N/A"})</span></div></div>
+                  <div><div style={{ fontSize: 12, color: t.t3 }}>Activity Level</div><div style={{ color: t.t, fontWeight: 500 }}>{profile.activityLevel?.replace(/([A-Z])/g, ' $1').trim() || "N/A"}</div></div>
+                  <div><div style={{ fontSize: 12, color: t.t3 }}>Primary Goal</div><div style={{ color: t.t, fontWeight: 500 }}>{profile.userGoal?.replace(/([A-Z])/g, ' $1').trim() || "N/A"}</div></div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Section: Medical & Dietary */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+            <div className={`${t.gl} afu s3`} style={{ borderRadius: 16, padding: 24 }}>
+              <h3 className="fs" style={{ fontSize: 16, color: t.t, marginBottom: 16, borderBottom: `1px solid ${t.bdr}`, paddingBottom: 10 }}>Medical Conditions</h3>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {activeMeds.length > 0 ? activeMeds.map(m => (
+                  <span key={m} style={{ padding: "4px 10px", borderRadius: 20, background: "rgba(239,68,68,.1)", color: "#ef4444", fontSize: 12, fontWeight: 500 }}>{m}</span>
+                )) : <span style={{ color: t.t3, fontSize: 13 }}>No medical conditions specified.</span>}
+              </div>
+            </div>
+            <div className={`${t.gl} afu s4`} style={{ borderRadius: 16, padding: 24 }}>
+              <h3 className="fs" style={{ fontSize: 16, color: t.t, marginBottom: 16, borderBottom: `1px solid ${t.bdr}`, paddingBottom: 10 }}>Dietary Preferences</h3>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {activeDiets.length > 0 ? activeDiets.map(d => (
+                  <span key={d} style={{ padding: "4px 10px", borderRadius: 20, background: "rgba(16,185,129,.1)", color: "#10b981", fontSize: 12, fontWeight: 500 }}>{d}</span>
+                )) : <span style={{ color: t.t3, fontSize: 13 }}>No dietary preferences active.</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Targets */}
+          <div className={`${t.gl} afu s5`} style={{ borderRadius: 16, padding: 24 }}>
+            <h3 className="fs" style={{ fontSize: 16, color: t.t, marginBottom: 16, borderBottom: `1px solid ${t.bdr}`, paddingBottom: 10 }}>Nutrition Targets</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+              {[
+                { l: "Calories", v: tgts.calTotal || 2000, u: "kcal", c: "#10b981" },
+                { l: "Protein", v: tgts.proteins || 140, u: "g", c: "#22d3ee" },
+                { l: "Carbs", v: tgts.carbs || 200, u: "g", c: "#f59e0b" },
+                { l: "Fats", v: tgts.fats || 65, u: "g", c: "#a855f7" },
+                { l: "Iron", v: tgts.iron_mg || 18, u: "mg", c: "#ef4444" },
+                { l: "Sodium", v: tgts.sodium_mg || 2300, u: "mg", c: "#94a3b8" },
+                { l: "Vitamin D", v: tgts.vitamin_d_iu || 600, u: "IU", c: "#eab308" },
+                { l: "Water", v: tgts.water_ml || 2500, u: "ml", c: "#3b82f6" },
+              ].map(tItem => (
+                <div key={tItem.l} style={{ background: darkMode ? "rgba(255,255,255,.03)" : "rgba(0,0,0,.02)", padding: 12, borderRadius: 10 }}>
+                  <div style={{ fontSize: 11, color: t.t3, textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>{tItem.l}</div>
+                  <div style={{ fontSize: 18, color: tItem.c, fontWeight: 700 }}>{tItem.v}<span style={{ fontSize: 12, fontWeight: 400, color: t.t3, marginLeft: 2 }}>{tItem.u}</span></div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════
    DASHBOARD
 ══════════════════════════════════════════════ */
 function Dashboard({ darkMode, currentUser }) {
@@ -673,7 +953,6 @@ function Dashboard({ darkMode, currentUser }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // ✅ Get the user's name: first from login response, then from /profile API, then fallback
   let rawName = currentUser?.name || currentUser?.full_name || currentUser?.username
     || profile?.name || profile?.full_name || "there";
   if (typeof rawName !== 'string') rawName = "there"; 
@@ -728,10 +1007,7 @@ function Dashboard({ darkMode, currentUser }) {
   }, []);
 
   const handleWaterClick = async (newWaterCount) => {
-    if (newWaterCount <= water) {
-      // Do nothing, cannot decrease water intake!
-      return;
-    }
+    if (newWaterCount <= water) return;
     setWater(newWaterCount);
     try {
       await WaterAPI.log(newWaterCount * 250);
@@ -918,11 +1194,6 @@ function Dashboard({ darkMode, currentUser }) {
 }
 
 /* ══════════════════════════════════════════════
-   BMI CALCULATOR
-══════════════════════════════════════════════ */
-
-
-/* ══════════════════════════════════════════════
    CALORIE TRACKER + SNAP & LOG
 ══════════════════════════════════════════════ */
 function CalorieTracker({ darkMode, addToast }) {
@@ -997,7 +1268,6 @@ function CalorieTracker({ darkMode, addToast }) {
         ]);
         const raw = extractArray(mealsData, ["meals", "items", "logs", "mealLogs"]);
         
-        // 🔴 FIX: Filter out nulls natively to prevent crash if data is mangled
         setMeals(raw.map(normalizeMeal).filter(Boolean));
 
         if (profileData && profileData.success) {
@@ -1020,8 +1290,6 @@ function CalorieTracker({ darkMode, addToast }) {
   useEffect(() => {
     if (!meals || meals.length === 0) return;
     
-    // Find unique foodItemIds that are not yet loaded in foodDetailsMap
-    // Skip entries marked _isEstimated — those came from prediction macros and are more accurate
     const missingIds = meals
       .map(m => m.foodItemId)
       .filter(id => id && (!foodDetailsMap[id] || (!foodDetailsMap[id]._isEstimated && !foodDetailsMap[id]._loaded)));
@@ -1035,7 +1303,6 @@ function CalorieTracker({ darkMode, addToast }) {
       
       await Promise.all(
         uniqueIds.map(async (id) => {
-          // Don't overwrite estimated prediction values with per-100g DB values
           if (newDetails[id]?._isEstimated) return;
           try {
             const res = await api(`${BASE}/food/${id}`);
@@ -1081,8 +1348,6 @@ function CalorieTracker({ darkMode, addToast }) {
         quantity: parseFloat(src.quantity)
       };
 
-      // ✅ Cache estimated macros from prediction into foodDetailsMap immediately
-      // so the Today's Meals card shows the real estimated values
       if (src.foodItemId && (src.cal || src.protein || src.carbs || src.fat)) {
         setFoodDetailsMap(prev => ({
           ...prev,
@@ -1092,13 +1357,12 @@ function CalorieTracker({ darkMode, addToast }) {
             protein: Number(src.protein || 0),
             carbs: Number(src.carbs || 0),
             fats: Number(src.fat || 0),
-            _isEstimated: true,  // flag: came from prediction, not per-100g DB
+            _isEstimated: true, 
           }
         }));
       }
 
-      const created = await MealsAPI.create(payload);
-      
+      await MealsAPI.create(payload);
       await Promise.all([loadMeals(), loadCompletion()]);
       
       setNewMeal({ name: "", cal: "", protein: "", carbs: "", fat: "", time: "" });
@@ -1142,7 +1406,6 @@ function CalorieTracker({ darkMode, addToast }) {
 
   const runVision = async () => {
     if (!snapFile) return;
-    
     if (!foodWidth) {
       addToast("Please enter the food/plate width in cm first!", "error");
       return;
@@ -1164,7 +1427,6 @@ function CalorieTracker({ darkMode, addToast }) {
         carbs: getNum(actualResult?.macros?.carbs_g, actualResult?.carbs_g, actualResult?.carbs),
         fat: getNum(actualResult?.macros?.fats_g, actualResult?.fats_g, actualResult?.fat),
         emoji: "🍽️",
-        // measurements from prediction
         estimatedWeightG: estimatedWeight,
         plateDiameterCm: actualResult?.measurements?.plate_diameter_cm || null,
         estimatedVolumeCm3: actualResult?.measurements?.estimated_volume_cm3 || null,
@@ -1172,7 +1434,6 @@ function CalorieTracker({ darkMode, addToast }) {
         foodItemId: actualResult?.food_item_id || actualResult?.training_data_id
       });
 
-      // ✅ Auto-fill quantity with estimated weight from prediction
       if (estimatedWeight) {
         setQuantity(Math.round(estimatedWeight));
       }
@@ -1214,8 +1475,8 @@ function CalorieTracker({ darkMode, addToast }) {
   if (loading) return (
     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: t.bg, minHeight: "100vh" }}>
       <div style={{ textAlign: "center", color: t.t2 }}>
-        <div style={{ width: 32, height: 32, border: "3px solid rgba(16,185,129,.3)", borderTopColor: "#10b981", borderRadius: "50%", animation: "spin .7s linear infinite", margin: "0 auto 14px" }} />
-        Loading meals…
+        <Spinner size={32} color="#10b981" />
+        <div style={{ marginTop: 14 }}>Loading meals…</div>
       </div>
     </div>
   );
@@ -1245,7 +1506,6 @@ function CalorieTracker({ darkMode, addToast }) {
         </div>
       </div>
 
-      {/* Summary */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
         {[
           { l: "Calories", v: totals.cal, goal: targetCalories, u: "kcal", c: "#10b981" },
@@ -1265,7 +1525,6 @@ function CalorieTracker({ darkMode, addToast }) {
         ))}
       </div>
 
-      {/* Snap & Log Area */}
       {snapMode && (
         <div className={`asc ${t.gl}`} style={{ borderRadius: 16, padding: "24px", marginBottom: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
@@ -1332,7 +1591,6 @@ function CalorieTracker({ darkMode, addToast }) {
 
           {snapRes && (
             <div className="asc" style={{ borderRadius: 12, padding: "18px 20px", background: darkMode ? "rgba(16,185,129,.08)" : "rgba(16,185,129,.06)", border: "1px solid rgba(16,185,129,.2)", marginBottom: 16 }}>
-              {/* Header: food name + total kcal */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 32 }}>{snapRes.emoji}</span>
@@ -1346,7 +1604,6 @@ function CalorieTracker({ darkMode, addToast }) {
                 </div>
               </div>
               
-              {/* Macros row */}
               <div style={{ display: "flex", gap: 12, marginBottom: snapRes.estimatedWeightG ? 12 : 20 }}>
                 {[{ l: "Protein", v: snapRes.protein, c: "#22d3ee" }, { l: "Carbs", v: snapRes.carbs, c: "#f59e0b" }, { l: "Fat", v: snapRes.fat, c: "#a855f7" }].map(m => (
                   <div key={m.l} style={{ flex: 1, borderRadius: 8, padding: "10px", background: darkMode ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", textAlign: "center" }}>
@@ -1356,7 +1613,6 @@ function CalorieTracker({ darkMode, addToast }) {
                 ))}
               </div>
 
-              {/* Measurements row (from prediction model) */}
               {(snapRes.estimatedWeightG || snapRes.plateDiameterCm) && (
                 <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
                   {snapRes.estimatedWeightG && (
@@ -1442,7 +1698,6 @@ function CalorieTracker({ darkMode, addToast }) {
         </div>
       )}
 
-      {/* Manual form */}
       {showForm && (
         <div className={`asc ${t.gl}`} style={{ borderRadius: 16, padding: "20px", marginBottom: 20 }}>
           <h3 className="fs" style={{ fontSize: 16, fontWeight: 700, color: t.t, marginBottom: 16 }}>Log a Meal</h3>
@@ -1482,7 +1737,6 @@ function CalorieTracker({ darkMode, addToast }) {
         </div>
       )}
 
-      {/* 🔴 FIX: Mapped Meal List Fully Bulletproofed Against Object Renders */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <h3 className="fs" style={{ fontSize: 16, fontWeight: 700, color: t.t, marginBottom: 4 }}>Today's Meals</h3>
         {meals.map((m, i) => {
@@ -1517,7 +1771,8 @@ function CalorieTracker({ darkMode, addToast }) {
                 </button>
               </div>
             );
-          })}        {meals.length === 0 && (
+          })}        
+          {meals.length === 0 && (
           <div style={{ textAlign: "center", padding: 40, color: t.t3 }}>No meals logged yet. Add your first meal above!</div>
         )}
       </div>
@@ -1526,7 +1781,7 @@ function CalorieTracker({ darkMode, addToast }) {
 }
 
 /* ══════════════════════════════════════════════
-   AI CHAT — wired to /coach/sessions + /coach/chat
+   AI CHAT
 ══════════════════════════════════════════════ */
 function AIChat({ darkMode }) {
   const t = darkMode ? T.d : T.l;
@@ -1552,7 +1807,6 @@ function AIChat({ darkMode }) {
     }
   }, [input]);
 
-  /* Load sessions on mount */
   useEffect(() => {
     (async () => {
       try {
@@ -1567,7 +1821,6 @@ function AIChat({ darkMode }) {
     })();
   }, []);
 
-  /* Load history when session selected */
   const openSession = async (sid) => {
     if (sid === activeId) return;
     setActiveId(sid);
@@ -1584,13 +1837,11 @@ function AIChat({ darkMode }) {
     }
   };
 
-  /* New session */
   const newSession = () => {
     setActiveId(null);
     setMsgs([WELCOME]);
   };
 
-  /* Delete session */
   const deleteSession = async (e, sid) => {
     e.stopPropagation();
     setSessions(p => p.filter(s => (s.id || s._id) !== sid));
@@ -1598,7 +1849,6 @@ function AIChat({ darkMode }) {
     try { await CoachAPI.deleteSession(sid); } catch { }
   };
 
-  /* Send message */
   const send = async (text = input.trim()) => {
     if (!text || typing) return;
     setInput("");
@@ -1623,7 +1873,6 @@ function AIChat({ darkMode }) {
       const assistantMsg = { role: "assistant", content: replyText };
       setMsgs(p => [...p, assistantMsg]);
 
-      /* If a new session was created, add it to the list */
       if (newSid && newSid !== activeId) {
         setActiveId(newSid);
         const newSess = payload.session || inner.session || data?.session || { id: newSid, title: text.slice(0, 30) };
@@ -1644,8 +1893,6 @@ function AIChat({ darkMode }) {
 
   return (
     <div style={{ flex: 1, display: "flex", height: "100vh", background: t.bg, overflow: "hidden" }}>
-
-      {/* Sessions sidebar */}
       <div style={{ width: 220, borderRight: `1px solid ${t.bdr}`, display: "flex", flexDirection: "column", padding: "16px 10px", background: t.bg2, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "0 4px" }}>
           <Bot size={16} color="#10b981" />
@@ -1698,9 +1945,7 @@ function AIChat({ darkMode }) {
         </div>
       </div>
 
-      {/* Chat area */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        {/* Header */}
         <div style={{ borderBottom: `1px solid ${t.bdr}`, padding: "14px 24px", display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#10b981,#059669)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Bot size={18} color="white" />
@@ -1714,7 +1959,6 @@ function AIChat({ darkMode }) {
           </div>
         </div>
 
-        {/* Messages */}
         <div style={{ flex: 1, overflowY: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: 16, position: "relative" }}>
           {loadingHist ? (
             <div style={{ textAlign: "center", paddingTop: 60, color: t.t3 }}>
@@ -1762,7 +2006,6 @@ function AIChat({ darkMode }) {
           <div ref={bottomRef} />
         </div>
 
-        {/* Quick suggestions */}
         {msgs.length <= 1 && !loadingHist && (
           <div style={{ padding: "0 24px 12px", display: "flex", gap: 8, flexWrap: "wrap" }}>
             {quickSugg.map((s, i) => (
@@ -1776,7 +2019,6 @@ function AIChat({ darkMode }) {
           </div>
         )}
 
-        {/* Input */}
         <div style={{ padding: "12px 20px 20px", borderTop: `1px solid ${t.bdr}` }}>
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end", background: darkMode ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 16, border: `1px solid ${t.bdr}`, padding: "8px 8px 8px 16px" }}>
             <textarea ref={taRef} value={input}
@@ -1802,29 +2044,16 @@ function AIChat({ darkMode }) {
 /* ══════════════════════════════════════════════
    APP LAYOUT
 ══════════════════════════════════════════════ */
-function AppLayout({ page, setPage, setAuthed, darkMode, setDarkMode, addToast, currentUser }) {
+function AppLayout({ page, setPage, setAuthed, darkMode, setDarkMode, addToast, currentUser, setCurrentUser }) {
   const t = darkMode ? T.d : T.l;
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: t.bg }}>
       <Sidebar page={page} setPage={setPage} setAuthed={setAuthed} darkMode={darkMode} setDarkMode={setDarkMode} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         {page === "dashboard" && <Dashboard darkMode={darkMode} currentUser={currentUser} />}
-        
-        {/* Updated Tracker Line Here */}
-        {page === "tracker" && (
-          <CalorieTracker 
-            darkMode={darkMode} 
-            addToast={addToast} 
-            MealsAPI={MealsAPI} 
-            PredictionAPI={PredictionAPI} 
-            extractArray={extractArray} 
-            normalizeMeal={normalizeMeal} 
-            T={T} 
-          />
-        )}
-        
-        
+        {page === "tracker" && <CalorieTracker darkMode={darkMode} addToast={addToast} />}
         {page === "chat" && <AIChat darkMode={darkMode} />}
+        {page === "profile" && <ProfilePage darkMode={darkMode} currentUser={currentUser} setCurrentUser={setCurrentUser} addToast={addToast} />}
       </div>
     </div>
   );
@@ -1851,7 +2080,6 @@ export default function App() {
     if (Token.get()) {
       setAuthed(true);
       setPage("dashboard");
-      // ✅ Restore saved user info (name etc.) from localStorage on refresh
       const savedUser = UserStore.get();
       if (savedUser) setCurrentUser(savedUser);
     }
@@ -1864,7 +2092,7 @@ export default function App() {
   };
 
   const t = dark ? T.d : T.l;
-  const appPages = ["dashboard", "tracker", "bmi", "chat"];
+  const appPages = ["dashboard", "tracker", "bmi", "chat", "profile"];
 
   return (
     <div style={{ minHeight: "100vh", background: t.bg, color: t.t, transition: "background .3s,color .3s" }}>
@@ -1874,12 +2102,13 @@ export default function App() {
       {page === "landing" && !authed && <LandingPage setPage={setPage} darkMode={dark} />}
       {(page === "signin" || page === "signup") && (
         <AuthPage setPage={setPage} setAuthed={setAuthed} setCurrentUser={setCurrentUser}
-          darkMode={dark} isSignup={page === "signup"} setDarkMode={setDark} />
+          darkMode={dark} isSignup={page === "signup"} setDarkMode={setDark} addToast={addToast} />
       )}
       {authed && appPages.includes(page) && (
         <AppLayout page={page} setPage={setPage}
           setAuthed={v => { setAuthed(v); if (!v) setPage("landing"); }}
-          darkMode={dark} setDarkMode={setDark} addToast={addToast} currentUser={currentUser} />
+          darkMode={dark} setDarkMode={setDark} addToast={addToast} 
+          currentUser={currentUser} setCurrentUser={setCurrentUser} />
       )}
       <Toast toasts={toasts} dark={dark} />
     </div>

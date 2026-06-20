@@ -113,6 +113,14 @@ const pageLabels = {
 
 function uid() { return Date.now() + Math.floor(Math.random() * 1000); }
 
+// Some AdminAPI endpoints return the record directly, others wrap it in
+// { user: ... } or { data: ... }. Unwrap consistently everywhere we read a
+// create/update response, instead of only in a couple of spots.
+function unwrap(res) {
+  if (!res) return res;
+  return res.user || res.data || res;
+}
+
 // ─── Shared UI Components ─────────────────────────────────────────────────────
 function Card({ children, style = {}, onClick }) {
   return <div onClick={onClick} style={{ background:T.card, border:`1px solid ${T.border}`, borderRadius:12, ...style }}>{children}</div>;
@@ -465,7 +473,7 @@ function UsersPage() {
         is_active: form.status === 'Active'
       };
       const newUser = await AdminAPI.createUser(payload);
-      setUsers(prev => [...prev, mapUser(newUser)]);
+      setUsers(prev => [...prev, mapUser(unwrap(newUser))]);
       setShowAdd(false);
       showToast("User created successfully");
     } catch (err) {
@@ -491,7 +499,7 @@ function UsersPage() {
         is_active: form.status === 'Active'
       };
       const updatedUser = await AdminAPI.updateUser(editUser.id, payload);
-      setUsers(prev => prev.map(u => u.id === editUser.id ? mapUser(updatedUser) : u));
+      setUsers(prev => prev.map(u => u.id === editUser.id ? mapUser(unwrap(updatedUser)) : u));
       setEditUser(null);
       showToast("User updated successfully");
     } catch (err) {
@@ -701,11 +709,13 @@ function ChallengesPage() {
       const payload = {
         title: form.title,
         description: form.description,
+        points: parseInt(form.points, 10) || 0,
+        status: form.status,
         startDate: form.startDate ? new Date(form.startDate).toISOString() : undefined,
         endDate: form.endDate ? new Date(form.endDate).toISOString() : undefined
       };
       const newChallenge = await AdminAPI.createChallenge(payload);
-      setChallenges(prev => [...prev, mapChallenge(newChallenge)]);
+      setChallenges(prev => [...prev, mapChallenge(unwrap(newChallenge))]);
       setShowAdd(false);
       showToast("Challenge created successfully");
     } catch (error) {
@@ -726,11 +736,13 @@ function ChallengesPage() {
       const payload = {
         title: form.title,
         description: form.description,
+        points: parseInt(form.points, 10) || 0,
+        status: form.status,
         startDate: form.startDate ? new Date(form.startDate).toISOString() : undefined,
         endDate: form.endDate ? new Date(form.endDate).toISOString() : undefined
       };
       const updated = await AdminAPI.updateChallenge(editItem.id, payload);
-      setChallenges(prev => prev.map(c => c.id === editItem.id ? mapChallenge(updated) : c));
+      setChallenges(prev => prev.map(c => c.id === editItem.id ? mapChallenge(unwrap(updated)) : c));
       setEditItem(null);
       showToast("Challenge updated successfully");
     } catch (error) {
@@ -859,12 +871,13 @@ function FoodPage() {
     protein: f.protein_per_100g || f.protein || 0,
     carbs: f.carbs_per_100g || f.carbs || 0,
     fat: f.fats_per_100g || f.fat || 0,
-    cat: 'Protein',
+    cat: f.category || f.cat || 'Protein',
     status: f.isVerified ? 'Approved' : 'Pending'
   });
 
   const payloadFromForm = (f) => ({
     class_name: f.name,
+    category: f.cat,
     cals_per_100g: parseFloat(f.cal) || 0,
     protein_per_100g: parseFloat(f.protein) || 0,
     carbs_per_100g: parseFloat(f.carbs) || 0,
@@ -904,7 +917,7 @@ function FoodPage() {
     setIsSaving(true);
     try {
       const newFood = await AdminAPI.createFood(payloadFromForm(form));
-      setFoods(prev => [...prev, mapFood(newFood)]);
+      setFoods(prev => [...prev, mapFood(unwrap(newFood))]);
       setShowAdd(false);
       showToast("Food created successfully");
     } catch (error) {
@@ -923,7 +936,7 @@ function FoodPage() {
     setIsSaving(true);
     try {
       const updated = await AdminAPI.updateFood(editFood.id, payloadFromForm(form));
-      setFoods(prev => prev.map(f => f.id === editFood.id ? mapFood(updated) : f));
+      setFoods(prev => prev.map(f => f.id === editFood.id ? mapFood(unwrap(updated)) : f));
       setEditFood(null);
       showToast("Food updated successfully");
     } catch (error) {
@@ -939,18 +952,10 @@ function FoodPage() {
       const target = foods.find(f => f.id === id);
       if(!target) return;
       
-      const payload = {
-        class_name: target.name,
-        cals_per_100g: parseFloat(target.cal) || 0,
-        protein_per_100g: parseFloat(target.protein) || 0,
-        carbs_per_100g: parseFloat(target.carbs) || 0,
-        fats_per_100g: parseFloat(target.fat) || 0,
-        isVerified: true,
-        source: 'Local'
-      };
+      const payload = { ...payloadFromForm(target), isVerified: true };
 
       const updated = await AdminAPI.updateFood(id, payload);
-      setFoods(prev => prev.map(f => f.id === id ? mapFood(updated) : f));
+      setFoods(prev => prev.map(f => f.id === id ? mapFood(unwrap(updated)) : f));
       showToast("Food approved successfully");
     } catch (error) {
       console.error("Failed to approve food", error);
@@ -1074,7 +1079,7 @@ function SettingsPage({ adminProfile, setAdminProfile }) {
       };
 
       const res = await AdminAPI.updateUser(adminProfile.id, payload);
-      const updatedUser = res.user || res.data || res;
+      const updatedUser = unwrap(res);
 
       const merged = { ...adminProfile, ...updatedUser };
       setAdminProfile(merged);
@@ -1239,7 +1244,7 @@ function AdminLoginScreen({ onLoginSuccess }) {
         showToast('Logged in successfully!', 'success');
         onLoginSuccess(res.data.token, res.data.admin);
       } else {
-        showToast(res.message || 'Login failed', 'error');
+        showToast(res.error?.message || res.message || 'Login failed', 'error');
       }
     } catch (err) {
       console.error('Login error:', err);
