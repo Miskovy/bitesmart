@@ -52,9 +52,6 @@ class AiAnalysizeScreen extends StatelessWidget {
               },
             ),
 
-            // Top AppBar navigation buttons
-            const _TopAppBar(),
-
             // Bottom sheet contents based on current state
             BlocBuilder<PredictionBloc, PredictionState>(
               builder: (context, state) {
@@ -136,36 +133,6 @@ class _ImageHeader extends StatelessWidget {
     );
   }
 }
-
-class _TopAppBar extends StatelessWidget {
-  const _TopAppBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _CircleButton(
-              icon: Icons.arrow_back,
-              onTap: () => Navigator.maybePop(context),
-            ),
-            Row(
-              children: [
-                _CircleButton(icon: Icons.crop, onTap: () {}),
-                const SizedBox(width: 8),
-                _CircleButton(icon: Icons.more_vert, onTap: () {}),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _LoadingPanel extends StatelessWidget {
   const _LoadingPanel();
 
@@ -541,19 +508,7 @@ class _SuccessPanelState extends State<_SuccessPanel> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        IconButton(
-                          onPressed: () {},
-                          icon: const Icon(Icons.edit, color: Color(0xFF4CAF50)),
-                        ),
                       ],
-                    ),
-
-                    Text(
-                      "analyze.edit_hint".tr(),
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 12,
-                      ),
                     ),
 
                     const SizedBox(height: 10),

@@ -52,8 +52,8 @@ class OnboardingScreen extends StatelessWidget {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(15),
-                      child: Image.network(
-                        'https://images.unsplash.com/photo-1546069901-ba9599a7e63c', // صورة طبق سلطة كمثال
+                      child: Image.asset(
+                        'assets/image1.jpeg', // صورة طبق سلطة كمثال
                         fit: BoxFit.cover,
                       ),
                     ),

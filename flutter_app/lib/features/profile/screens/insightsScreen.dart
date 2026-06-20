@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:bite_smart/features/profile/data/repositories/profile_repository.dart';
 import 'package:bite_smart/features/profile/data/models/user_insights_model.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class InsightsScreen extends StatefulWidget {
   const InsightsScreen({super.key});
@@ -78,8 +79,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
               children: [
                 const Icon(Icons.error_outline, size: 64, color: Colors.redAccent),
                 const SizedBox(height: 16),
-                const Text(
-                  "Failed to load insights",
+                 Text(
+                  'insights_screen.failed_load'.tr(),
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
@@ -95,7 +96,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                     backgroundColor: const Color(0xFF4CAF50),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   ),
-                  child: const Text("Retry", style: TextStyle(color: Colors.white)),
+                  child:  Text('insights_screen.retry'.tr(), style: TextStyle(color: Colors.white)),
                 ),
               ],
             ),
@@ -160,8 +161,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
-        title: const Text(
-          "Insights",
+        title:  Text(
+          'insights_screen.title_appbar'.tr(),
           style: TextStyle(
             color: Colors.black,
             fontSize: 18,
@@ -182,8 +183,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Your Progress",
+                     Text(
+                      'insights_screen.your_progress'.tr(),
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -204,16 +205,16 @@ class _InsightsScreenState extends State<InsightsScreen> {
             Row(
               children: [
                 _buildSummaryCard(
-                  "AVG. CALORIES",
+                  'insights_screen.avg_calories'.tr(),
                   "$avgCal",
-                  "kcal/day",
+                  'insights_screen.kcal_day'.tr(),
                   Colors.pinkAccent,
                 ),
                 const SizedBox(width: 12),
                 _buildSummaryCard(
-                  "WEIGHT CHANGE",
+                  'insights_screen.weight_change'.tr(),
                   (wtChange >= 0 ? "+$wtChange" : "$wtChange"),
-                  "lbs this period",
+                  'insights_screen.lbs_period'.tr(),
                   Colors.green,
                   isLoss: wtChange < 0,
                 ),
@@ -226,47 +227,29 @@ class _InsightsScreenState extends State<InsightsScreen> {
             const SizedBox(height: 30),
 
             // 4. AI Insights section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "AI Insights",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text(
-                    "View All",
-                    style: TextStyle(color: Color(0xFF4CAF50)),
-                  ),
-                ),
-              ],
-            ),
-            _buildInsightCard(aiTag, aiTitle, aiDesc),
-            const SizedBox(height: 30),
-
+           
             // 5. Today's Breakdown (Macros)
-            const Text(
-              "Breakdown Summary",
+             Text(
+              'insights_screen.breakdown_summary'.tr(),
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             _buildMacroRow(
-              "Carbohydrates",
+              'insights_screen.carbohydrates'.tr(),
               carbInt,
               carbTgt,
               const Color(0xFFFFEBEE),
               Colors.pinkAccent,
             ),
             _buildMacroRow(
-              "Protein",
+              'insights_screen.protein'.tr(),
               protInt,
               protTgt,
               const Color(0xFFE8F5E9),
               Colors.green,
             ),
             _buildMacroRow(
-              "Fats",
+              'insights_screen.fats'.tr(),
               fatInt,
               fatTgt,
               const Color(0xFFE3F2FD),
@@ -290,10 +273,10 @@ class _InsightsScreenState extends State<InsightsScreen> {
         child: DropdownButton<String>(
           value: _selectedRange,
           icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
-          items: const [
-            DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-            DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+          style:  TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
+          items:  [
+            DropdownMenuItem(value: 'weekly', child: Text('insights_screen.weekly'.tr())),
+            DropdownMenuItem(value: 'monthly', child: Text('insights_screen.monthly'.tr())),
           ],
           onChanged: (val) {
             if (val != null) {
@@ -413,7 +396,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: ["Weight", "Calories", "Macros"].asMap().entries.map((entry) {
+            children: ['insights_screen.weight_tab'.tr(), 'insights_screen.calories_tab'.tr(), 'insights_screen.macros_tab'.tr()].asMap().entries.map((entry) {
               bool isSelected = selectedTab == entry.key;
               return GestureDetector(
                 onTap: () => setState(() => selectedTab = entry.key),
@@ -543,9 +526,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
           ),
           const SizedBox(height: 12),
           Row(
-            children: const [
+            children:  [
               Text(
-                "See Details",
+                'insights_screen.see_details'.tr(),
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
               ),
               Icon(Icons.arrow_forward, size: 16),

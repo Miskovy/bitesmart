@@ -656,7 +656,7 @@ class HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    mealType,
+                    _getMealTypeTranslation(mealType),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
@@ -752,7 +752,7 @@ class HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$quantityStr $unitStr · $mealType',
+                      '$quantityStr $unitStr · ${_getMealTypeTranslation(mealType)}',
                       style: const TextStyle(
                         color: Colors.grey,
                         fontSize: 12,
@@ -900,7 +900,7 @@ class _AddMealBottomSheetState extends State<AddMealBottomSheet> {
         _saving = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error adding meal: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('${'home.error_adding'.tr()} $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -922,7 +922,7 @@ class _AddMealBottomSheetState extends State<AddMealBottomSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Log ${widget.mealType}',
+                "${'home.log_meal'.tr()} ${_getMealTypeTranslation(widget.mealType)}",
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               IconButton(
@@ -935,7 +935,7 @@ class _AddMealBottomSheetState extends State<AddMealBottomSheet> {
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Search food database...',
+              hintText: 'home.search_hint'.tr(),
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
               suffixIcon: Row(
@@ -989,7 +989,7 @@ class _AddMealBottomSheetState extends State<AddMealBottomSheet> {
                   ),
                   TextButton(
                     onPressed: () => setState(() => _selectedFood = null),
-                    child: const Text('Change'),
+                    child: Text('home.change'.tr()),
                   ),
                 ],
               ),
@@ -1002,7 +1002,7 @@ class _AddMealBottomSheetState extends State<AddMealBottomSheet> {
                     controller: _quantityController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
-                      labelText: 'Portion size',
+                      labelText: 'home.portion_size'.tr(),
                       suffixText: 'g',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                     ),
@@ -1022,8 +1022,8 @@ class _AddMealBottomSheetState extends State<AddMealBottomSheet> {
                 ),
                 child: _saving
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        'Add to Log',
+                    :  Text(
+                        'home.add_to_log'.tr(),
                         style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
@@ -1034,7 +1034,7 @@ class _AddMealBottomSheetState extends State<AddMealBottomSheet> {
               child: _searchResults.isEmpty
                   ? Center(
                       child: Text(
-                        'No food items found',
+                        'home.no_food_found'.tr(),
                         style: TextStyle(color: Colors.grey[500], fontSize: 14),
                       ),
                     )
@@ -1060,7 +1060,7 @@ class _AddMealBottomSheetState extends State<AddMealBottomSheet> {
                             item.name,
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
-                          subtitle: Text('${item.caloriesPer100g.toInt()} kcal per 100g'),
+                          subtitle: Text('${item.caloriesPer100g.toInt()} ${'home.kcal_per_100g'.tr()}'),
                           trailing: const Icon(Icons.add_circle_outline, color: Color(0xFF388E3C)),
                           onTap: () {
                             setState(() {
@@ -1075,5 +1075,22 @@ class _AddMealBottomSheetState extends State<AddMealBottomSheet> {
         ],
       ),
     );
+  }
+}
+
+
+String _getMealTypeTranslation(String mealType) {
+  switch (mealType.toLowerCase()) {
+    case 'breakfast':
+      return 'home.breakfast'.tr();
+    case 'lunch':
+      return 'home.lunch'.tr();
+    case 'dinner':
+      return 'home.dinner'.tr();
+    case 'snack':
+    case 'snacks':
+      return 'home.snacks'.tr();
+    default:
+      return mealType;
   }
 }

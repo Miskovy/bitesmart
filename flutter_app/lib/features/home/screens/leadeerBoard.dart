@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:bite_smart/features/home/data/repositories/engagement_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class LeaderboardUser {
   final String name;
@@ -266,9 +267,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       child: Row(
         children: [
           _iconBtn(Icons.arrow_back_ios_new_rounded),
-          const Expanded(
+           Expanded(
             child: Text(
-              'Leaderboard',
+              'leaderboard.title'.tr(),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 18,
@@ -311,7 +312,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
-          children: ['Global', 'Friends'].asMap().entries.map((entry) {
+          children: ['leaderboard.global'.tr(), 'leaderboard.friends'.tr()].asMap().entries.map((entry) {
             final selected = entry.key == _selectedTab;
             return Expanded(
               child: GestureDetector(
@@ -644,7 +645,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                     ),
                   ),
                   Text(
-                    'Top ${_data!.userPercentile}% players',
+                    'leaderboard.top_percentile'.tr(namedArgs: {'percent': _data!.userPercentile.toString()}),
                     style: const TextStyle(
                       color: Color(0xFF888888),
                       fontSize: 11,
