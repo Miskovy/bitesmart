@@ -2,6 +2,7 @@ import 'package:bite_smart/features/profile/data/repositories/settings_repositor
 import 'package:bite_smart/features/home/data/repositories/symptom_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class Glp1SettingsScreen extends StatefulWidget {
   const Glp1SettingsScreen({super.key});
@@ -22,10 +23,10 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
   int reminderHours = 2;
 
   final List<Map<String, dynamic>> nauseaLevels = [
-    {'label': 'None', 'icon': Icons.sentiment_satisfied_alt},
-    {'label': 'Mild', 'icon': Icons.sentiment_neutral},
-    {'label': 'Mod', 'icon': Icons.sentiment_dissatisfied},
-    {'label': 'Severe', 'icon': Icons.sentiment_very_dissatisfied},
+    {'label': 'glp_mode.none'.tr(), 'icon': Icons.sentiment_satisfied_alt},
+    {'label': 'glp_mode.mild'.tr(), 'icon': Icons.sentiment_neutral},
+    {'label': 'glp_mode.mod'.tr(), 'icon': Icons.sentiment_dissatisfied},
+    {'label': 'glp_mode.severe'.tr(), 'icon': Icons.sentiment_very_dissatisfied},
   ];
 
   @override
@@ -84,8 +85,8 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('GLP-1 settings saved successfully!'),
+           SnackBar(
+            content: Text('glp_mode.saved_success'.tr()),
             backgroundColor: Color(0xFF4CAF50),
           ),
         );
@@ -95,7 +96,7 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error saving settings: $e'),
+            content: Text("${'glp_mode.save_error'.tr()} $e"),
             backgroundColor: Colors.red,
           ),
         );
@@ -129,8 +130,8 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.grey),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          "GLP-1 Settings",
+        title:  Text(
+          'glp_mode.title'.tr(),
           style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -153,13 +154,13 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
                           child: Icon(Icons.medication_liquid_rounded, color: Color(0xFF4CAF50), size: 28),
                         ),
                         const SizedBox(height: 16),
-                        const Text(
-                          "Configure Your Mode",
+                         Text(
+                          'glp_mode.configure_mode'.tr(),
                           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF111827)),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          "Customize your experience to support your medication journey. We'll adjust your macro targets and reminders accordingly.",
+                         Text(
+                          'glp_mode.customize_desc'.tr(),
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.4),
                         ),
@@ -170,7 +171,7 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
 
                   // 2. Enable GLP-1 Mode toggle tile
                   _buildToggleTile(
-                    "Enable GLP-1 Mode",
+                    'glp_mode.enable_mode'.tr(),
                     isGlpModeEnabled,
                     (val) => setState(() => isGlpModeEnabled = val),
                     isMainSwitch: true,
@@ -185,14 +186,14 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text("NUTRITION TARGETS", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                           Text('glp_mode.nutrition_targets'.tr(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
                           const SizedBox(height: 10),
 
                           // 3. High-Protein Goal card
                           _buildProteinCard(),
 
                           const SizedBox(height: 24),
-                          const Text("DAILY CHECK-IN", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                           Text('glp_mode.daily_checkin'.tr(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
                           const SizedBox(height: 12),
 
                           // 4. Nausea level selector card
@@ -204,7 +205,7 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
                           _buildAppetiteSlider(),
 
                           const SizedBox(height: 24),
-                          const Text("HYDRATION", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                           Text('glp_mode.hydration'.tr(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
                           const SizedBox(height: 12),
 
                           // 6. Water hydration reminders card
@@ -262,12 +263,12 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
             children: [
               const CircleAvatar(backgroundColor: Color(0xFFFFF3E0), child: Icon(Icons.egg_alt_rounded, color: Colors.orange)),
               const SizedBox(width: 12),
-              const Expanded(
+               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("High-Protein Goal", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    Text("Crucial for muscle maintenance", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    Text('glp_mode.high_protein_goal'.tr(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    Text('glp_mode.high_protein_desc'.tr(), style: TextStyle(color: Colors.grey, fontSize: 12)),
                   ],
                 ),
               ),
@@ -279,8 +280,8 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
             children: [
               const Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 18),
               const SizedBox(width: 8),
-              const Expanded(
-                child: Text("Target adjusted to 1.6g/kg to prevent muscle loss while on GLP-1.", style: TextStyle(fontSize: 12, color: Colors.black87)),
+               Expanded(
+                child: Text('glp_mode.target_adjusted'.tr(), style: TextStyle(fontSize: 12, color: Colors.black87)),
               ),
             ],
           ),
@@ -299,7 +300,7 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Nausea Level", style: TextStyle(fontWeight: FontWeight.bold)),
+               Text('glp_mode.nausea_level'.tr(), style: TextStyle(fontWeight: FontWeight.bold)),
               Text(nauseaLevels[selectedNauseaIndex]['label'], style: const TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.bold)),
             ],
           ),
@@ -343,11 +344,11 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Appetite", style: TextStyle(fontWeight: FontWeight.bold)),
+               Text('glp_mode.appetite'.tr(), style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(6)),
-                child: Text("Level ${appetiteLevel.toInt()}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                child: Text("${'glp_mode.level'.tr()} ${appetiteLevel.toInt()}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -356,14 +357,14 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
             min: 1,
             max: 4,
             activeColor: const Color(0xFF4CAF50),
-            inactiveColor: const Color(0xFFE0E0E0),
+            inactiveColor:  Color(0xFFE0E0E0),
             onChanged: (val) => setState(() => appetiteLevel = val),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text("No Appetite", style: TextStyle(fontSize: 10, color: Colors.grey)),
-              Text("Ravenous", style: TextStyle(fontSize: 10, color: Colors.grey)),
+            children:  [
+              Text('glp_mode.no_appetite'.tr(), style: TextStyle(fontSize: 10, color: Colors.grey)),
+              Text('glp_mode.ravenous'.tr(), style: TextStyle(fontSize: 10, color: Colors.grey)),
             ],
           ),
         ],
@@ -383,8 +384,8 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Smart Reminders", style: TextStyle(fontWeight: FontWeight.bold)),
-                Text("Every $reminderHours hours", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                 Text('glp_mode.smart_reminders'.tr(), style: TextStyle(fontWeight: FontWeight.bold)),
+                Text("${'glp_mode.every_hours'.tr()} $reminderHours ${'glp_mode.hours'.tr()}", style: const TextStyle(color: Colors.grey, fontSize: 12)),
               ],
             ),
           ),
@@ -407,9 +408,9 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
         children: [
           const Icon(Icons.info, color: Colors.orange, size: 20),
           const SizedBox(width: 10),
-          const Expanded(
+           Expanded(
             child: Text(
-              "Medical Disclaimer: These settings are for tracking purposes only. Always follow the dosage and dietary advice prescribed by your healthcare provider.",
+              'glp_mode.medical_disclaimer'.tr(),
               style: TextStyle(fontSize: 11, color: Colors.black87),
             ),
           ),
@@ -439,7 +440,7 @@ class _Glp1SettingsScreenState extends State<Glp1SettingsScreen> {
                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
               )
             else ...[
-              const Text("Save Settings", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+               Text('glp_mode.save_settings'.tr(), style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(width: 8),
               const Icon(Icons.check, color: Colors.white, size: 20),
             ]

@@ -16,8 +16,8 @@ class Welcomescreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               image: DecorationImage(
-                image: const NetworkImage(
-                  "https://i.postimg.cc/X7JcDHNp/Background-Image-Container.jpg",
+                image: const AssetImage(
+                  "assets/image2.jpg",
                 ),
                 fit: BoxFit.cover,
                 onError: (exception, stackTrace) {

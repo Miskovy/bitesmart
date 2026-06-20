@@ -167,10 +167,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // ── Name & goal ─────────────────────────────────────────────
                 BlocBuilder<ProfileBloc, ProfileState>(
                   builder: (context, state) {
-                    String name = 'user name';
-                    String subText = 'Goal: Maintenance Phase';
+                    String name = 'profile_screen.user_name'.tr();
+                    String subText = 'profile_screen.goal_maintenance'.tr();
                     if (state is ProfileLoaded) {
-                      name = state.displayName ?? 'user name';
+                      name = state.displayName ?? 'profile_screen.user_name'.tr();
                       if (state.userGoal != null && state.userGoal!.isNotEmpty) {
                         subText = 'Goal: ${state.userGoal}';
                       } else {
@@ -227,8 +227,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       borderRadius: BorderRadius.circular(24),
                     ),
                   ),
-                  child: const Text(
-                    'Edit Profile',
+                  child:  Text(
+                    'profile_screen.edit_profile'.tr(),
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                   ),
                 ),
@@ -290,11 +290,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     return Row(
                       children: [
-                        _statCard(streak, 'STREAK'),
+                        _statCard(streak, 'profile_screen.streak'.tr()),
                         const SizedBox(width: 10),
-                        _statCard(lbsLost, 'LBS LOST'),
+                        _statCard(lbsLost, 'profile_screen.lbs_lost'.tr()),
                         const SizedBox(width: 10),
-                        _statCard(healthScore, 'HEALTH\nSCORE'),
+                        _statCard(healthScore, 'profile_screen.health_score'.tr()),
                       ],
                     );
                   },
@@ -318,8 +318,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: Icons.insights,
                         iconColor: const Color(0xFF2d7a4f),
                         iconBg: const Color(0xFFFFE8E8),
-                        title: 'Insights',
-                        subtitle: 'Your all data insights & progress',
+                        title: 'profile_screen.insights_title'.tr(),
+                        subtitle: 'profile_screen.insights_sub'.tr(),
                         subtitleColor: const Color(0xFF888888),
                         trailing: const Icon(
                           Icons.chevron_right_rounded,
@@ -337,8 +337,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: Icons.calendar_month_outlined,
                         iconColor: const Color.fromARGB(255, 230, 232, 230),
                         iconBg: const Color.fromARGB(255, 23, 86, 26),
-                        title: 'My Plan',
-                        subtitle: 'Your dishes, meals & workout plan',
+                        title: 'profile_screen.my_plan_title'.tr(),
+                        subtitle: 'profile_screen.my_plan_sub'.tr(),
                         subtitleColor: const Color(0xFF888888),
                         trailing: const Icon(
                           Icons.chevron_right_rounded,
@@ -358,8 +358,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: Icons.medication_rounded,
                         iconColor: const Color(0xFF378ADD),
                         iconBg: const Color(0xFFE8F4FF),
-                        title: 'GLP-1 Mode',
-                        subtitle: 'Adjusts nutrition targets',
+                        title: 'profile_screen.glp1_title'.tr(),
+                        subtitle: 'profile_screen.glp1_sub'.tr(),
                         subtitleColor: const Color(0xFF888888),
                         trailing: const Icon(
                           Icons.chevron_right_rounded,
@@ -378,7 +378,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: Icons.language_rounded,
                         iconColor: const Color(0xFF534AB7),
                         iconBg: const Color(0xFFEEEEFE),
-                        title: 'Language',
+                        title: 'profile_screen.language'.tr(),
                         subtitle: null,
                         subtitleColor: null,
                         trailing: DropdownButton<String>(
@@ -389,18 +389,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             size: 18,
                             color: Color(0xFFCCCCCC),
                           ),
-                          style: const TextStyle(
+                          style:  TextStyle(
                             fontSize: 13,
                             color: Color(0xFF888888),
                           ),
-                          items: const [
+                          items:  [
                             DropdownMenuItem(
                               value: 'en',
-                              child: Text('English 🇺🇸'),
+                              child: Text('profile_screen.en'.tr()),
                             ),
                             DropdownMenuItem(
                               value: 'ar',
-                              child: Text('العربية 🇪🇬'),
+                              child: Text('profile_screen.ar'.tr()),
                             ),
                           ],
                           onChanged: (val) {

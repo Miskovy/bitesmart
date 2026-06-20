@@ -72,9 +72,7 @@ class _LoginscreenState extends State<Loginscreen> {
           },
           child: Center(
             child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: 30.0, vertical: 20.0).copyWith(
-                bottom: 20.0 + MediaQuery.of(context).viewInsets.bottom,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 20.0),
               child: Form(
                 key: _formKey,
                 child: Column(
