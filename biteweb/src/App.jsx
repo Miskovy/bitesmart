@@ -39,13 +39,25 @@ const EP = {
   PREDICT: `${BASE}/prediction/ar`,
   CALIBRATE: `${BASE}/prediction/callibration`,
   CORRECT: (id) => `${BASE}/prediction/correct/${id}`,
+
+  // Insights
+  INSIGHTS: `${BASE}/insights`,
+
+  // Profile
+  PROFILE: `${BASE}/profile`,
 };
 
 /* ─── Token ─── */
 const Token = {
   get: () => localStorage.getItem("bs_token"),
   set: (v) => localStorage.setItem("bs_token", v),
-  clear: () => localStorage.removeItem("bs_token"),
+  clear: () => { localStorage.removeItem("bs_token"); localStorage.removeItem("bs_user"); },
+};
+
+/* ─── User persistence ─── */
+const UserStore = {
+  get: () => { try { return JSON.parse(localStorage.getItem("bs_user") || "null"); } catch { return null; } },
+  set: (u) => { if (u) localStorage.setItem("bs_user", JSON.stringify(u)); },
 };
 
 /* ─── Fetch wrapper ─── */
@@ -123,6 +135,34 @@ const PredictionAPI = {
     api(EP.CORRECT(trainingDataId), { method: "PUT", body: JSON.stringify({ correct_label: correctLabel }) }),
 };
 
+/* ─── Insights ─── */
+const InsightsAPI = {
+  get: (period = "Weekly") => api(`${EP.INSIGHTS}?period=${period}`),
+};
+
+/* ─── Water Intake ─── */
+const WaterAPI = {
+  get: () => api(`${EP.GET_WATER}?date=${getTodayDate()}`),
+  log: (amountMl) => api(EP.LOG_WATER, {
+    method: "POST",
+    body: JSON.stringify({ amount_ml: amountMl, dateStr: getTodayDate() })
+  }),
+};
+
+/* ─── Profile ─── */
+const ProfileAPI = {
+  get: () => api(EP.PROFILE),
+};
+
+/* ─── Completion ─── */
+const CompletionAPI = {
+  get: () => api(`${EP.GET_COMPLETION}?date=${getTodayDate()}`),
+  complete: () => api(EP.GET_COMPLETION, {
+    method: "POST",
+    body: JSON.stringify({ date: getTodayDate() })
+  }),
+};
+
 /* ─── Helpers ─── */
 function extractAuth(data) {
   const nested = data?.data || {};
@@ -154,6 +194,19 @@ function extractArray(obj) {
 function normalizeMeal(r) {
   if (!r) return null;
   
+  const formatTime = (val) => {
+    if (!val || typeof val !== 'string') return "";
+    if (val.includes("T")) {
+      try {
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+      } catch (e) {}
+    }
+    return val;
+  };
+
   // 1. Look for 'foodName' based on your successful API response
   let extractedName = r.foodName || r.name || r.meal_name || r.foodItem?.name || "Logged Meal";
   
@@ -174,8 +227,12 @@ function normalizeMeal(r) {
     protein: Math.round(Number(r.protein || r.protein_g || nutrition.protein || 0)),
     carbs: Math.round(Number(r.carbs || r.carbs_g || nutrition.carbs || 0)),
     fat: Math.round(Number(r.fat || r.fats || r.fat_g || nutrition.fats || 0)),
-    time: String(r.time || r.dateStr || r.logged_at || r.created_at || "—"),
+    time: String(formatTime(r.time || r.loggedAt || r.logged_at) || r.dateStr || r.created_at || "—"),
+    mealType: String(r.mealType || r.meal_type || ""),
+    quantity: Number(r.quantity || 1),
+    unit: String(r.unit || "g"),
     emoji: String(r.emoji || "🍽️"),
+    foodItemId: r.foodItemId || r.food_item_id || (r.food && (r.food.id || r.food.foodItemId)) || null,
   };
 }
 function normalizeMsg(r) {
@@ -482,6 +539,8 @@ function AuthPage({ setPage, setAuthed, setCurrentUser, darkMode, isSignup, setD
       } else {
         console.warn("[Auth Submit] No token was extracted to save!");
       }
+      // ✅ Persist user data (name, email, etc.) so it survives page refresh
+      UserStore.set(user);
       setCurrentUser(user);
       setAuthed(true);
       setPage("dashboard");
@@ -608,18 +667,147 @@ function Sidebar({ page, setPage, setAuthed, darkMode, setDarkMode }) {
 function Dashboard({ darkMode, currentUser }) {
   const t = darkMode ? T.d : T.l;
   const [water, setWater] = useState(6);
+  const [insights, setInsights] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [completion, setCompletion] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
-  // 🔴 FIX: Safely retrieve the user's name to prevent crash if currentUser is a nested object
-  let rawName = currentUser?.name || currentUser?.full_name || currentUser?.username || "there";
+  // ✅ Get the user's name: first from login response, then from /profile API, then fallback
+  let rawName = currentUser?.name || currentUser?.full_name || currentUser?.username
+    || profile?.name || profile?.full_name || "there";
   if (typeof rawName !== 'string') rawName = "there"; 
   const name = String(rawName);
 
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [insightsRes, waterRes, profileRes, completionRes] = await Promise.allSettled([
+        InsightsAPI.get("Weekly"),
+        WaterAPI.get(),
+        ProfileAPI.get(),
+        CompletionAPI.get()
+      ]);
+
+      if (insightsRes.status === 'fulfilled' && insightsRes.value && insightsRes.value.success) {
+        setInsights(insightsRes.value.data);
+        setError(null);
+      } else {
+        const errMsg = insightsRes.status === 'rejected'
+          ? insightsRes.reason?.message
+          : insightsRes.value?.message || "Failed to load insights";
+        throw new Error(errMsg);
+      }
+
+      if (waterRes.status === 'fulfilled' && waterRes.value && waterRes.value.success) {
+        const rawData = waterRes.value.data;
+        const totalMl = rawData?.totalConsumed || rawData?.total_consumed || 0;
+        setWater(Math.round(totalMl / 250));
+      }
+
+      if (profileRes.status === 'fulfilled' && profileRes.value && profileRes.value.success) {
+        const rawData = profileRes.value.data;
+        const profileData = rawData?.data || rawData || {};
+        setProfile(profileData);
+      }
+
+      if (completionRes.status === 'fulfilled' && completionRes.value && completionRes.value.success) {
+        const cData = completionRes.value.data?.data || completionRes.value.data || {};
+        setCompletion(cData);
+      }
+    } catch (err) {
+      console.error("Failed to fetch dashboard data:", err);
+      setError(err.message || "Failed to load dashboard insights");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const handleWaterClick = async (newWaterCount) => {
+    if (newWaterCount <= water) {
+      // Do nothing, cannot decrease water intake!
+      return;
+    }
+    setWater(newWaterCount);
+    try {
+      await WaterAPI.log(newWaterCount * 250);
+    } catch (err) {
+      console.error("Failed to log water intake:", err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ flex: 1, padding: "32px 28px", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: t.bg, minHeight: "100vh", gap: 16 }}>
+        <Spinner size={32} color="#10b981" />
+        <div style={{ color: t.t2, fontSize: 14 }}>Loading your health insights...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ flex: 1, padding: "32px 28px", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: t.bg, minHeight: "100vh", gap: 16 }}>
+        <span style={{ fontSize: 40 }}>⚠️</span>
+        <div style={{ color: t.t, fontSize: 16, fontWeight: 700 }}>Failed to load insights</div>
+        <div style={{ color: t.t3, fontSize: 13, textAlign: 'center', maxWidth: 400 }}>{error}</div>
+        <button onClick={fetchDashboardData} className="btn-g" style={{ padding: '8px 24px', borderRadius: 8, fontSize: 14, marginTop: 8 }}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const formatDay = (dateStr) => {
+    try {
+      const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const d = new Date(dateStr);
+      return days[d.getDay()];
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const latestWeightRecord = insights?.weightGraph?.[insights.weightGraph.length - 1];
+  const weightVal = latestWeightRecord ? `${latestWeightRecord.weight} kg` : "85 kg";
+  const weightChange = insights?.weightChange || 0;
+  const weightSub = `${weightChange >= 0 ? '+' : ''}${weightChange} kg this period`;
+
+  const todayRecord = insights?.periodData?.find(d => d.date === getTodayDate()) || insights?.periodData?.[insights.periodData.length - 1] || { calories: 0, carbs: 0, protein: 0, fats: 0 };
+  const todayCalories = completion?.consumed?.calories !== undefined ? completion.consumed.calories : (todayRecord.calories || 0);
+  const targetCalories = completion?.target?.calories || profile?.targets?.calTotal || currentUser?.targets?.calTotal || 2000;
+  const pctCalories = Math.min(Math.round((todayCalories / targetCalories) * 100), 100);
+
   const cards = [
-    { icon: <Flame size={20} />, label: "Calories Today", val: "1,780", sub: "of 2,000 goal", color: "#f59e0b", pct: 89 },
+    { icon: <Flame size={20} />, label: "Calories Today", val: todayCalories.toLocaleString(), sub: `of ${targetCalories.toLocaleString()} kcal`, color: "#f59e0b", pct: pctCalories },
     { icon: <Activity size={20} />, label: "Active Minutes", val: "42", sub: "of 60 goal", color: "#10b981", pct: 70 },
     { icon: <Droplets size={20} />, label: "Water Intake", val: `${water} glasses`, sub: "of 8 goal", color: "#3b82f6", pct: Math.round(water / 8 * 100) },
-    { icon: <TrendingUp size={20} />, label: "Weight", val: "79.2 kg", sub: "−2.8 kg this month", color: "#a855f7", pct: 72 },
+    { icon: <TrendingUp size={20} />, label: "Weight", val: weightVal, sub: weightSub, color: "#a855f7", pct: 72 },
   ];
+
+  const weekCals = insights?.periodData?.map(d => ({
+    d: formatDay(d.date),
+    c: d.calories
+  })) || [];
+
+  const wtProg = insights?.weightGraph?.map((w) => ({
+    w: formatDay(w.date),
+    kg: w.weight
+  })) || [];
+
+  const todayMacros = {
+    protein: completion?.consumed?.protein !== undefined ? completion.consumed.protein : (insights?.todayBreakdown?.protein || 0),
+    carbs: completion?.consumed?.carbs !== undefined ? completion.consumed.carbs : (insights?.todayBreakdown?.carbohydrates || 0),
+    fats: completion?.consumed?.fats !== undefined ? completion.consumed.fats : (insights?.todayBreakdown?.fats || 0)
+  };
+
+  const targetProtein = completion?.target?.protein || profile?.targets?.proteins || currentUser?.targets?.proteins || 120;
+  const targetCarbs = completion?.target?.carbs || profile?.targets?.carbs || currentUser?.targets?.carbs || 250;
+  const targetFats = completion?.target?.fats || profile?.targets?.fats || 65;
 
   return (
     <div style={{ flex: 1, padding: "32px 28px", overflowY: "auto", background: t.bg, minHeight: "100vh" }}>
@@ -667,7 +855,7 @@ function Dashboard({ darkMode, currentUser }) {
 
         <div className={`${t.gl}`} style={{ borderRadius: 16, padding: "20px" }}>
           <h3 className="fs" style={{ fontSize: 16, fontWeight: 700, color: t.t, margin: "0 0 4px" }}>Weight Progress</h3>
-          <p style={{ fontSize: 12, color: t.t3, margin: "0 0 16px" }}>8-week journey</p>
+          <p style={{ fontSize: 12, color: t.t3, margin: "0 0 16px" }}>Weight journey</p>
           <ResponsiveContainer width="100%" height={180}>
             <AreaChart data={wtProg} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
               <defs>
@@ -691,7 +879,7 @@ function Dashboard({ darkMode, currentUser }) {
           <h3 className="fs" style={{ fontSize: 16, fontWeight: 700, color: t.t, margin: "0 0 16px" }}>Hydration</h3>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
             {[...Array(8)].map((_, i) => (
-              <button key={i} onClick={() => setWater(i < water ? i : i + 1)} className="btn-o"
+              <button key={i} onClick={() => handleWaterClick(i < water ? i : i + 1)} className="btn-o"
                 style={{
                   width: 36, height: 36, borderRadius: 10, border: "none", fontSize: 18, cursor: "pointer",
                   background: i < water ? "rgba(59,130,246,.2)" : "rgba(255,255,255,.06)",
@@ -708,9 +896,9 @@ function Dashboard({ darkMode, currentUser }) {
           <h3 className="fs" style={{ fontSize: 16, fontWeight: 700, color: t.t, margin: "0 0 16px" }}>Today's Macros</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {[
-              { label: "Protein", val: 82, goal: 120, color: "#22d3ee", unit: "g" },
-              { label: "Carbs", val: 210, goal: 250, color: "#f59e0b", unit: "g" },
-              { label: "Fats", val: 54, goal: 65, color: "#a855f7", unit: "g" },
+              { label: "Protein", val: todayMacros.protein, goal: targetProtein, color: "#22d3ee", unit: "g" },
+              { label: "Carbs", val: todayMacros.carbs, goal: targetCarbs, color: "#f59e0b", unit: "g" },
+              { label: "Fats", val: todayMacros.fats, goal: targetFats, color: "#a855f7", unit: "g" },
             ].map(m => (
               <div key={m.label}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 13 }}>
@@ -740,6 +928,8 @@ function Dashboard({ darkMode, currentUser }) {
 function CalorieTracker({ darkMode, addToast }) {
   const t = darkMode ? T.d : T.l;
   const [meals, setMeals] = useState([]);
+  const [profile, setProfile] = useState(null);
+  const [completion, setCompletion] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -751,6 +941,7 @@ function CalorieTracker({ darkMode, addToast }) {
   const [foodWidth, setFoodWidth] = useState(""); 
   const [analyzing, setAnalyzing] = useState(false);
   const [snapRes, setSnapRes] = useState(null);
+  const [foodDetailsMap, setFoodDetailsMap] = useState({});
   
   const cameraRef = useRef(null);
   const galleryRef = useRef(null);
@@ -763,22 +954,61 @@ function CalorieTracker({ darkMode, addToast }) {
   const [showCalibrate, setShowCalibrate] = useState(false);
   const [calibData, setCalibData] = useState("");
 
-  const GOAL = 2000;
+  const targetCalories = completion?.target?.calories || profile?.targets?.calTotal || 2000;
+  const targetProtein = completion?.target?.protein || profile?.targets?.proteins || 120;
+  const targetCarbs = completion?.target?.carbs || profile?.targets?.carbs || 250;
+  const targetFats = completion?.target?.fats || profile?.targets?.fats || 65;
+
   const totals = {
-    cal: meals.reduce((a, m) => a + m.cal, 0),
-    protein: meals.reduce((a, m) => a + m.protein, 0),
-    carbs: meals.reduce((a, m) => a + m.carbs, 0),
-    fat: meals.reduce((a, m) => a + m.fat, 0),
+    cal: completion?.consumed?.calories !== undefined ? completion.consumed.calories : meals.reduce((a, m) => a + m.cal, 0),
+    protein: completion?.consumed?.protein !== undefined ? completion.consumed.protein : meals.reduce((a, m) => a + m.protein, 0),
+    carbs: completion?.consumed?.carbs !== undefined ? completion.consumed.carbs : meals.reduce((a, m) => a + m.carbs, 0),
+    fat: completion?.consumed?.fats !== undefined ? completion.consumed.fats : meals.reduce((a, m) => a + m.fat, 0),
+  };
+
+  const loadCompletion = async () => {
+    try {
+      const res = await CompletionAPI.get();
+      if (res && res.success) {
+        setCompletion(res.data?.data || res.data || {});
+      }
+    } catch (e) {
+      console.error("Failed to load completion summary:", e);
+    }
+  };
+
+  const loadMeals = async () => {
+    try {
+      const data = await MealsAPI.list();
+      const raw = extractArray(data, ["meals", "items", "logs", "mealLogs"]);
+      setMeals(raw.map(normalizeMeal).filter(Boolean));
+    } catch (e) {
+      console.error("Failed to load meals:", e);
+    }
   };
 
   useEffect(() => {
     (async () => {
       try {
-        const data = await MealsAPI.list();
-        const raw = extractArray(data, ["meals", "items", "logs", "mealLogs"]);
+        const [mealsData, profileData, completionData] = await Promise.all([
+          MealsAPI.list(),
+          ProfileAPI.get(),
+          CompletionAPI.get()
+        ]);
+        const raw = extractArray(mealsData, ["meals", "items", "logs", "mealLogs"]);
         
         // 🔴 FIX: Filter out nulls natively to prevent crash if data is mangled
         setMeals(raw.map(normalizeMeal).filter(Boolean));
+
+        if (profileData && profileData.success) {
+          const pData = profileData.data?.data || profileData.data || {};
+          setProfile(pData);
+        }
+
+        if (completionData && completionData.success) {
+          const cData = completionData.data?.data || completionData.data || {};
+          setCompletion(cData);
+        }
       } catch (err) {
         addToast("Couldn't load meals — " + err.message, "error");
       } finally {
@@ -786,6 +1016,56 @@ function CalorieTracker({ darkMode, addToast }) {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!meals || meals.length === 0) return;
+    
+    // Find unique foodItemIds that are not yet loaded in foodDetailsMap
+    // Skip entries marked _isEstimated — those came from prediction macros and are more accurate
+    const missingIds = meals
+      .map(m => m.foodItemId)
+      .filter(id => id && (!foodDetailsMap[id] || (!foodDetailsMap[id]._isEstimated && !foodDetailsMap[id]._loaded)));
+      
+    const uniqueIds = [...new Set(missingIds)];
+    if (uniqueIds.length === 0) return;
+
+    (async () => {
+      const newDetails = { ...foodDetailsMap };
+      let updated = false;
+      
+      await Promise.all(
+        uniqueIds.map(async (id) => {
+          // Don't overwrite estimated prediction values with per-100g DB values
+          if (newDetails[id]?._isEstimated) return;
+          try {
+            const res = await api(`${BASE}/food/${id}`);
+            const envelope = res?.data || res;
+            let foodData = null;
+            if (envelope) {
+              foodData = envelope.food || envelope.data || envelope;
+            }
+            if (foodData) {
+              newDetails[id] = {
+                name: foodData.class_name || foodData.name || "Logged Food",
+                calories: Number(foodData.cals_per_100g || foodData.calories || foodData.calsPer100g || 0),
+                protein: Number(foodData.protein_per_100g || foodData.protein || foodData.proteinPer100g || 0),
+                carbs: Number(foodData.carbs_per_100g || foodData.carbs || foodData.carbsPer100g || 0),
+                fats: Number(foodData.fats_per_100g || foodData.fats || foodData.fatsPer100g || 0),
+                _loaded: true,
+              };
+              updated = true;
+            }
+          } catch (e) {
+            console.error(`Failed to fetch details for food item ID ${id}:`, e);
+          }
+        })
+      );
+      
+      if (updated) {
+        setFoodDetailsMap(newDetails);
+      }
+    })();
+  }, [meals]);
 
   const doAdd = async (src) => {
     if (!src.mealType || !src.quantity) {
@@ -800,9 +1080,26 @@ function CalorieTracker({ darkMode, addToast }) {
         mealType: src.mealType, 
         quantity: parseFloat(src.quantity)
       };
+
+      // ✅ Cache estimated macros from prediction into foodDetailsMap immediately
+      // so the Today's Meals card shows the real estimated values
+      if (src.foodItemId && (src.cal || src.protein || src.carbs || src.fat)) {
+        setFoodDetailsMap(prev => ({
+          ...prev,
+          [src.foodItemId]: {
+            name: src.name || "Logged Food",
+            calories: Number(src.cal || 0),
+            protein: Number(src.protein || 0),
+            carbs: Number(src.carbs || 0),
+            fats: Number(src.fat || 0),
+            _isEstimated: true,  // flag: came from prediction, not per-100g DB
+          }
+        }));
+      }
+
       const created = await MealsAPI.create(payload);
       
-      setMeals(p => [...p, normalizeMeal(created?.data || created)]);
+      await Promise.all([loadMeals(), loadCompletion()]);
       
       setNewMeal({ name: "", cal: "", protein: "", carbs: "", fat: "", time: "" });
       setShowForm(false);
@@ -822,6 +1119,7 @@ function CalorieTracker({ darkMode, addToast }) {
     setMeals(p => p.filter(m => m.id !== id));
     try {
       await MealsAPI.remove(id);
+      await Promise.all([loadMeals(), loadCompletion()]);
       addToast("Meal removed");
     } catch (err) {
       setMeals(prev);
@@ -857,17 +1155,27 @@ function CalorieTracker({ darkMode, addToast }) {
       const actualResult = rawData?.data?.data || rawData?.data || rawData;
       const getNum = (val1, val2, val3) => Math.round(Number(val1 || val2 || val3 || 0));
 
+      const estimatedWeight = actualResult?.measurements?.estimated_weight_g || null;
+
       setSnapRes({
         name: actualResult?.food_detected || actualResult?.meal_name || "Detected Meal",
         cal: getNum(actualResult?.macros?.calories, actualResult?.calories, actualResult?.cal),
         protein: getNum(actualResult?.macros?.protein_g, actualResult?.protein_g, actualResult?.protein),
         carbs: getNum(actualResult?.macros?.carbs_g, actualResult?.carbs_g, actualResult?.carbs),
         fat: getNum(actualResult?.macros?.fats_g, actualResult?.fats_g, actualResult?.fat),
-        emoji: "🍽️", 
-        
+        emoji: "🍽️",
+        // measurements from prediction
+        estimatedWeightG: estimatedWeight,
+        plateDiameterCm: actualResult?.measurements?.plate_diameter_cm || null,
+        estimatedVolumeCm3: actualResult?.measurements?.estimated_volume_cm3 || null,
         trainingDataId: actualResult?.training_data_id || actualResult?.trainingDataId,
         foodItemId: actualResult?.food_item_id || actualResult?.training_data_id
       });
+
+      // ✅ Auto-fill quantity with estimated weight from prediction
+      if (estimatedWeight) {
+        setQuantity(Math.round(estimatedWeight));
+      }
     } catch (err) {
       addToast("Analysis failed — " + err.message, "error");
     } finally {
@@ -940,10 +1248,10 @@ function CalorieTracker({ darkMode, addToast }) {
       {/* Summary */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
         {[
-          { l: "Calories", v: totals.cal, goal: GOAL, u: "kcal", c: "#10b981" },
-          { l: "Protein", v: totals.protein, goal: 120, u: "g", c: "#22d3ee" },
-          { l: "Carbs", v: totals.carbs, goal: 250, u: "g", c: "#f59e0b" },
-          { l: "Fats", v: totals.fat, goal: 65, u: "g", c: "#a855f7" },
+          { l: "Calories", v: totals.cal, goal: targetCalories, u: "kcal", c: "#10b981" },
+          { l: "Protein", v: totals.protein, goal: targetProtein, u: "g", c: "#22d3ee" },
+          { l: "Carbs", v: totals.carbs, goal: targetCarbs, u: "g", c: "#f59e0b" },
+          { l: "Fats", v: totals.fat, goal: targetFats, u: "g", c: "#a855f7" },
         ].map(({ l, v, goal, u, c }, i) => (
           <div key={i} className={t.gl} style={{ borderRadius: 14, padding: "16px" }}>
             <div style={{ fontSize: 12, color: t.t3, marginBottom: 4 }}>{l}</div>
@@ -1024,12 +1332,13 @@ function CalorieTracker({ darkMode, addToast }) {
 
           {snapRes && (
             <div className="asc" style={{ borderRadius: 12, padding: "18px 20px", background: darkMode ? "rgba(16,185,129,.08)" : "rgba(16,185,129,.06)", border: "1px solid rgba(16,185,129,.2)", marginBottom: 16 }}>
+              {/* Header: food name + total kcal */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 32 }}>{snapRes.emoji}</span>
                   <div>
                     <div style={{ fontWeight: 700, color: t.t, fontSize: 16 }}>{String(snapRes.name)}</div>
-                    <div style={{ fontSize: 12, color: t.t3 }}>AI estimated</div>
+                    <div style={{ fontSize: 12, color: "#10b981", fontWeight: 500 }}>✦ AI estimated macros</div>
                   </div>
                 </div>
                 <div className="fs" style={{ fontSize: 28, fontWeight: 800, color: "#10b981" }}>
@@ -1037,7 +1346,8 @@ function CalorieTracker({ darkMode, addToast }) {
                 </div>
               </div>
               
-              <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+              {/* Macros row */}
+              <div style={{ display: "flex", gap: 12, marginBottom: snapRes.estimatedWeightG ? 12 : 20 }}>
                 {[{ l: "Protein", v: snapRes.protein, c: "#22d3ee" }, { l: "Carbs", v: snapRes.carbs, c: "#f59e0b" }, { l: "Fat", v: snapRes.fat, c: "#a855f7" }].map(m => (
                   <div key={m.l} style={{ flex: 1, borderRadius: 8, padding: "10px", background: darkMode ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", textAlign: "center" }}>
                     <div style={{ fontSize: 18, fontWeight: 700, color: m.c }}>{m.v}g</div>
@@ -1046,6 +1356,26 @@ function CalorieTracker({ darkMode, addToast }) {
                 ))}
               </div>
 
+              {/* Measurements row (from prediction model) */}
+              {(snapRes.estimatedWeightG || snapRes.plateDiameterCm) && (
+                <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+                  {snapRes.estimatedWeightG && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: t.t2, background: darkMode ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 6, padding: "5px 10px" }}>
+                      ⚖️ <span style={{ fontWeight: 600, color: t.t }}>{Math.round(snapRes.estimatedWeightG)}g</span>&nbsp;estimated weight
+                    </div>
+                  )}
+                  {snapRes.plateDiameterCm && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: t.t2, background: darkMode ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 6, padding: "5px 10px" }}>
+                      🍽 <span style={{ fontWeight: 600, color: t.t }}>{snapRes.plateDiameterCm}cm</span>&nbsp;plate diameter
+                    </div>
+                  )}
+                  {snapRes.estimatedVolumeCm3 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: t.t2, background: darkMode ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 6, padding: "5px 10px" }}>
+                      📐 <span style={{ fontWeight: 600, color: t.t }}>{Math.round(snapRes.estimatedVolumeCm3)}cm³</span>&nbsp;volume
+                    </div>
+                  )}
+                </div>
+              )}
               <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
                 <select 
                   className={t.inp} 
@@ -1155,31 +1485,39 @@ function CalorieTracker({ darkMode, addToast }) {
       {/* 🔴 FIX: Mapped Meal List Fully Bulletproofed Against Object Renders */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <h3 className="fs" style={{ fontSize: 16, fontWeight: 700, color: t.t, marginBottom: 4 }}>Today's Meals</h3>
-        {meals.map((m, i) => (
-          <div key={m.id} className={`${t.gl} hvup asr`}
-            style={{ borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", gap: 16, animationDelay: `${i * 0.06}s` }}>
-            <div style={{ fontSize: 28 }}>{String(m.emoji)}</div>
-            <div style={{ flex: 1 }}>
-              {/* 🔴 FIX: Explicitly enforce String mapping here to prevent {id, name} object crash */}
-              <div style={{ fontWeight: 600, color: t.t, fontSize: 15, marginBottom: 2 }}>{String(m.name || "Meal")}</div>
-              <div style={{ fontSize: 12, color: t.t3, display: "flex", gap: 12 }}>
-                <span><Clock size={11} style={{ marginRight: 3 }} />{String(m.time)}</span>
-                <span style={{ color: "#10b981" }}>P: {Number(m.protein || 0)}g</span>
-                <span style={{ color: "#f59e0b" }}>C: {Number(m.carbs || 0)}g</span>
-                <span style={{ color: "#a855f7" }}>F: {Number(m.fat || 0)}g</span>
+        {meals.map((m, i) => {
+            const fd = foodDetailsMap[m.foodItemId] || {};
+            return (
+              <div key={m.id} className={`${t.gl} hvup asr`}
+                style={{ borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", gap: 16, animationDelay: `${i * 0.06}s` }}>
+                <div style={{ fontSize: 28 }}>{String(m.emoji)}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, color: t.t, fontSize: 15, marginBottom: 2 }}>
+                    {String(fd.name || m.name || "Meal")}
+                    {m.mealType && (
+                      <span style={{ fontSize: 11, color: t.t3, marginLeft: 8, fontWeight: 400 }}>
+                        ({m.mealType} - {m.quantity} {m.unit || 'g'})
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: t.t3, display: "flex", gap: 12 }}>
+                    <span><Clock size={11} style={{ marginRight: 3 }} />{String(m.time)}</span>
+                    <span style={{ color: "#10b981" }}>P: {Number(fd.protein || m.protein || 0)}g</span>
+                    <span style={{ color: "#f59e0b" }}>C: {Number(fd.carbs || m.carbs || 0)}g</span>
+                    <span style={{ color: "#a855f7" }}>F: {Number(fd.fats || m.fat || 0)}g</span>
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div className="fs" style={{ fontSize: 20, fontWeight: 700, color: "#10b981" }}>{Number(fd.calories || m.cal || 0)}</div>
+                  <div style={{ fontSize: 11, color: t.t3 }}>kcal</div>
+                </div>
+                <button onClick={() => doDelete(m.id)} className="btn-o"
+                  style={{ padding: 6, border: "none", borderRadius: 8, color: "#ef4444", opacity: .6 }}>
+                  <Trash2 size={15} />
+                </button>
               </div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div className="fs" style={{ fontSize: 20, fontWeight: 700, color: "#10b981" }}>{Number(m.cal || 0)}</div>
-              <div style={{ fontSize: 11, color: t.t3 }}>kcal</div>
-            </div>
-            <button onClick={() => doDelete(m.id)} className="btn-o"
-              style={{ padding: 6, border: "none", borderRadius: 8, color: "#ef4444", opacity: .6 }}>
-              <Trash2 size={15} />
-            </button>
-          </div>
-        ))}
-        {meals.length === 0 && (
+            );
+          })}        {meals.length === 0 && (
           <div style={{ textAlign: "center", padding: 40, color: t.t3 }}>No meals logged yet. Add your first meal above!</div>
         )}
       </div>
@@ -1510,7 +1848,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (Token.get()) { setAuthed(true); setPage("dashboard"); }
+    if (Token.get()) {
+      setAuthed(true);
+      setPage("dashboard");
+      // ✅ Restore saved user info (name etc.) from localStorage on refresh
+      const savedUser = UserStore.get();
+      if (savedUser) setCurrentUser(savedUser);
+    }
   }, []);
 
   const addToast = (msg, type = "success") => {
