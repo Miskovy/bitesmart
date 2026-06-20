@@ -370,26 +370,6 @@ class AuthRepository implements IAuthRepository {
       throw Exception('Apple Sign-In failed: $e');
     }
   }
-
-  Future<bool> _checkIfEmailExists(String email) async {
-    final normalized = email.trim().toLowerCase();
-    if (normalized == 'mo.khedr8118@gmail.com' ||
-        normalized == 'user@example.com') {
-      return true;
-    }
-    try {
-      final registeredEmailsStr =
-          await _secureStorage.read(key: 'registered_emails') ?? '';
-      final registeredEmails = registeredEmailsStr
-          .split(',')
-          .map((e) => e.trim().toLowerCase())
-          .toList();
-      return registeredEmails.contains(normalized);
-    } catch (_) {
-      return false;
-    }
-  }
-
   Future<void> _markEmailAsRegistered(String email) async {
     try {
       final normalized = email.trim().toLowerCase();
