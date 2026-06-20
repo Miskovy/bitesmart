@@ -106,7 +106,7 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           child: FractionallySizedBox(
-            widthFactor: 0.5,
+            widthFactor: 0.6,
             child: SizedBox(
               width: .6 * MediaQuery.of(context).size.width,
               height: 46,

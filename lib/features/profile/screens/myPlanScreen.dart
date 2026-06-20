@@ -218,8 +218,8 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0.5,
-          title: const Text(
-            "My Plan",
+          title:  Text(
+            'my_plan.title'.tr(),
             style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
           ),
           centerTitle: true,
@@ -253,8 +253,8 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    "Failed to load latest plan data",
+                                   Text(
+                                    'my_plan.failed_load'.tr(),
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,
@@ -288,8 +288,8 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                     ],
 
                     // 3. العنوان الرئيسي في أول البادي (This Week) 
-                    const Text(
-                      "This Week",
+                     Text(
+                      'my_plan.this_week'.tr(),
                       style: TextStyle(
                         fontSize: 22, 
                         fontWeight: FontWeight.bold, 
@@ -369,7 +369,7 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                         // Breakfast Section
                         if (breakfastMeals.isNotEmpty)
                           ...breakfastMeals.map((meal) => _buildMealSection(
-                            title: "Breakfast",
+                            title: "my_plan.breakfast".tr(),
                             time: DateFormat('hh:mm a').format(meal.dateTime),
                             mealName: meal.name,
                             calories: meal.calories,
@@ -377,12 +377,12 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                             imageUrl: meal.imageUrl ?? "https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&q=80&w=200",
                           ))
                         else
-                          _buildEmptyMealSection("Breakfast", "08:00 AM"),
+                          _buildEmptyMealSection("my_plan.breakfast".tr(), "08:00 AM"),
                         
                         // Lunch Section
                         if (lunchMeals.isNotEmpty)
                           ...lunchMeals.map((meal) => _buildMealSection(
-                            title: "Lunch",
+                            title: "my_plan.lunch".tr(),
                             time: DateFormat('hh:mm a').format(meal.dateTime),
                             mealName: meal.name,
                             calories: meal.calories,
@@ -391,12 +391,12 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                             hasDot: true,
                           ))
                         else
-                          _buildEmptyMealSection("Lunch", "01:00 PM"),
+                          _buildEmptyMealSection("my_plan.lunch".tr(), "01:00 PM"),
                         
                         // Dinner Section
                         if (dinnerMeals.isNotEmpty)
                           ...dinnerMeals.map((meal) => _buildMealSection(
-                            title: "Dinner",
+                            title: "my_plan.dinner".tr(),
                             time: DateFormat('hh:mm a').format(meal.dateTime),
                             mealName: meal.name,
                             calories: meal.calories,
@@ -404,19 +404,19 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                             imageUrl: meal.imageUrl ?? "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&q=80&w=200",
                           ))
                         else
-                          _buildEmptyMealSection("Dinner", "07:30 PM"),
+                          _buildEmptyMealSection("my_plan.dinner".tr(), "07:30 PM"),
                         
                         // Snacks Section
                         if (snackMeals.isNotEmpty)
                           ...snackMeals.map((meal) => _buildSnackSection(
-                            title: "Snacks",
+                            title: "my_plan.snacks".tr(),
                             time: DateFormat('hh:mm a').format(meal.dateTime),
                             mealName: meal.name,
                             calories: meal.calories,
                             imageUrl: meal.imageUrl ?? "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&q=80&w=200",
                           ))
                         else
-                          _buildEmptySnackSection("Snacks", "Anytime"),
+                          _buildEmptySnackSection("my_plan.snacks".tr(), "Anytime"),
                       ],
                     ),
                   ),
@@ -438,11 +438,11 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
+            children:  [
               Icon(Icons.auto_awesome, color: Color(0xFF4CAF50), size: 16),
               SizedBox(width: 6),
               Text(
-                "AI COACH",
+                'my_plan.ai_coach'.tr(),
                 style: TextStyle(color: Color(0xFF4CAF50), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
               ),
             ],
@@ -457,7 +457,7 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                 text: TextSpan(
                   children: [
                     TextSpan(text: "$consumedCalories ", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                    TextSpan(text: "/ $targetCalories kcal", style: const TextStyle(fontSize: 13, color: Colors.white60)),
+                    TextSpan(text: "/ $targetCalories ${'my_plan.kcal'.tr()}", style: const TextStyle(fontSize: 13, color: Colors.white60)),
                   ],
                 ),
               ),
@@ -465,7 +465,7 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text("Protein", style: TextStyle(color: Colors.white60, fontSize: 11)),
+                   Text('my_plan.protein'.tr(), style: TextStyle(color: Colors.white60, fontSize: 11)),
                   RichText(
                     text: TextSpan(
                       children: [
@@ -565,7 +565,7 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text("$calories kcal . ${protein}g Protein", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      Text("$calories ${'my_plan.kcal'.tr()} . ${protein}g ${'my_plan.protein'.tr()}", style: const TextStyle(color: Colors.grey, fontSize: 12)),
                       const SizedBox(height: 8),
                       // زر الـ Recipe
                       GestureDetector(
@@ -575,10 +575,10 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                           decoration: BoxDecoration(color: const Color(0xFFF4F6F4), borderRadius: BorderRadius.circular(10)),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: const [
+                            children:  [
                               Icon(Icons.menu_book_rounded, size: 14, color: Colors.black54),
                               SizedBox(width: 6),
-                              Text("Recipe", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
+                              Text('my_plan.recipe'.tr(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
                             ],
                           ),
                         ),
@@ -644,11 +644,11 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                   children: [
                     Text(mealName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF111827))),
                     const SizedBox(height: 2),
-                    Text("$calories kcal", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    Text("$calories ${'my_plan.kcal'.tr()}", style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     const SizedBox(height: 4),
                     GestureDetector(
                       onTap: () => _showRecipeDetails(context, mealName),
-                      child: const Text("View details ->", style: TextStyle(color: Color(0xFF388E3C), fontSize: 12, fontWeight: FontWeight.w600)),
+                      child:  Text('my_plan.view_details'.tr(), style: TextStyle(color: Color(0xFF388E3C), fontSize: 12, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
@@ -690,9 +690,9 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
               children: [
                 Icon(Icons.no_meals_rounded, color: Colors.grey.shade400, size: 30),
                 const SizedBox(width: 16),
-                const Expanded(
+                 Expanded(
                   child: Text(
-                    "No meals logged yet. Log your food to see it here!",
+                    'my_plan.no_meals'.tr(),
                     style: TextStyle(color: Colors.grey, fontSize: 13),
                   ),
                 ),
@@ -732,9 +732,9 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
             children: [
               Icon(Icons.cookie_outlined, color: Colors.grey.shade400, size: 30),
               const SizedBox(width: 16),
-              const Expanded(
+               Expanded(
                 child: Text(
-                  "No snacks logged yet.",
+                  'my_plan.no_snacks'.tr(),
                   style: TextStyle(color: Colors.grey, fontSize: 13),
                 ),
               ),
@@ -958,7 +958,7 @@ class _RecipeDetailsSheetState extends State<_RecipeDetailsSheet> {
         // Custom Macro progress indicator bars
         _buildMacroRow("Carbohydrates", carbs, totalMacros > 0 ? carbs / totalMacros : 0, const Color(0xFFFFA726), "g"),
         const SizedBox(height: 12),
-        _buildMacroRow("Protein", protein, totalMacros > 0 ? protein / totalMacros : 0, const Color(0xFF66BB6A), "g"),
+        _buildMacroRow('my_plan.protein'.tr(), protein, totalMacros > 0 ? protein / totalMacros : 0, const Color(0xFF66BB6A), "g"),
         const SizedBox(height: 12),
         _buildMacroRow("Fats", fats, totalMacros > 0 ? fats / totalMacros : 0, const Color(0xFFEF5350), "g"),
       ],

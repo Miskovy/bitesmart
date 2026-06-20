@@ -2,6 +2,7 @@ import 'package:bite_smart/features/home/data/repositories/engagement_repository
 import 'package:bite_smart/features/home/screens/leadeerBoard.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class FeaturedChallenge {
   final String badge;
@@ -28,27 +29,29 @@ class CommunityChallengesScreen extends StatefulWidget {
 }
 
 class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
+  List<FeaturedChallenge> get _featuredList => [
+    FeaturedChallenge(
+      badge: 'community.badge_trending'.tr(),
+      title: 'community.challenge1_title'.tr(),
+      subtitle: 'community.challenge1_subtitle'.tr(),
+      gradient: const [Color(0xFF2d7a4f), Color(0xFF1a5c38)],
+    ),
+    FeaturedChallenge(
+      badge: 'community.badge_new'.tr(),
+      title: 'community.challenge2_title'.tr(),
+      subtitle: 'community.challenge2_subtitle'.tr(),
+      gradient: const [Color(0xFF534AB7), Color(0xFF3C3489)],
+    ),
+  ];
+
   int _selectedTab = 0;
-  final List<String> _tabs = ['All Active', 'My Challenges', 'Starting'];
+  List<String> get _tabs => ['community.all_active'.tr(), 'community.my_challenges'.tr(), 'community.starting'.tr()];
 
   bool _isLoading = true;
   List<CommunityChallenge> _allChallenges = [];
   final Set<String> _locallyJoinedIds = {};
 
-  final List<FeaturedChallenge> _featured = const [
-    FeaturedChallenge(
-      badge: '🔥 TRENDING',
-      title: '7-Day Sugar-Free',
-      subtitle: 'Reset your insulin levels and...',
-      gradient: [Color(0xFF2d7a4f), Color(0xFF1a5c38)],
-    ),
-    FeaturedChallenge(
-      badge: '✨ NEW',
-      title: 'Walk 10k Steps',
-      subtitle: 'Walk 10,000 steps daily to...',
-      gradient: [Color(0xFF534AB7), Color(0xFF3C3489)],
-    ),
-  ];
+
 
   @override
   void initState() {
@@ -96,7 +99,7 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('${'community.error'.tr()} $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -185,16 +188,16 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      padding:  EdgeInsets.fromLTRB(20, 16, 20, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
+            children:  [
               Text(
-                'Community Challenges',
+                'community.title'.tr(),
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
@@ -203,7 +206,7 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
               ),
               SizedBox(height: 2),
               Text(
-                'Push your limits together.',
+                'community.subtitle'.tr(),
                 style: TextStyle(fontSize: 13, color: Color(0xFF888888)),
               ),
             ],
@@ -224,8 +227,8 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Featured',
+               Text(
+                'community.featured'.tr(),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -251,7 +254,7 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                 ),
-                child: const Text('Leaderboard'),
+                child: Text('community.leaderboard_btn'.tr()),
               ),
             ],
           ),
@@ -261,10 +264,10 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: _featured.length,
+            itemCount: _featuredList.length,
             separatorBuilder: (_, _) => const SizedBox(width: 12),
             itemBuilder: (context, index) =>
-                _buildFeaturedCard(_featured[index]),
+                _buildFeaturedCard(_featuredList[index]),
           ),
         ),
         const SizedBox(height: 4),
@@ -378,7 +381,7 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
                       ),
                     ),
                     child: Text(
-                      isJoined ? '✓ Joined' : 'Join Challenge',
+                      isJoined ? 'community.joined'.tr() : 'community.join_challenge'.tr(),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white,
@@ -460,10 +463,10 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
+         Padding(
           padding: EdgeInsets.fromLTRB(20, 8, 20, 10),
           child: Text(
-            'Ongoing Challenges',
+            'community.ongoing'.tr(),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -472,11 +475,11 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
           ),
         ),
         if (list.isEmpty)
-          const Padding(
+           Padding(
             padding: EdgeInsets.all(32),
             child: Center(
               child: Text(
-                'No challenges found in this section.',
+                'community.no_challenges'.tr(),
                 style: TextStyle(color: Colors.grey, fontSize: 14),
               ),
             ),
@@ -544,7 +547,7 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${c.category} · ${c.durationDays} days left · Goal: ${c.targetValue} ${c.unit}',
+                      '${_getCategoryTranslation(c.category)} · ${c.durationDays} ${'community.days_left'.tr()} · Goal: ${c.targetValue} ${c.unit}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFFAAAAAA),
@@ -567,7 +570,7 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
                 children: [
                   const SizedBox(width: 8),
                   Text(
-                    '${c.participantsCount > 0 ? c.participantsCount : 120} participants',
+                    '${c.participantsCount > 0 ? c.participantsCount : 120} ${'community.participants'.tr()}',
                     style: const TextStyle(
                       fontSize: 12,
                       color: Color(0xFFAAAAAA),
@@ -577,8 +580,8 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
               ),
               Text(
                 c.isJoined
-                    ? 'Your Progress: ${(progressVal * 100).toInt()}%'
-                    : 'Global Goal',
+                    ? '${'community.your_progress'.tr()} ${(progressVal * 100).toInt()}%'
+                    : 'community.global_goal'.tr(),
                 style: const TextStyle(
                   fontSize: 12,
                   color: Color(0xFFAAAAAA),
@@ -616,8 +619,8 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
             borderRadius: BorderRadius.circular(20),
           ),
         ),
-        child: const Text(
-          '✓ Joined',
+        child: Text(
+          'community.joined'.tr(),
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         ),
       );
@@ -635,11 +638,25 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
             borderRadius: BorderRadius.circular(20),
           ),
         ),
-        child: const Text(
-          'Join',
+        child: Text(
+          'community.join'.tr(),
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         ),
       );
     }
+  }
+}
+
+
+String _getCategoryTranslation(String cat) {
+  switch (cat.toLowerCase()) {
+    case 'diet':
+      return 'community.category_diet'.tr();
+    case 'hydration':
+      return 'community.category_hydration'.tr();
+    case 'activity':
+      return 'community.category_activity'.tr();
+    default:
+      return 'community.category_general'.tr();
   }
 }
